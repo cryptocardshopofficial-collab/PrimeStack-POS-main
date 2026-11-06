@@ -2,227 +2,903 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <title>PrimeStack GSN — Developer Portal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
-:root{--bg:#050a14;--bg2:#07101e;--blue:#0ea5e9;--violet:#8b5cf6;--emerald:#10b981;--gold:#f59e0b;--rose:#f43f5e;--text:#e2e8f0;--muted:#64748b;--border:rgba(255,255,255,.08);--card:rgba(255,255,255,.03)}
+:root{
+  --bg:#020914; --bg2:#050e1e; --bg3:#081628;
+  --blue:#0ea5e9; --violet:#8b5cf6; --emerald:#10b981;
+  --gold:#f59e0b; --rose:#f43f5e;
+  --text:#e2e8f0; --muted:#64748b;
+  --border:rgba(14,165,233,.12);
+  --card:rgba(14,165,233,.03);
+}
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;line-height:1.6;min-height:100vh}
-h1,h2,h3{font-family:'Space Grotesk',sans-serif;line-height:1.3}
+html{scroll-behavior:smooth}
+body{
+  background:var(--bg);color:var(--text);
+  font-family:'Inter',sans-serif;line-height:1.6;
+  overflow-x:hidden;
+}
+h1,h2,h3,h4{font-family:'Space Grotesk',sans-serif;line-height:1.2}
 code,pre{font-family:'JetBrains Mono',monospace}
-.card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:24px;margin-bottom:20px}
-.card-title{font-size:1rem;font-weight:600;margin-bottom:12px;color:#fff}
-.muted{color:var(--muted);font-size:.82rem}
-.mono{font-family:'JetBrains Mono',monospace;font-size:.85rem}
-.copy-btn{background:rgba(14,165,233,.1);border:1px solid rgba(14,165,233,.3);color:var(--blue);padding:4px 10px;border-radius:6px;font-size:.7rem;cursor:pointer;margin-left:8px;transition:.2s}
+a{color:var(--blue);text-decoration:none}
+::selection{background:rgba(14,165,233,.3)}
+
+/* ─── Scrollbar ─── */
+::-webkit-scrollbar{width:4px}
+::-webkit-scrollbar-track{background:var(--bg)}
+::-webkit-scrollbar-thumb{background:linear-gradient(var(--blue),var(--violet));border-radius:2px}
+
+/* ─── Grid bg ─── */
+body::before{
+  content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
+  background:
+    linear-gradient(rgba(14,165,233,.04) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(14,165,233,.04) 1px,transparent 1px);
+  background-size:64px 64px;
+  animation:gridPulse 8s ease-in-out infinite;
+}
+@keyframes gridPulse{0%,100%{opacity:.4}50%{opacity:.8}}
+
+/* ─── Orbs ─── */
+.orb{position:fixed;border-radius:50%;filter:blur(130px);pointer-events:none;z-index:0}
+.orb1{width:700px;height:700px;background:rgba(14,165,233,.08);top:-200px;left:-200px;animation:drift1 20s ease-in-out infinite}
+.orb2{width:600px;height:600px;background:rgba(139,92,246,.07);bottom:-150px;right:-150px;animation:drift2 25s ease-in-out infinite}
+.orb3{width:400px;height:400px;background:rgba(16,185,129,.06);top:40%;left:50%;animation:drift3 18s ease-in-out infinite}
+@keyframes drift1{0%,100%{transform:translate(0,0)}50%{transform:translate(60px,40px)}}
+@keyframes drift2{0%,100%{transform:translate(0,0)}50%{transform:translate(-40px,-60px)}}
+@keyframes drift3{0%,100%{transform:translate(-50%,-50%)}50%{transform:translate(calc(-50% + 80px),calc(-50% - 40px))}}
+
+/* ─── NAV ─── */
+nav{
+  position:fixed;top:0;left:0;right:0;z-index:100;
+  height:64px;display:flex;align-items:center;justify-content:space-between;
+  padding:0 5%;
+  background:rgba(2,9,20,.85);backdrop-filter:blur(24px);
+  border-bottom:1px solid var(--border);
+}
+.nav-logo{display:flex;align-items:center;gap:10px;font-family:'Space Grotesk',sans-serif;font-size:1.2rem;font-weight:700}
+.nav-logo-dot{width:8px;height:8px;border-radius:50%;background:var(--blue);box-shadow:0 0 12px var(--blue);animation:pulse 2s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(.7)}}
+.nav-logo span{background:linear-gradient(135deg,var(--blue),var(--violet));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.nav-links{display:flex;gap:28px}
+.nav-links a{font-size:.85rem;color:var(--muted);transition:.2s}
+.nav-links a:hover{color:var(--text)}
+.nav-btn{
+  background:linear-gradient(135deg,var(--blue),var(--violet));
+  color:#fff;padding:8px 20px;border-radius:8px;
+  font-size:.82rem;font-weight:600;border:none;cursor:pointer;
+  transition:.2s;
+}
+.nav-btn:hover{transform:translateY(-1px);box-shadow:0 4px 20px rgba(14,165,233,.4)}
+
+/* ─── HERO ─── */
+.hero{
+  position:relative;z-index:1;min-height:100vh;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  text-align:center;padding:100px 5% 60px;
+}
+.hero-pill{
+  display:inline-flex;align-items:center;gap:8px;
+  background:rgba(14,165,233,.08);border:1px solid rgba(14,165,233,.25);
+  color:var(--blue);padding:6px 16px;border-radius:100px;
+  font-size:.78rem;font-weight:500;margin-bottom:32px;
+  animation:fadeUp .8s ease both;
+}
+.hero-pill-dot{width:6px;height:6px;border-radius:50%;background:var(--blue);box-shadow:0 0 8px var(--blue);animation:pulse 2s infinite}
+.hero h1{
+  font-size:clamp(52px,8vw,96px);font-weight:700;letter-spacing:-3px;
+  margin-bottom:20px;line-height:1;
+  background:linear-gradient(135deg,#fff 0%,rgba(255,255,255,.9) 30%,var(--blue) 60%,var(--violet) 100%);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+  animation:fadeUp .8s ease .1s both;
+}
+.hero-sub{
+  font-size:clamp(16px,2.5vw,22px);color:var(--muted);
+  max-width:700px;margin:0 auto 12px;
+  animation:fadeUp .8s ease .2s both;
+}
+.hero-tags{
+  display:flex;flex-wrap:wrap;justify-content:center;gap:8px;
+  margin:20px auto 36px;max-width:600px;
+  animation:fadeUp .8s ease .3s both;
+}
+.hero-tag{
+  background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);
+  padding:5px 14px;border-radius:100px;font-size:.75rem;
+  font-family:'JetBrains Mono',monospace;color:var(--muted);
+}
+.hero-btns{display:flex;gap:14px;justify-content:center;animation:fadeUp .8s ease .4s both}
+.btn-primary{
+  background:linear-gradient(135deg,var(--blue),var(--violet));
+  color:#fff;padding:14px 32px;border-radius:10px;
+  font-size:.95rem;font-weight:600;border:none;cursor:pointer;transition:.3s;
+}
+.btn-primary:hover{transform:translateY(-2px);box-shadow:0 8px 32px rgba(14,165,233,.4)}
+.btn-ghost{
+  background:rgba(255,255,255,.05);color:var(--text);
+  padding:14px 32px;border-radius:10px;font-size:.95rem;font-weight:600;
+  border:1px solid rgba(255,255,255,.1);cursor:pointer;transition:.3s;
+}
+.btn-ghost:hover{background:rgba(255,255,255,.09);transform:translateY(-2px)}
+@keyframes fadeUp{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:translateY(0)}}
+
+/* ─── MARQUEE ─── */
+.marquee-section{
+  position:relative;z-index:1;padding:16px 0;overflow:hidden;
+  border-top:1px solid var(--border);border-bottom:1px solid var(--border);
+  background:linear-gradient(90deg,var(--bg) 0%,rgba(14,165,233,.03) 50%,var(--bg) 100%);
+}
+.marquee-track{display:flex;width:max-content;animation:marqueeScroll 35s linear infinite}
+.marquee-track:hover{animation-play-state:paused}
+.marquee-item{
+  white-space:nowrap;padding:0 36px;font-size:.8rem;
+  font-family:'JetBrains Mono',monospace;color:var(--muted);
+  display:flex;align-items:center;gap:10px;
+}
+.marquee-item span{color:var(--blue)}
+@keyframes marqueeScroll{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+
+/* ─── SECTIONS ─── */
+section{position:relative;z-index:1;padding:100px 5%}
+.section-badge{
+  display:inline-block;background:rgba(139,92,246,.08);
+  border:1px solid rgba(139,92,246,.2);color:var(--violet);
+  padding:5px 14px;border-radius:100px;font-size:.72rem;
+  font-weight:600;text-transform:uppercase;letter-spacing:.1em;margin-bottom:16px;
+}
+.section-title{
+  font-size:clamp(30px,4vw,52px);font-weight:700;margin-bottom:14px;
+  background:linear-gradient(135deg,#fff,rgba(255,255,255,.7));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+}
+.section-sub{font-size:1rem;color:var(--muted);max-width:580px;line-height:1.7}
+
+/* ─── REVEAL ANIMATIONS ─── */
+.reveal{opacity:0;transform:translateY(40px);transition:opacity .7s ease,transform .7s ease}
+.reveal.visible{opacity:1;transform:translateY(0)}
+.reveal-left{opacity:0;transform:translateX(-40px);transition:opacity .7s ease,transform .7s ease}
+.reveal-left.visible{opacity:1;transform:translateX(0)}
+.reveal-right{opacity:0;transform:translateX(40px);transition:opacity .7s ease,transform .7s ease}
+.reveal-right.visible{opacity:1;transform:translateX(0)}
+.d1{transition-delay:.1s}.d2{transition-delay:.2s}.d3{transition-delay:.3s}.d4{transition-delay:.4s}.d5{transition-delay:.5s}
+
+/* ─── CREDENTIALS ─── */
+.cred-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:32px}
+.cred-card{
+  background:var(--card);border:1px solid var(--border);border-radius:12px;
+  padding:20px;transition:.3s;cursor:default;position:relative;overflow:hidden;
+}
+.cred-card::after{
+  content:'';position:absolute;inset:0;
+  background:linear-gradient(135deg,rgba(14,165,233,.05),transparent);
+  opacity:0;transition:.3s;
+}
+.cred-card:hover{border-color:rgba(14,165,233,.3);transform:translateY(-2px)}
+.cred-card:hover::after{opacity:1}
+.cred-label{font-size:.65rem;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px}
+.cred-value{font-family:'JetBrains Mono',monospace;font-size:.82rem;color:var(--blue);word-break:break-all;line-height:1.5}
+.cred-value.highlight{color:#fff;font-size:.95rem;font-weight:600}
+.copy-btn{
+  position:absolute;top:12px;right:12px;
+  background:rgba(14,165,233,.1);border:1px solid rgba(14,165,233,.2);
+  color:var(--blue);padding:3px 10px;border-radius:6px;
+  font-size:.65rem;cursor:pointer;transition:.2s;opacity:0;
+}
+.cred-card:hover .copy-btn{opacity:1}
 .copy-btn:hover{background:rgba(14,165,233,.2)}
-pre{background:#0d0f17;border:1px solid var(--border);border-radius:8px;padding:16px;overflow-x:auto;font-size:.78rem;line-height:1.8;color:#94a3b8}
-.k{color:#60a5fa}.s{color:#86efac}.n{color:#fbbf24}.c{color:#64748b}
-.flow-step{display:flex;align-items:flex-start;gap:12px;padding:12px 0}
-.flow-num{width:28px;height:28px;border-radius:50%;color:#fff;display:flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:700;flex-shrink:0}
-.flow-line{width:2px;height:16px;background:var(--border);margin-left:14px}
-.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
-.cred-row{display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)}
-.cred-row:last-child{border:none}
-.cred-label{font-size:.68rem;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
-.cred-value{font-family:'JetBrains Mono',monospace;font-size:.85rem;color:var(--blue)}
-.badge{padding:2px 8px;border-radius:4px;font-size:.68rem;font-weight:600;display:inline-block}
-.badge-blue{background:rgba(14,165,233,.1);border:1px solid rgba(14,165,233,.2);color:var(--blue)}
-.badge-green{background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.2);color:var(--emerald)}
-.badge-gold{background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.2);color:var(--gold)}
-.section-divider{height:1px;background:linear-gradient(90deg,transparent,var(--border),transparent);margin:32px 0}
-.container{max-width:920px;margin:0 auto;padding:40px 20px}
+
+/* ─── T2T FLOW ─── */
+.flow-grid{display:flex;flex-direction:column;gap:0;margin-top:40px;max-width:720px}
+.flow-step{
+  display:flex;align-items:flex-start;gap:16px;
+  padding:20px;border-radius:12px;
+  background:var(--card);border:1px solid var(--border);
+  margin-bottom:2px;transition:.3s;
+  position:relative;
+}
+.flow-step:hover{border-color:rgba(14,165,233,.3);background:rgba(14,165,233,.04)}
+.flow-step::before{
+  content:'';position:absolute;left:31px;bottom:-12px;
+  width:2px;height:12px;
+  background:linear-gradient(to bottom,var(--blue),transparent);
+}
+.flow-step:last-child::before{display:none}
+.flow-num{
+  width:30px;height:30px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-size:.75rem;font-weight:700;color:#fff;flex-shrink:0;
+}
+.flow-step h4{font-size:.9rem;font-weight:600;margin-bottom:4px;color:#fff}
+.flow-step p{font-size:.82rem;color:var(--muted);line-height:1.6}
+.flow-step code{font-family:'JetBrains Mono',monospace;font-size:.75rem;color:var(--blue);background:rgba(14,165,233,.08);padding:1px 6px;border-radius:4px}
+
+/* ─── CODE BLOCK ─── */
+.code-block{background:#0a0f1e;border:1px solid var(--border);border-radius:12px;overflow:hidden}
+.code-header{
+  background:rgba(255,255,255,.03);padding:12px 18px;
+  display:flex;align-items:center;justify-content:space-between;
+  border-bottom:1px solid var(--border);
+}
+.code-dots{display:flex;gap:6px}
+.code-dots span{width:11px;height:11px;border-radius:50%}
+.code-filename{font-family:'JetBrains Mono',monospace;font-size:.72rem;color:var(--muted)}
+pre.code-body{
+  padding:20px;font-size:.78rem;line-height:1.9;color:#94a3b8;
+  overflow-x:auto;background:transparent;border:none;border-radius:0;
+}
+.kw{color:#60a5fa}.str{color:#86efac}.fn{color:#fbbf24}.cm{color:#475569}.num{color:#f9a8d4}.var{color:#c4b5fd}
+
+/* ─── SEND SECTION ─── */
+.sender-box{
+  background:rgba(139,92,246,.04);border:1px solid rgba(139,92,246,.2);
+  border-radius:16px;padding:32px;
+}
+.receiver-box{
+  background:rgba(16,185,129,.04);border:1px solid rgba(16,185,129,.2);
+  border-radius:16px;padding:32px;
+}
+.box-title{
+  font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.12em;
+  margin-bottom:16px;display:flex;align-items:center;gap:8px;
+}
+.box-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.06)}
+.box-row:last-child{border:none}
+.box-key{font-size:.78rem;color:var(--muted)}
+.box-val{font-family:'JetBrains Mono',monospace;font-size:.78rem;color:var(--text)}
+.box-val.em{color:var(--blue);font-weight:600}
+
+/* ─── RESPONSE ─── */
+.response-card{
+  background:#060d1a;border:1px solid rgba(16,185,129,.2);
+  border-left:3px solid var(--emerald);border-radius:12px;padding:20px;
+}
+
+/* ─── FEE BOX ─── */
+.fee-row{display:flex;gap:16px;margin-top:32px}
+.fee-card{
+  flex:1;padding:24px;border-radius:12px;text-align:center;
+  border:1px solid;transition:.3s;
+}
+.fee-card:hover{transform:translateY(-3px)}
+.fee-pct{font-size:3rem;font-weight:700;letter-spacing:-.04em;display:block;margin-bottom:6px}
+.fee-label{font-size:.78rem;color:var(--muted)}
+
+/* ─── PING CARD ─── */
+.ping-card{
+  background:var(--card);border:1px solid var(--border);
+  border-radius:16px;padding:28px;margin-top:32px;
+}
+.ping-title{font-size:1rem;font-weight:600;margin-bottom:12px;color:#fff;display:flex;align-items:center;gap:8px}
+.ping-live{
+  display:inline-flex;align-items:center;gap:6px;
+  font-size:.72rem;color:var(--emerald);
+  background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.2);
+  padding:2px 10px;border-radius:100px;
+}
+.ping-live::before{content:'';width:5px;height:5px;border-radius:50%;background:var(--emerald);box-shadow:0 0 6px var(--emerald);animation:pulse 2s infinite}
+.ping-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
+.ping-stat{
+  background:rgba(255,255,255,.03);border:1px solid var(--border);
+  border-radius:8px;padding:12px;text-align:center;
+}
+.ping-val{font-size:1.4rem;font-weight:700;font-family:'Space Grotesk',sans-serif}
+.ping-lbl{font-size:.68rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+
+/* ─── BANKS ─── */
+.banks-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin-top:32px}
+.bank-card{
+  background:var(--card);border:1px solid var(--border);
+  border-radius:12px;padding:18px;transition:.3s;
+}
+.bank-card:hover{border-color:rgba(14,165,233,.3);transform:translateY(-2px)}
+.bank-flag{font-size:1.8rem;margin-bottom:10px;display:block}
+.bank-name{font-size:.88rem;font-weight:600;margin-bottom:4px;color:#fff}
+.bank-sub{font-size:.72rem;color:var(--muted);font-family:'JetBrains Mono',monospace}
+.bank-tags{display:flex;gap:5px;flex-wrap:wrap;margin-top:10px}
+.bank-tag{
+  padding:2px 8px;border-radius:100px;font-size:.62rem;font-weight:600;
+  background:rgba(14,165,233,.08);border:1px solid rgba(14,165,233,.15);color:var(--blue);
+}
+.bank-tag.green{background:rgba(16,185,129,.08);border-color:rgba(16,185,129,.2);color:var(--emerald)}
+
+/* ─── SECURITY TICKER ─── */
+.sec-ticker{
+  overflow:hidden;padding:14px 0;
+  border-top:1px solid rgba(16,185,129,.1);
+  border-bottom:1px solid rgba(16,185,129,.1);
+  background:rgba(16,185,129,.02);
+}
+.sec-track{display:flex;width:max-content;animation:marqueeScroll 42s linear infinite}
+.sec-item{
+  white-space:nowrap;padding:0 28px;
+  font-size:.75rem;font-family:'JetBrains Mono',monospace;color:rgba(16,185,129,.6);
+}
+.sec-item span{color:var(--emerald)}
+
+/* ─── GLOW LINE ─── */
+.glow-line{height:1px;background:linear-gradient(90deg,transparent,var(--blue),var(--violet),transparent);position:relative;z-index:1}
+
+/* ─── DIVIDER ─── */
+.divider{height:1px;background:var(--border);position:relative;z-index:1}
+
+/* ─── FOOTER ─── */
+footer{
+  position:relative;z-index:1;
+  padding:48px 5% 32px;
+  border-top:1px solid var(--border);
+  background:var(--bg2);
+  text-align:center;
+}
+footer p{font-size:.8rem;color:var(--muted)}
+footer .footer-logo{font-family:'Space Grotesk',sans-serif;font-size:1.4rem;font-weight:700;margin-bottom:10px}
+footer .footer-logo span{background:linear-gradient(135deg,var(--blue),var(--violet));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+
+/* ─── Responsive ─── */
+@media(max-width:768px){
+  .nav-links{display:none}
+  .cred-grid{grid-template-columns:1fr}
+  .fee-row{flex-direction:column}
+  .ping-row{grid-template-columns:1fr 1fr}
+}
 </style>
 </head>
 <body>
-<div class="container">
 
-<h1 style="font-size:2rem;margin-bottom:4px">PrimeStack Global Server Network</h1>
-<p class="muted" style="margin-bottom:32px;font-size:.9rem">Developer Portal — Terminal-to-Terminal Integration Guide</p>
+<div class="orb orb1"></div>
+<div class="orb orb2"></div>
+<div class="orb orb3"></div>
 
-<!-- ═══ PLATFORM CREDENTIALS ═══ -->
-<div class="card" style="border-left:4px solid var(--blue)">
-  <div class="card-title" style="font-size:1.1rem">Your Platform Credentials</div>
-  <p class="muted" style="margin-bottom:16px">Share these with any customer who wants to send a T2T transfer to your terminal.</p>
-  <div style="background:#0d0f17;border:1px solid var(--border);border-radius:8px;padding:16px">
-    <div class="cred-row"><span class="cred-label">Server URL</span><span class="cred-value">https://primestack-global-server-network.onrender.com</span></div>
-    <div class="cred-row"><span class="cred-label">Server IP</span><span class="cred-value">217.165.16.186</span></div>
-    <div class="cred-row"><span class="cred-label">HMAC Key ID</span><span class="cred-value">psk_demo_key_001</span></div>
-    <div class="cred-row"><span class="cred-label">HMAC Secret</span><span class="cred-value" style="color:var(--rose)">Provided at onboarding</span></div>
-    <div class="cred-row"><span class="cred-label">Your Terminal (receiver)</span><span class="cred-value">PST-001-PRIME</span></div>
-    <div class="cred-row"><span class="cred-label">Merchant ID</span><span class="cred-value">MID-PRIMESTACK-001</span></div>
-    <div class="cred-row"><span class="cred-label">Health Check</span><span class="cred-value">/health</span></div>
+<!-- NAV -->
+<nav>
+  <div class="nav-logo">
+    <div class="nav-logo-dot"></div>
+    Prime<span>Stack</span>&nbsp;GSN
+  </div>
+  <div class="nav-links">
+    <a href="#credentials">Credentials</a>
+    <a href="#t2t">T2T Guide</a>
+    <a href="#ping">Ping</a>
+    <a href="#banks">Banking</a>
+    <a href="#legal">Legal</a>
+  </div>
+  <button class="nav-btn" onclick="document.getElementById('credentials').scrollIntoView({behavior:'smooth'})">Get Started</button>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-pill"><span class="hero-pill-dot"></span>Global Payment Infrastructure · v201.3</div>
+  <h1>PrimeStack<br>Global Server Network</h1>
+  <p class="hero-sub">Accept funds from any terminal, any country, any bank — instantly. T2T transfers, S2S payments, multi-rail banking.</p>
+  <div class="hero-tags">
+    <span class="hero-tag">Terminal-to-Terminal</span>
+    <span class="hero-tag">External Terminals</span>
+    <span class="hero-tag">IP Whitelist</span>
+    <span class="hero-tag">HMAC-SHA256</span>
+    <span class="hero-tag">Any Country</span>
+    <span class="hero-tag">Instant Settlement</span>
+  </div>
+  <div class="hero-btns">
+    <button class="btn-primary" onclick="document.getElementById('credentials').scrollIntoView({behavior:'smooth'})">View Your Credentials</button>
+    <button class="btn-ghost" onclick="document.getElementById('t2t').scrollIntoView({behavior:'smooth'})">Integration Guide</button>
+  </div>
+</section>
+
+<!-- MARQUEE -->
+<div class="marquee-section">
+  <div class="marquee-track">
+    <span class="marquee-item"><span>◆</span> Terminal-to-Terminal</span>
+    <span class="marquee-item"><span>◆</span> Any Country</span>
+    <span class="marquee-item"><span>◆</span> AES-256-GCM Encryption</span>
+    <span class="marquee-item"><span>◆</span> HMAC-SHA256 Auth</span>
+    <span class="marquee-item"><span>◆</span> IP Whitelist</span>
+    <span class="marquee-item"><span>◆</span> Instant Ledger Entry</span>
+    <span class="marquee-item"><span>◆</span> South Africa</span>
+    <span class="marquee-item"><span>◆</span> UAE</span>
+    <span class="marquee-item"><span>◆</span> United Kingdom</span>
+    <span class="marquee-item"><span>◆</span> Singapore</span>
+    <span class="marquee-item"><span>◆</span> India</span>
+    <span class="marquee-item"><span>◆</span> Germany</span>
+    <span class="marquee-item"><span>◆</span> United States</span>
+    <span class="marquee-item"><span>◆</span> SWIFT / SEPA / ACH / UPI</span>
+    <span class="marquee-item"><span>◆</span> 130+ API Endpoints</span>
+    <span class="marquee-item"><span>◆</span> Double-Entry Ledger</span>
+    <span class="marquee-item"><span>◆</span> Nonce Replay Protection</span>
+    <span class="marquee-item"><span>◆</span> Auto-Create External Terminals</span>
+    <!-- duplicate for seamless loop -->
+    <span class="marquee-item"><span>◆</span> Terminal-to-Terminal</span>
+    <span class="marquee-item"><span>◆</span> Any Country</span>
+    <span class="marquee-item"><span>◆</span> AES-256-GCM Encryption</span>
+    <span class="marquee-item"><span>◆</span> HMAC-SHA256 Auth</span>
+    <span class="marquee-item"><span>◆</span> IP Whitelist</span>
+    <span class="marquee-item"><span>◆</span> Instant Ledger Entry</span>
+    <span class="marquee-item"><span>◆</span> South Africa</span>
+    <span class="marquee-item"><span>◆</span> UAE</span>
+    <span class="marquee-item"><span>◆</span> United Kingdom</span>
+    <span class="marquee-item"><span>◆</span> Singapore</span>
+    <span class="marquee-item"><span>◆</span> India</span>
+    <span class="marquee-item"><span>◆</span> Germany</span>
+    <span class="marquee-item"><span>◆</span> United States</span>
+    <span class="marquee-item"><span>◆</span> SWIFT / SEPA / ACH / UPI</span>
+    <span class="marquee-item"><span>◆</span> 130+ API Endpoints</span>
+    <span class="marquee-item"><span>◆</span> Double-Entry Ledger</span>
+    <span class="marquee-item"><span>◆</span> Nonce Replay Protection</span>
+    <span class="marquee-item"><span>◆</span> Auto-Create External Terminals</span>
   </div>
 </div>
 
-<div class="section-divider"></div>
+<div class="glow-line"></div>
 
-<!-- ═══ EXTERNAL T2T ═══ -->
-<h2 style="font-size:1.4rem;margin-bottom:16px">Receive Funds from Any External Terminal</h2>
-<p class="muted" style="margin-bottom:24px">Any terminal from any country (South Africa, UAE, UK, anywhere) can send funds to your terminal. The external terminal does NOT need to be registered on PrimeStack first — it is auto-created on the first transfer.</p>
-
-<!-- How it works -->
-<div class="card">
-  <div class="card-title">How External T2T Works</div>
-  <div class="flow-step"><div class="flow-num" style="background:var(--blue)">1</div><div><strong>Customer sends T2T request</strong><div class="muted">The customer's server calls your API with their terminal ID, amount, and your terminal ID as destination</div></div></div>
-  <div class="flow-line"></div>
-  <div class="flow-step"><div class="flow-num" style="background:var(--violet)">2</div><div><strong>HMAC authentication</strong><div class="muted">The request is verified using HMAC-SHA256 signature with the key ID and secret you provided</div></div></div>
-  <div class="flow-line"></div>
-  <div class="flow-step"><div class="flow-num" style="background:var(--gold)">3</div><div><strong>External terminal auto-created</strong><div class="muted">If the sender's terminal ID doesn't exist in PrimeStack, it's automatically registered as an external terminal</div></div></div>
-  <div class="flow-line"></div>
-  <div class="flow-step"><div class="flow-num" style="background:var(--emerald)">4</div><div><strong>Ledger entry posted</strong><div class="muted">Funds debited from sender terminal account, credited to your terminal account (PST-001-PRIME)</div></div></div>
-  <div class="flow-line"></div>
-  <div class="flow-step"><div class="flow-num" style="background:#18743a">5</div><div><strong>Transfer completed</strong><div class="muted">Both terminals receive updated balances. Reference and journal entry returned for reconciliation.</div></div></div>
-</div>
-
-<!-- What customer needs -->
-<div class="card" style="border-left:4px solid var(--violet)">
-  <div class="card-title">What the Customer (Sender) Needs to Provide</div>
-  <p class="muted" style="margin-bottom:12px">The customer sends a POST request to your server with these fields:</p>
-  <div style="background:#0d0f17;border:1px solid var(--border);border-radius:8px;padding:16px">
-    <div class="cred-row"><span class="cred-label">type</span><span class="mono">"T2T" <span class="badge badge-blue">required</span></span></div>
-    <div class="cred-row"><span class="cred-label">amount</span><span class="mono">"1000.00" <span class="badge badge-blue">required</span></span></div>
-    <div class="cred-row"><span class="cred-label">currency</span><span class="mono">"USD" <span class="badge badge-blue">required</span></span></div>
-    <div class="cred-row"><span class="cred-label">sourceType</span><span class="mono">"TERMINAL" <span class="badge badge-blue">required</span></span></div>
-    <div class="cred-row"><span class="cred-label">sourceId</span><span class="mono">"SA-TERM-001" <span class="badge badge-blue">required</span> <span class="muted">— their own terminal ID (any name)</span></span></div>
-    <div class="cred-row"><span class="cred-label">destType</span><span class="mono">"TERMINAL" <span class="badge badge-blue">required</span></span></div>
-    <div class="cred-row"><span class="cred-label">destId</span><span class="mono">"PST-001-PRIME" <span class="badge badge-blue">required</span> <span class="muted">— YOUR terminal ID</span></span></div>
-    <div class="cred-row"><span class="cred-label">description</span><span class="mono">"Payment for services" <span class="badge badge-green">optional</span></span></div>
+<!-- CREDENTIALS -->
+<section id="credentials">
+  <div class="reveal">
+    <div class="section-badge">Platform Credentials</div>
+    <h2 class="section-title">Your Receiving Details</h2>
+    <p class="section-sub">Share these 4 items with any customer who wants to send you funds via T2T transfer. Copy and paste each value.</p>
   </div>
-  <div style="margin-top:12px;padding:12px;background:rgba(16,185,129,.04);border:1px solid rgba(16,185,129,.15);border-radius:8px">
-    <strong style="font-size:.82rem;color:var(--emerald)">Key point:</strong>
-    <span class="muted" style="font-size:.82rem">The customer uses their OWN terminal ID as sourceId (e.g., "SA-TERM-001" for a South Africa terminal). It does not need to be pre-registered. Your terminal "PST-001-PRIME" is the destination.</span>
+  <div class="cred-grid">
+    <div class="cred-card reveal d1">
+      <button class="copy-btn" onclick="cp(this,'https://primestack-global-server-network.onrender.com')">copy</button>
+      <div class="cred-label">Server URL (API Endpoint)</div>
+      <div class="cred-value">https://primestack-global-server-network.onrender.com</div>
+    </div>
+    <div class="cred-card reveal d2">
+      <button class="copy-btn" onclick="cp(this,'217.165.16.186')">copy</button>
+      <div class="cred-label">Server IP Address</div>
+      <div class="cred-value">217.165.16.186</div>
+    </div>
+    <div class="cred-card reveal d3" style="border-color:rgba(14,165,233,.3)">
+      <button class="copy-btn" onclick="cp(this,'psk_8c404d74df8344f6f3c27d767bc64694c7571fdf00d6e4da')">copy</button>
+      <div class="cred-label">HMAC Key ID (Public — Safe to Share)</div>
+      <div class="cred-value">psk_8c404d74df8344f6f3c27d767bc64694c7571fdf00d6e4da</div>
+    </div>
+    <div class="cred-card reveal d4" style="border-color:rgba(16,185,129,.3)">
+      <button class="copy-btn" onclick="cp(this,'PST-001-PRIME')">copy</button>
+      <div class="cred-label">Your Terminal ID (Receiver)</div>
+      <div class="cred-value highlight" style="color:var(--emerald)">PST-001-PRIME</div>
+    </div>
+    <div class="cred-card reveal d1">
+      <button class="copy-btn" onclick="cp(this,'POST /t2t/whitelist')">copy</button>
+      <div class="cred-label">Step 1 — Whitelist Sender IP</div>
+      <div class="cred-value">POST /t2t/whitelist<br><span style="color:var(--muted);font-size:.72rem">Body: {"ip":"sender-ip","action":"add"}</span></div>
+    </div>
+    <div class="cred-card reveal d2">
+      <button class="copy-btn" onclick="cp(this,'POST /t2t/ping')">copy</button>
+      <div class="cred-label">Step 2 — Ping to Verify</div>
+      <div class="cred-value">POST /t2t/ping<br><span style="color:var(--muted);font-size:.72rem">Body: {"terminalId":"SA-TERM-001"}</span></div>
+    </div>
+    <div class="cred-card reveal d3">
+      <button class="copy-btn" onclick="cp(this,'POST /t2t/transfer')">copy</button>
+      <div class="cred-label">Step 3 — Send Transfer</div>
+      <div class="cred-value">POST /t2t/transfer<br><span style="color:var(--muted);font-size:.72rem">Body: {amount, currency, sourceId, destId}</span></div>
+    </div>
+    <div class="cred-card reveal d4">
+      <button class="copy-btn" onclick="cp(this,'GET /health')">copy</button>
+      <div class="cred-label">Health Check</div>
+      <div class="cred-value">GET /health<br><span style="color:var(--muted);font-size:.72rem">Returns: {"status":"ok"}</span></div>
+    </div>
   </div>
-</div>
-
-<!-- What you provide to customer -->
-<div class="card" style="border-left:4px solid var(--emerald)">
-  <div class="card-title">What You Provide to the Customer</div>
-  <p class="muted" style="margin-bottom:12px">Before they can send, give them these 4 things:</p>
-  <div style="background:#0d0f17;border:1px solid var(--border);border-radius:8px;padding:16px">
-    <div class="cred-row"><span class="cred-label">1. Server URL</span><span class="mono">https://primestack-global-server-network.onrender.com</span></div>
-    <div class="cred-row"><span class="cred-label">2. HMAC Key ID</span><span class="mono">psk_demo_key_001</span></div>
-    <div class="cred-row"><span class="cred-label">3. HMAC Secret</span><span class="mono" style="color:var(--rose)">their assigned secret (private)</span></div>
-    <div class="cred-row"><span class="cred-label">4. Your Terminal ID</span><span class="mono">PST-001-PRIME</span></div>
+  <div style="margin-top:16px;padding:16px 20px;background:rgba(245,158,11,.06);border:1px solid rgba(245,158,11,.2);border-radius:10px;font-size:.82rem;color:var(--muted)" class="reveal">
+    <strong style="color:var(--gold)">HMAC Secret</strong> — This is private. Never share it publicly. It is provided at onboarding and used to sign every API request. Keep it secure.
   </div>
-</div>
+</section>
 
-<!-- Complete code example -->
-<div class="card">
-  <div class="card-title">Complete Code — Customer Sends T2T Transfer</div>
-  <pre><span class="c">// The customer runs this on their server (e.g., in South Africa)</span>
-<span class="k">const</span> crypto = <span class="k">require</span>(<span class="s">'crypto'</span>);
+<div class="divider"></div>
 
-<span class="c">// You provided these to the customer:</span>
-<span class="k">const</span> SERVER  = <span class="s">'https://primestack-global-server-network.onrender.com'</span>;
-<span class="k">const</span> KEY_ID  = <span class="s">'psk_demo_key_001'</span>;
-<span class="k">const</span> SECRET  = <span class="s">'YOUR_HMAC_SECRET'</span>;  <span class="c">// you gave them this</span>
+<!-- T2T GUIDE -->
+<section id="t2t">
+  <div class="reveal">
+    <div class="section-badge">Integration Guide</div>
+    <h2 class="section-title">Terminal-to-Terminal Transfer</h2>
+    <p class="section-sub">Any external terminal from any country can send funds to your terminal. The external terminal is auto-created on the first transfer — no pre-registration needed.</p>
+  </div>
 
-<span class="c">// The transfer request body:</span>
-<span class="k">const</span> body = {
-  type:        <span class="s">'T2T'</span>,
-  amount:      <span class="s">'1000.00'</span>,
-  currency:    <span class="s">'USD'</span>,
-  sourceType:  <span class="s">'TERMINAL'</span>,
-  sourceId:    <span class="s">'SA-TERM-001'</span>,      <span class="c">// their terminal ID (auto-created)</span>
-  destType:    <span class="s">'TERMINAL'</span>,
-  destId:      <span class="s">'PST-001-PRIME'</span>,     <span class="c">// YOUR terminal ID</span>
-  description: <span class="s">'Payment from South Africa customer'</span>,
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:32px;margin-top:48px;align-items:start">
+    <!-- Left: flow steps -->
+    <div>
+      <div class="flow-grid">
+        <div class="flow-step reveal d1">
+          <div class="flow-num" style="background:var(--blue)">1</div>
+          <div>
+            <h4>Whitelist Sender IP</h4>
+            <p>Before any transfer can happen, you add the sender's server IP to your whitelist via <code>POST /t2t/whitelist</code>. Only whitelisted IPs can push funds to you.</p>
+          </div>
+        </div>
+        <div class="flow-step reveal d2">
+          <div class="flow-num" style="background:var(--violet)">2</div>
+          <div>
+            <h4>Sender Pings to Verify</h4>
+            <p>The sender calls <code>POST /t2t/ping</code> from their server. Response confirms their IP is whitelisted and the connection is live.</p>
+          </div>
+        </div>
+        <div class="flow-step reveal d3">
+          <div class="flow-num" style="background:var(--gold)">3</div>
+          <div>
+            <h4>External Terminal Auto-Created</h4>
+            <p>When the sender calls <code>POST /t2t/transfer</code>, if their terminal ID doesn't exist, it's automatically registered. No pre-setup needed.</p>
+          </div>
+        </div>
+        <div class="flow-step reveal d4">
+          <div class="flow-num" style="background:var(--emerald)">4</div>
+          <div>
+            <h4>Ledger Entry Posted</h4>
+            <p>Funds are debited from the sender's terminal account and credited to <code>PST-001-PRIME</code> via an immutable double-entry journal entry.</p>
+          </div>
+        </div>
+        <div class="flow-step reveal d5">
+          <div class="flow-num" style="background:var(--rose)">5</div>
+          <div>
+            <h4>Transfer Completed</h4>
+            <p>Reference, journal entry, new balance returned. Instant. No admin approval. Works from South Africa, UAE, UK, anywhere in the world.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right: what sender/receiver provides -->
+    <div>
+      <div class="sender-box reveal d1" style="margin-bottom:16px">
+        <div class="box-title" style="color:var(--violet)">
+          <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M17.25 8.25L21 12m0 0l-3.75 3.75M21 12H3"/></svg>
+          What the Sender Provides
+        </div>
+        <div class="box-row"><span class="box-key">type</span><span class="box-val em">"T2T"</span></div>
+        <div class="box-row"><span class="box-key">amount</span><span class="box-val">"1000.00"</span></div>
+        <div class="box-row"><span class="box-key">currency</span><span class="box-val">"USD" / "EUR" / "INR" / any</span></div>
+        <div class="box-row"><span class="box-key">sourceId</span><span class="box-val">"SA-TERM-001" <span style="color:var(--muted);font-size:.72rem">(their terminal ID)</span></span></div>
+        <div class="box-row"><span class="box-key">destId</span><span class="box-val em">PST-001-PRIME <span style="color:var(--muted);font-size:.72rem">(your terminal)</span></span></div>
+        <div class="box-row"><span class="box-key">x-primestack-key-id</span><span class="box-val" style="font-size:.7rem">psk_8c404d74...</span></div>
+        <div class="box-row"><span class="box-key">x-primestack-signature</span><span class="box-val" style="font-size:.7rem">HMAC-SHA256(secret, keyId+ts+body)</span></div>
+      </div>
+      <div class="receiver-box reveal d2">
+        <div class="box-title" style="color:var(--emerald)">
+          <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5l3.75-3.75M21 12H3m0 0l3.75 3.75M3 12l3.75-3.75"/></svg>
+          What You Give the Sender
+        </div>
+        <div class="box-row"><span class="box-key">Server URL</span><span class="box-val" style="font-size:.72rem">https://primestack-global-server-network.onrender.com</span></div>
+        <div class="box-row"><span class="box-key">HMAC Key ID</span><span class="box-val" style="font-size:.72rem">psk_8c404d74df8344f6f3c27d767bc64694c7571fdf00d6e4da</span></div>
+        <div class="box-row"><span class="box-key">HMAC Secret</span><span class="box-val" style="color:var(--rose)">Private — shared at onboarding</span></div>
+        <div class="box-row"><span class="box-key">Your Terminal ID</span><span class="box-val em" style="color:var(--emerald)">PST-001-PRIME</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- CODE EXAMPLE -->
+<section id="code" style="padding-top:60px">
+  <div class="reveal" style="text-align:center;margin-bottom:40px">
+    <div class="section-badge">Code Example</div>
+    <h2 class="section-title">Complete Transfer in Node.js</h2>
+  </div>
+  <div class="code-block reveal" style="max-width:800px;margin:0 auto">
+    <div class="code-header">
+      <div class="code-dots">
+        <span style="background:#f43f5e"></span>
+        <span style="background:#f59e0b"></span>
+        <span style="background:#10b981"></span>
+      </div>
+      <span class="code-filename">t2t-transfer.js — sender runs this</span>
+    </div>
+    <pre class="code-body"><span class="kw">const</span> crypto = <span class="fn">require</span>(<span class="str">'crypto'</span>);
+
+<span class="cm">// Credentials you received from PrimeStack GSN</span>
+<span class="kw">const</span> SERVER  = <span class="str">'https://primestack-global-server-network.onrender.com'</span>;
+<span class="kw">const</span> KEY_ID  = <span class="str">'psk_8c404d74df8344f6f3c27d767bc64694c7571fdf00d6e4da'</span>;
+<span class="kw">const</span> SECRET  = <span class="str">'YOUR_HMAC_SECRET'</span>; <span class="cm">// keep this private</span>
+
+<span class="cm">// Step 1 — Build the transfer body</span>
+<span class="kw">const</span> body = {
+  sourceId:    <span class="str">'SA-TERM-001'</span>,     <span class="cm">// your terminal ID</span>
+  destId:      <span class="str">'PST-001-PRIME'</span>,   <span class="cm">// receiver terminal</span>
+  amount:      <span class="str">'1000.00'</span>,
+  currency:    <span class="str">'USD'</span>,
+  description: <span class="str">'Payment from South Africa'</span>,
 };
 
-<span class="c">// Sign with HMAC:</span>
-<span class="k">const</span> bodyStr = JSON.stringify(body);
-<span class="k">const</span> ts = Date.now().toString();
-<span class="k">const</span> sig = crypto.createHmac(<span class="s">'sha256'</span>, SECRET)
-                    .update(KEY_ID + ts + bodyStr).digest(<span class="s">'hex'</span>);
+<span class="cm">// Step 2 — Sign with HMAC-SHA256</span>
+<span class="kw">const</span> bodyStr = <span class="fn">JSON.stringify</span>(body);
+<span class="kw">const</span> ts      = Date.now().toString();
+<span class="kw">const</span> sig     = crypto
+  .<span class="fn">createHmac</span>(<span class="str">'sha256'</span>, SECRET)
+  .<span class="fn">update</span>(KEY_ID + ts + bodyStr)
+  .<span class="fn">digest</span>(<span class="str">'hex'</span>);
 
-<span class="c">// Send the request:</span>
-<span class="k">const</span> res = <span class="k">await</span> fetch(SERVER + <span class="s">'/transfers'</span>, {
-  method: <span class="s">'POST'</span>,
+<span class="cm">// Step 3 — Send the transfer</span>
+<span class="kw">const</span> res = <span class="kw">await</span> <span class="fn">fetch</span>(SERVER + <span class="str">'/t2t/transfer'</span>, {
+  method: <span class="str">'POST'</span>,
   headers: {
-    <span class="s">'Content-Type'</span>: <span class="s">'application/json'</span>,
-    <span class="s">'x-primestack-key-id'</span>: KEY_ID,
-    <span class="s">'x-primestack-timestamp'</span>: ts,
-    <span class="s">'x-primestack-signature'</span>: sig,
+    <span class="str">'Content-Type'</span>:             <span class="str">'application/json'</span>,
+    <span class="str">'x-primestack-key-id'</span>:      KEY_ID,
+    <span class="str">'x-primestack-timestamp'</span>:   ts,
+    <span class="str">'x-primestack-signature'</span>:    sig,
   },
   body: bodyStr,
 });
 
-<span class="k">const</span> result = <span class="k">await</span> res.json();
-console.log(<span class="s">'Reference:'</span>, result.data.reference);
-console.log(<span class="s">'Status:'</span>, result.data.status);  <span class="c">// "COMPLETED"</span></pre>
-</div>
+<span class="kw">const</span> result = <span class="kw">await</span> res.<span class="fn">json</span>();
+console.<span class="fn">log</span>(result.data.reference);  <span class="cm">// TRF-XXXXX</span>
+console.<span class="fn">log</span>(result.data.status);     <span class="cm">// COMPLETED</span>
+console.<span class="fn">log</span>(result.data.destBalance); <span class="cm">// receiver new balance</span></pre>
+  </div>
 
-<!-- What you receive back -->
-<div class="card">
-  <div class="card-title">What You Receive Back</div>
-  <pre><span class="k">201 Created</span>
-{
-  <span class="s">"success"</span>: true,
-  <span class="s">"data"</span>: {
-    <span class="s">"reference"</span>:       <span class="s">"TRF-KJ4N8F2B3C"</span>,
-    <span class="s">"type"</span>:            <span class="s">"T2T"</span>,
-    <span class="s">"status"</span>:          <span class="s">"COMPLETED"</span>,
-    <span class="s">"amount"</span>:          <span class="s">1000.00</span>,
-    <span class="s">"currency"</span>:        <span class="s">"USD"</span>,
-    <span class="s">"sourceType"</span>:      <span class="s">"TERMINAL"</span>,
-    <span class="s">"sourceId"</span>:        <span class="s">"SA-TERM-001"</span>,
-    <span class="s">"destType"</span>:        <span class="s">"TERMINAL"</span>,
-    <span class="s">"destId"</span>:          <span class="s">"PST-001-PRIME"</span>,
-    <span class="s">"journalEntryRef"</span>:  <span class="s">"JE-TRF-KJ4N8F2B3C"</span>,
-    <span class="s">"completedAt"</span>:      <span class="s">"2026-11-05T22:30:00Z"</span>
+  <!-- Response -->
+  <div style="max-width:800px;margin:16px auto 0" class="reveal">
+    <div class="response-card">
+      <div style="font-size:.72rem;color:var(--emerald);font-family:'JetBrains Mono',monospace;margin-bottom:10px">201 Created — Transfer Completed</div>
+      <pre style="font-size:.78rem;line-height:1.8;color:#94a3b8;background:transparent;border:none;border-radius:0;padding:0">{
+  <span class="str">"success"</span>: <span class="num">true</span>,
+  <span class="str">"data"</span>: {
+    <span class="str">"reference"</span>:      <span class="str">"TRF-KJ4N8F2B3C"</span>,
+    <span class="str">"type"</span>:           <span class="str">"T2T"</span>,
+    <span class="str">"status"</span>:         <span class="str">"COMPLETED"</span>,
+    <span class="str">"amount"</span>:         <span class="num">1000</span>,
+    <span class="str">"currency"</span>:       <span class="str">"USD"</span>,
+    <span class="str">"sourceId"</span>:       <span class="str">"SA-TERM-001"</span>,
+    <span class="str">"destId"</span>:         <span class="str">"PST-001-PRIME"</span>,
+    <span class="str">"destBalance"</span>:    <span class="str">"1000.00"</span>,
+    <span class="str">"journalEntryRef"</span>: <span class="str">"JE-TRF-KJ4N8F2B3C"</span>,
+    <span class="str">"completedAt"</span>:     <span class="str">"2026-11-06T10:00:00Z"</span>
   }
 }</pre>
-  <p class="muted" style="margin-top:12px;font-size:.82rem">The transfer is instant — funds are credited to your terminal immediately. No admin approval needed.</p>
-</div>
+    </div>
+  </div>
+</section>
 
-<div class="section-divider"></div>
+<div class="glow-line"></div>
 
-<!-- ═══ PAYOUT ═══ -->
-<h2 style="font-size:1.4rem;margin-bottom:16px">Withdrawing Your Funds</h2>
-<div class="card">
-  <div class="card-title">Payout Flow</div>
-  <div class="flow-step"><div class="flow-num" style="background:var(--blue)">1</div><div><strong>Receive funds via T2T</strong><div class="muted">Customer sends T2T transfer — funds credited to your terminal</div></div></div>
-  <div class="flow-line"></div>
-  <div class="flow-step"><div class="flow-num" style="background:var(--emerald)">2</div><div><strong>Initiate bank withdrawal</strong><div class="muted">POST /s2s/withdrawals with your bank details — wallet debited immediately</div></div></div>
-  <div class="flow-line"></div>
-  <div class="flow-step"><div class="flow-num" style="background:var(--violet)">3</div><div><strong>Bank transfer executed</strong><div class="muted">SWIFT / SEPA / ACH / UPI to your registered bank account</div></div></div>
-  <div class="flow-line"></div>
-  <div class="flow-step"><div class="flow-num" style="background:#18743a">4</div><div><strong>Completed</strong><div class="muted">Operator marks withdrawal COMPLETED after bank confirmation</div></div></div>
-</div>
+<!-- PING SECTION -->
+<section id="ping">
+  <div class="reveal" style="text-align:center">
+    <div class="section-badge">Connectivity</div>
+    <h2 class="section-title">Ping Before You Transfer</h2>
+    <p class="section-sub" style="margin:0 auto">Always ping first. It confirms your IP is whitelisted, the server is reachable, and credentials are valid.</p>
+  </div>
 
-<div class="card">
-  <div class="card-title">Bank Accounts (6 Jurisdictions)</div>
-  <div class="grid2">
-    <div style="padding:12px;border:1px solid var(--border);border-radius:8px"><strong>SG</strong> DBS Bank — SGD — SWIFT</div>
-    <div style="padding:12px;border:1px solid var(--border);border-radius:8px"><strong>IN</strong> Axis Bank — INR — SWIFT</div>
-    <div style="padding:12px;border:1px solid rgba(16,185,129,.3);border-radius:8px;background:rgba(16,185,129,.03)"><strong>IN</strong> ICICI EazyPay — INR — UPI</div>
-    <div style="padding:12px;border:1px solid var(--border);border-radius:8px"><strong>DE</strong> Banking Circle — EUR — SEPA</div>
-    <div style="padding:12px;border:1px solid var(--border);border-radius:8px"><strong>US</strong> Community Federal — USD — FedWire</div>
-    <div style="padding:12px;border:1px solid var(--border);border-radius:8px"><strong>GB</strong> Community Federal — USD — SWIFT</div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:32px;margin-top:48px;align-items:start">
+    <div>
+      <div class="ping-card reveal d1">
+        <div class="ping-title">
+          Live Server Status
+          <span class="ping-live">ONLINE</span>
+        </div>
+        <div class="ping-row">
+          <div class="ping-stat">
+            <div class="ping-val" style="color:var(--emerald)" id="ping-status">ok</div>
+            <div class="ping-lbl">Health</div>
+          </div>
+          <div class="ping-stat">
+            <div class="ping-val" style="color:var(--blue)" id="ping-latency">—</div>
+            <div class="ping-lbl">Latency</div>
+          </div>
+          <div class="ping-stat">
+            <div class="ping-val" style="color:var(--violet)" id="ping-time">—</div>
+            <div class="ping-lbl">Server Time</div>
+          </div>
+          <div class="ping-stat">
+            <div class="ping-val" style="color:var(--gold)">GSN</div>
+            <div class="ping-lbl">Network</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="code-block reveal d2" style="margin-top:16px">
+        <div class="code-header">
+          <div class="code-dots"><span style="background:#f43f5e"></span><span style="background:#f59e0b"></span><span style="background:#10b981"></span></div>
+          <span class="code-filename">Sender pings from their server</span>
+        </div>
+        <pre class="code-body"><span class="cm">// Sender calls this before sending funds:</span>
+<span class="kw">const</span> res = <span class="kw">await</span> <span class="fn">fetch</span>(SERVER + <span class="str">'/t2t/ping'</span>, {
+  method:  <span class="str">'POST'</span>,
+  headers: { ...hmacHeaders },
+  body:    <span class="fn">JSON.stringify</span>({ terminalId: <span class="str">'SA-TERM-001'</span> }),
+});
+
+<span class="cm">// If whitelisted:</span>
+<span class="cm">// { reachable: true, whitelisted: true }</span>
+
+<span class="cm">// If NOT whitelisted:</span>
+<span class="cm">// { reachable: false, whitelisted: false,</span>
+<span class="cm">//   message: "Your IP x.x.x.x not whitelisted" }</span></pre>
+      </div>
+    </div>
+
+    <div>
+      <div class="code-block reveal d1">
+        <div class="code-header">
+          <div class="code-dots"><span style="background:#f43f5e"></span><span style="background:#f59e0b"></span><span style="background:#10b981"></span></div>
+          <span class="code-filename">Whitelist sender IP first</span>
+        </div>
+        <pre class="code-body"><span class="cm">// You (receiver) add sender IP:</span>
+<span class="kw">const</span> res = <span class="kw">await</span> <span class="fn">fetch</span>(SERVER + <span class="str">'/t2t/whitelist'</span>, {
+  method:  <span class="str">'POST'</span>,
+  headers: { ...yourHmacHeaders, <span class="str">'Content-Type'</span>: <span class="str">'application/json'</span> },
+  body:    <span class="fn">JSON.stringify</span>({
+    ip:     <span class="str">'216.24.57.16'</span>,  <span class="cm">// sender IP</span>
+    note:   <span class="str">'South Africa customer'</span>,
+    action: <span class="str">'add'</span>
+  }),
+});
+
+<span class="cm">// Response:</span>
+<span class="cm">// { ip: "216.24.57.16", action: "added" }</span></pre>
+      </div>
+
+      <div style="margin-top:16px;padding:18px;background:rgba(245,158,11,.05);border:1px solid rgba(245,158,11,.2);border-radius:12px;font-size:.82rem" class="reveal d2">
+        <strong style="color:var(--gold);display:block;margin-bottom:8px">Render IP Addresses</strong>
+        <p style="color:var(--muted)">If the sender is hosted on Render.com, whitelist these IPs:</p>
+        <div style="margin-top:8px;font-family:'JetBrains Mono',monospace;font-size:.82rem;color:var(--blue)">216.24.57.16<br>216.24.57.18</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- BANKING -->
+<section id="banks">
+  <div class="reveal" style="text-align:center">
+    <div class="section-badge">Banking</div>
+    <h2 class="section-title">6 Banking Jurisdictions</h2>
+    <p class="section-sub" style="margin:0 auto">Once funds are in your terminal balance, withdraw to any of your registered bank accounts — no admin approval needed.</p>
+  </div>
+  <div class="banks-grid">
+    <div class="bank-card reveal d1">
+      <span class="bank-flag">🇸🇬</span>
+      <div class="bank-name">DBS Bank Limited</div>
+      <div class="bank-sub">DBSSSGSG · Account ***256581</div>
+      <div class="bank-tags"><span class="bank-tag">SGD</span><span class="bank-tag">SWIFT</span></div>
+    </div>
+    <div class="bank-card reveal d2">
+      <span class="bank-flag">🇮🇳</span>
+      <div class="bank-name">Axis Bank Ltd</div>
+      <div class="bank-sub">AXISINBBA89 · Account ***84179</div>
+      <div class="bank-tags"><span class="bank-tag">INR</span><span class="bank-tag">SWIFT</span></div>
+    </div>
+    <div class="bank-card reveal d3" style="border-color:rgba(16,185,129,.3)">
+      <span class="bank-flag">🇮🇳</span>
+      <div class="bank-name">ICICI Bank — EazyPay</div>
+      <div class="bank-sub">ICICINBBCTS · Account ***3783</div>
+      <div class="bank-tags"><span class="bank-tag">INR</span><span class="bank-tag green">UPI</span><span class="bank-tag green">★ Live</span></div>
+    </div>
+    <div class="bank-card reveal d1">
+      <span class="bank-flag">🇩🇪</span>
+      <div class="bank-name">Banking Circle</div>
+      <div class="bank-sub">SXPYDEHH · IBAN DE96...4495</div>
+      <div class="bank-tags"><span class="bank-tag">EUR</span><span class="bank-tag">SEPA</span><span class="bank-tag">Instant</span></div>
+    </div>
+    <div class="bank-card reveal d2">
+      <span class="bank-flag">🇺🇸</span>
+      <div class="bank-name">Community Federal Savings</div>
+      <div class="bank-sub">Routing 026073008 · Account ***3337</div>
+      <div class="bank-tags"><span class="bank-tag">USD</span><span class="bank-tag">FedWire</span><span class="bank-tag">ACH</span></div>
+    </div>
+    <div class="bank-card reveal d3">
+      <span class="bank-flag">🇬🇧</span>
+      <div class="bank-name">Community Federal Savings</div>
+      <div class="bank-sub">SWIFT Correspondent · Account ***3337</div>
+      <div class="bank-tags"><span class="bank-tag">USD</span><span class="bank-tag">SWIFT</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- SECURITY TICKER -->
+<div class="sec-ticker">
+  <div class="sec-track">
+    <span class="sec-item"><span>✓</span> AES-256-GCM at rest</span>
+    <span class="sec-item"><span>✓</span> HMAC-SHA256 per request</span>
+    <span class="sec-item"><span>✓</span> IP allowlist enforcement</span>
+    <span class="sec-item"><span>✓</span> Nonce replay prevention</span>
+    <span class="sec-item"><span>✓</span> SSRF protection</span>
+    <span class="sec-item"><span>✓</span> Idempotency keys</span>
+    <span class="sec-item"><span>✓</span> Timing-safe comparison</span>
+    <span class="sec-item"><span>✓</span> Auto-create external terminals</span>
+    <span class="sec-item"><span>✓</span> Double-entry immutable ledger</span>
+    <span class="sec-item"><span>✓</span> Rate limiting 1000 req/min</span>
+    <span class="sec-item"><span>✓</span> SQL injection detection</span>
+    <span class="sec-item"><span>✓</span> Bot/scanner blocking</span>
+    <!-- duplicate -->
+    <span class="sec-item"><span>✓</span> AES-256-GCM at rest</span>
+    <span class="sec-item"><span>✓</span> HMAC-SHA256 per request</span>
+    <span class="sec-item"><span>✓</span> IP allowlist enforcement</span>
+    <span class="sec-item"><span>✓</span> Nonce replay prevention</span>
+    <span class="sec-item"><span>✓</span> SSRF protection</span>
+    <span class="sec-item"><span>✓</span> Idempotency keys</span>
+    <span class="sec-item"><span>✓</span> Timing-safe comparison</span>
+    <span class="sec-item"><span>✓</span> Auto-create external terminals</span>
+    <span class="sec-item"><span>✓</span> Double-entry immutable ledger</span>
+    <span class="sec-item"><span>✓</span> Rate limiting 1000 req/min</span>
+    <span class="sec-item"><span>✓</span> SQL injection detection</span>
+    <span class="sec-item"><span>✓</span> Bot/scanner blocking</span>
   </div>
 </div>
 
-<div class="section-divider"></div>
+<div class="glow-line"></div>
 
-<!-- ═══ LEGAL ═══ -->
-<h2 style="font-size:1.4rem;margin-bottom:16px">Legal</h2>
-<div class="card">
-  <div style="padding:12px;border-left:3px solid var(--blue);margin-bottom:12px"><strong>No Custody</strong><div class="muted">PrimeStack does not hold your funds. Funds pass through and are immediately withdrawable.</div></div>
-  <div style="padding:12px;border-left:3px solid var(--emerald);margin-bottom:12px"><strong>No Withdrawal Restrictions</strong><div class="muted">Withdraw your full balance at any time. No admin approval needed.</div></div>
-  <div style="padding:12px;border-left:3px solid var(--violet)"><strong>KYC / Data Protection</strong><div class="muted">Bank details encrypted AES-256-GCM. HMAC-SHA256 auth. Immutable audit trail.</div></div>
-</div>
+<!-- LEGAL -->
+<section id="legal">
+  <div class="reveal" style="text-align:center">
+    <div class="section-badge">Legal</div>
+    <h2 class="section-title">Terms & Procedures</h2>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-top:40px">
+    <div style="padding:20px;border-left:3px solid var(--blue);background:var(--card);border-radius:0 10px 10px 0" class="reveal d1">
+      <strong style="display:block;margin-bottom:8px;color:#fff">No Custody</strong>
+      <p style="font-size:.82rem;color:var(--muted)">PrimeStack does not hold your funds. We are a switch and routing engine. Funds are immediately withdrawable.</p>
+    </div>
+    <div style="padding:20px;border-left:3px solid var(--emerald);background:var(--card);border-radius:0 10px 10px 0" class="reveal d2">
+      <strong style="display:block;margin-bottom:8px;color:#fff">Instant Withdrawal</strong>
+      <p style="font-size:.82rem;color:var(--muted)">Withdraw your full balance to any registered bank account at any time. No admin approval required.</p>
+    </div>
+    <div style="padding:20px;border-left:3px solid var(--violet);background:var(--card);border-radius:0 10px 10px 0" class="reveal d3">
+      <strong style="display:block;margin-bottom:8px;color:#fff">KYC & Compliance</strong>
+      <p style="font-size:.82rem;color:var(--muted)">Merchants complete KYC before receiving. All data encrypted AES-256-GCM. Immutable audit trail.</p>
+    </div>
+  </div>
+</section>
 
-<p class="muted" style="text-align:center;margin-top:32px;font-size:.75rem">
-  PrimeStack Global Server Network v201.3<br>
-  https://primestack-global-server-network.onrender.com | IP: 217.165.16.186<br>
-  admin@primestack.io
-</p>
+<!-- FOOTER -->
+<footer>
+  <div class="footer-logo">Prime<span>Stack</span> GSN</div>
+  <p>PrimeStack Global Server Network · v201.3</p>
+  <p style="margin-top:6px">https://primestack-global-server-network.onrender.com · admin@primestack.io</p>
+</footer>
 
-</div>
 <script>
-function copyText(t){navigator.clipboard.writeText(t)}
+// Copy to clipboard
+function cp(btn, text) {
+  navigator.clipboard.writeText(text).then(() => {
+    const orig = btn.textContent;
+    btn.textContent = 'copied!';
+    btn.style.background = 'rgba(16,185,129,.2)';
+    btn.style.color = '#10b981';
+    setTimeout(() => { btn.textContent = orig; btn.style.background = ''; btn.style.color = ''; }, 1500);
+  });
+}
+
+// Scroll animations
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(e => {
+    if (e.isIntersecting) { e.target.classList.add('visible'); observer.unobserve(e.target); }
+  });
+}, { threshold: 0.1, rootMargin: '0px 0px -50px 0px' });
+document.querySelectorAll('.reveal,.reveal-left,.reveal-right').forEach(el => observer.observe(el));
+
+// Nav shrink
+window.addEventListener('scroll', () => {
+  document.querySelector('nav').style.height = window.scrollY > 50 ? '56px' : '64px';
+});
+
+// Live ping the server
+async function pingServer() {
+  const start = Date.now();
+  try {
+    const r = await fetch('https://primestack-global-server-network.onrender.com/health', { signal: AbortSignal.timeout(5000) });
+    const latency = Date.now() - start;
+    const d = await r.json();
+    document.getElementById('ping-status').textContent = d.status || 'ok';
+    document.getElementById('ping-latency').textContent = latency + 'ms';
+    document.getElementById('ping-time').textContent = new Date().toLocaleTimeString();
+  } catch {
+    document.getElementById('ping-status').textContent = 'timeout';
+    document.getElementById('ping-status').style.color = 'var(--rose)';
+  }
+}
+pingServer();
+setInterval(pingServer, 15000);
+
+// Smooth anchor scrolling
+document.querySelectorAll('a[href^="#"]').forEach(a => {
+  a.addEventListener('click', e => {
+    e.preventDefault();
+    const t = document.querySelector(a.getAttribute('href'));
+    if (t) t.scrollIntoView({ behavior: 'smooth' });
+  });
+});
 </script>
 </body>
 </html>
