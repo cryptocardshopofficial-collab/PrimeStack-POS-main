@@ -6900,7 +6900,8 @@ function t2tEnginePage() {
 </div>
 
 <div class="tabs">
-  <div class="tab active" data-g="t2e" data-t="t2e-setup">Setup</div>
+  <div class="tab active" data-g="t2e" data-t="t2e-setup">Setup & Whitelist</div>
+  <div class="tab" data-g="t2e" data-t="t2e-ping">Ping</div>
   <div class="tab" data-g="t2e" data-t="t2e-send">Transfer</div>
   <div class="tab" data-g="t2e" data-t="t2e-hist">History</div>
   <div class="tab" data-g="t2e" data-t="t2e-bal">Balances</div>
@@ -6939,6 +6940,26 @@ function t2tEnginePage() {
       <button class="btn btn-primary btn-sm" onclick="t2ePing()">Ping</button>
     </div>
     <div id="t2e-ping-out" style="margin-top:8px"></div>
+  </div>
+</div>
+
+<div id="t2e-ping" class="tab-pane" data-g="t2e">
+  <div class="card" style="max-width:520px">
+    <div class="card-title" style="margin-bottom:12px">Ping ? Verify Sender Connectivity</div>
+    <p style="font-size:.82rem;color:var(--muted);margin-bottom:16px">Before accepting funds, verify the sender IP is whitelisted and the connection is working. The sender calls this endpoint from their server to confirm they can reach you.</p>
+    <div class="form-group">
+      <label>Sender Terminal ID</label>
+      <input id="t2e-ping-in" class="input-mono" placeholder="e.g. SA-TERM-001 or UAE-BANK-007">
+    </div>
+    <button class="btn btn-primary" onclick="t2ePing()" style="margin-bottom:12px">Send Ping Request</button>
+    <div id="t2e-ping-out"></div>
+    <div style="margin-top:16px;padding:12px;background:var(--surf2);border-radius:8px;font-size:.78rem;color:var(--muted)">
+      <strong>How the sender calls this:</strong><br>
+      <code style="font-size:.72rem">POST https://primestack-global-server-network.onrender.com/t2t/ping</code><br>
+      Body: <code>{"terminalId": "THEIR-TERMINAL-ID"}</code><br><br>
+      Response if whitelisted: <code>{"reachable": true, "whitelisted": true}</code><br>
+      Response if not: <code>{"reachable": false, "whitelisted": false}</code>
+    </div>
   </div>
 </div>
 
