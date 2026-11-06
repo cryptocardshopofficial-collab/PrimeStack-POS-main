@@ -7922,7 +7922,22 @@ const server = createServer((req, res) => {
   }
 
   let html = null;
-  switch (path) {
+  
+function developerPortalPage() {
+  try {
+    const fs = require('fs');
+    const path = require('path');
+    const portalPath = path.join(process.cwd(), 'developer-portal.html');
+    if (fs.existsSync(portalPath)) {
+      return fs.readFileSync(portalPath, 'utf8');
+    }
+  } catch (e) {}
+  // Fallback if file not found
+  return '<!DOCTYPE html><html><body style="background:#020914;color:#e2e8f0;font-family:monospace;padding:40px">Developer portal file not found. Please check deployment.</body></html>';
+}
+
+switch (path) {
+    case '/developer':             html = developerPortalPage();
     case '/':                      html = landingPage();         break;
     case '/platform':              html = platformOverview();    break;
     case '/platform/banks':        html = platformBanks();       break;
@@ -7991,6 +8006,7 @@ if (!Number.isInteger(PORT) || PORT < 1 || PORT > 65535) {
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`PrimeStack Dashboard running at http://localhost:${PORT}`);
   console.log(`  Landing:    http://localhost:${PORT}/`);
+  console.log(`  Developer:  http://localhost:${PORT}/developer`);
   console.log(`  Platform:   http://localhost:${PORT}/platform`);
   console.log(`  Merchant:   http://localhost:${PORT}/merchant`);
   console.log(`  Ops:        http://localhost:${PORT}/ops`);
