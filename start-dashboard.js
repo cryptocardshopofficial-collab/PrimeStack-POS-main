@@ -6888,463 +6888,128 @@ function sfLoadHistory() {
 // --- T2T Engine Page ---------------------------------------------------------
 function t2tEnginePage() {
   return page('T2T Engine', '/merchant/t2t', `
+<style>
+.t2e-cred td { padding: 7px 0; vertical-align: top; }
+.t2e-cred td:first-child { color: var(--muted); width: 38%; white-space: nowrap; }
+.t2e-cred td:last-child { font-family: monospace; font-size: .72rem; word-break: break-all; }
+</style>
 <div class="page-header">
-  <div class="breadcrumb"><a href="/">Home</a><span>/</span><a href="/merchant">Merchant</a><span>/</span>T2T Engine</div>
+  <div class="breadcrumb"><a href="/">Home</a><span>/</span>T2T Engine</div>
   <h1>Terminal-to-Terminal Engine</h1>
-  <p>Full-pipeline transaction engine — terminal validation → risk evaluation → routing → ledger posting → settlement. Every transaction goes through the complete switch core pipeline.</p>
-</div>
-
-<!-- Live pipeline status -->
-<div class="stat-row" style="margin-bottom:18px">
-  <div class="stat" style="border-color:var(--success-border);background:var(--success-bg)">
-    <div class="stat-val" id="t2t-stat-approved" style="color:var(--success)">—</div>
-    <div class="stat-lbl">Approved Today</div>
-  </div>
-  <div class="stat" style="border-color:var(--danger-border);background:var(--danger-bg)">
-    <div class="stat-val" id="t2t-stat-declined" style="color:var(--danger)">—</div>
-    <div class="stat-lbl">Declined Today</div>
-  </div>
-  <div class="stat">
-    <div class="stat-val" id="t2t-stat-volume" style="color:var(--accent)">—</div>
-    <div class="stat-lbl">Volume Today (USD)</div>
-  </div>
-  <div class="stat">
-    <div class="stat-val" id="t2t-stat-ms" style="color:#7c3aed">—</div>
-    <div class="stat-lbl">Avg Processing (ms)</div>
-  </div>
-  <div class="stat">
-    <div class="stat-val" id="t2t-stat-pending" style="color:var(--warn)">—</div>
-    <div class="stat-lbl">Settlement Queue</div>
-  </div>
+  <p>Accept funds from any external terminal worldwide — South Africa, UAE, UK, anywhere. Add the sender IP, verify with ping, then receive transfers instantly.</p>
 </div>
 
 <div class="tabs">
-  <div class="tab active" data-g="t2t" data-t="t2t-send">⚡ Send Transaction</div>
-  <div class="tab"         data-g="t2t" data-t="t2t-bulk">📦 Bulk Send</div>
-  <div class="tab"         data-g="t2t" data-t="t2t-lookup">🔍 Lookup / Reverse</div>
-  <div class="tab"         data-g="t2t" data-t="t2t-stream">📡 Live Stream</div>
-  <div class="tab"         data-g="t2t" data-t="t2t-routing">🗺 Routing Rules</div>
-  <div class="tab"         data-g="t2t" data-t="t2t-history">📋 History</div>
+  <div class="tab active" data-g="t2e" data-t="t2e-setup">Setup</div>
+  <div class="tab" data-g="t2e" data-t="t2e-send">Transfer</div>
+  <div class="tab" data-g="t2e" data-t="t2e-hist">History</div>
+  <div class="tab" data-g="t2e" data-t="t2e-bal">Balances</div>
 </div>
 
-<!-- ══ TAB 1: SEND TRANSACTION ══════════════════════════════ -->
-<div id="t2t-send" class="tab-pane active" data-g="t2t">
-<div class="grid-2" style="gap:16px;margin-top:16px;align-items:start">
-
-  <!-- LEFT: Form -->
-  <div>
+<div id="t2e-setup" class="tab-pane active" data-g="t2e">
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px">
     <div class="card">
-      <div class="card-title" style="margin-bottom:4px">Transaction Details</div>
-      <div class="card-sub" style="margin-bottom:16px">Every field maps directly to the switch core pipeline</div>
-
-      <!-- Transaction Type + MTI -->
-      <div class="form-row">
-        <div class="form-group">
-          <label>Transaction Type *</label>
-          <select id="t-type" onchange="t2tUpdateType()">
-            <option value="T2T">T2T — Terminal to Terminal</option>
-            <option value="S2S">S2S — Server to Server</option>
-            <option value="WALLET">WALLET — Wallet Transfer</option>
-            <option value="MERCHANT">MERCHANT — Merchant Payment</option>
-            <option value="AUTH_ONLY">AUTH_ONLY — Authorisation Only</option>
-            <option value="CAPTURE">CAPTURE — Capture Pre-Auth</option>
-            <option value="REFUND">REFUND — Refund to Source</option>
-            <option value="ISO8583">ISO8583 — Card-Present (Full MTI)</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label>ISO 8583 MTI</label>
-          <select id="t-mti">
-            <option value="0200">0200 — Financial Request</option>
-            <option value="0201">0201 — Financial Advice Request</option>
-            <option value="0400">0400 — Reversal Request</option>
-            <option value="0420">0420 — Reversal Advice</option>
-            <option value="0800">0800 — Network Mgmt Request</option>
-            <option value="0100">0100 — Authorisation Request</option>
-          </select>
-        </div>
-      </div>
-
-      <!-- Source / Destination -->
-      <div style="padding:12px;background:var(--accent-bg);border:1px solid var(--accent-border);border-radius:8px;margin-bottom:12px;font-size:.78rem">
-        <strong style="color:var(--accent)">Account Format:</strong>&nbsp;
-        TERMINAL:TID00001:USD &nbsp;|&nbsp; MERCHANT:CODE:USD &nbsp;|&nbsp; WALLET:USER:louis-001 &nbsp;|&nbsp; SERVER:NODE:USD
-      </div>
-      <div class="form-row">
-        <div class="form-group">
-          <label>Source Account * <span style="font-size:.68rem;color:var(--muted)">(money leaves here)</span></label>
-          <input id="t-src" class="input-mono" placeholder="TERMINAL:TID00001:USD">
-        </div>
-        <div class="form-group">
-          <label>Destination Account * <span style="font-size:.68rem;color:var(--muted)">(money arrives here)</span></label>
-          <input id="t-dst" class="input-mono" placeholder="TERMINAL:TID00002:USD">
-        </div>
-      </div>
-
-      <!-- Amount + Currency -->
-      <div class="form-row">
-        <div class="form-group">
-          <label>Amount *</label>
-          <input id="t-amount" type="number" placeholder="100.00" step="0.01" min="0.01" oninput="t2tPreview()">
-        </div>
-        <div class="form-group">
-          <label>Currency *</label>
-          <select id="t-currency">
-            <option value="USD">USD</option><option value="EUR">EUR</option>
-            <option value="GBP">GBP</option><option value="AED">AED</option>
-            <option value="NGN">NGN</option><option value="KES">KES</option>
-          </select>
-        </div>
-      </div>
-
-      <!-- Fee + Processing Code -->
-      <div class="form-row">
-        <div class="form-group">
-          <label>Fee Amount <span style="font-size:.68rem;color:var(--muted)">(0 = no fee)</span></label>
-          <input id="t-fee" type="number" placeholder="0.00" step="0.01" min="0" value="0">
-        </div>
-        <div class="form-group">
-          <label>Processing Code (DE3)</label>
-          <select id="t-proc">
-            <option value="000000">000000 — Purchase</option>
-            <option value="200000">200000 — Refund</option>
-            <option value="010000">010000 — Cash Withdrawal</option>
-            <option value="090000">090000 — Mini-statement</option>
-            <option value="300000">300000 — Balance Inquiry</option>
-            <option value="400000">400000 — Transfer</option>
-          </select>
-        </div>
-      </div>
-
-      <!-- Terminal ID + Merchant ID -->
-      <div class="form-row">
-        <div class="form-group">
-          <label>Terminal ID (TID)</label>
-          <input id="t-tid" class="input-mono" placeholder="TID00001">
-        </div>
-        <div class="form-group">
-          <label>Merchant ID</label>
-          <input id="t-mid" class="input-mono" placeholder="MERCH-001 (optional)">
-        </div>
-      </div>
-
-      <!-- Card Info -->
-      <div style="border-top:1px solid var(--border);margin:12px 0;padding-top:12px">
-        <div class="card-sub" style="margin-bottom:10px">Card Information (optional — for ISO 8583 card-present)</div>
-        <div class="form-row">
-          <div class="form-group">
-            <label>Card BIN (first 6–8 digits)</label>
-            <input id="t-bin" class="input-mono" placeholder="411111" maxlength="8">
-          </div>
-          <div class="form-group">
-            <label>Card Type</label>
-            <select id="t-card-type">
-              <option value="">— not specified —</option>
-              <option value="VISA">Visa</option>
-              <option value="MASTERCARD">Mastercard</option>
-              <option value="AMEX">American Express</option>
-              <option value="DISCOVER">Discover</option>
-              <option value="UNIONPAY">UnionPay</option>
-              <option value="VERVE">Verve</option>
-            </select>
-          </div>
-        </div>
-        <div class="form-row">
-          <div class="form-group">
-            <label>POS Entry Mode</label>
-            <select id="t-pos">
-              <option value="">— not specified —</option>
-              <option value="01">01 — Manual (key-entered)</option>
-              <option value="02">02 — Magnetic stripe</option>
-              <option value="05">05 — ICC (chip)</option>
-              <option value="07">07 — Contactless ICC</option>
-              <option value="90">90 — Magnetic stripe (fallback)</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label>Custom TX Reference</label>
-            <input id="t-ref" class="input-mono" placeholder="Auto-generated if blank">
-          </div>
-        </div>
-      </div>
-
-      <!-- Metadata -->
-      <div style="border-top:1px solid var(--border);margin:12px 0;padding-top:12px">
-        <div class="card-sub" style="margin-bottom:10px">Advanced Options</div>
-        <div class="form-row">
-          <div class="form-group">
-            <label>IP Address (for risk evaluation)</label>
-            <input id="t-ip" placeholder="10.0.1.50">
-          </div>
-          <div class="form-group">
-            <label>Description / Memo</label>
-            <input id="t-desc" placeholder="Payment description">
-          </div>
-        </div>
-        <div class="form-group">
-          <label>Metadata (JSON — stored on transaction)</label>
-          <textarea id="t-meta" class="input-mono" rows="2" placeholder='{"orderId":"ORD-001","channel":"web"}'></textarea>
-        </div>
-      </div>
-
-      <button class="btn btn-success" style="width:100%;justify-content:center;padding:12px;font-size:.9rem" id="t2t-submit-btn" onclick="t2tSend()">
-        ⚡ Process Transaction
-      </button>
-    </div>
-  </div>
-
-  <!-- RIGHT: Preview + Response -->
-  <div>
-    <div class="card" id="t2t-preview-card">
-      <div class="card-title">Transaction Preview</div>
-      <div id="t2t-preview" style="font-size:.82rem;line-height:2">
-        <div style="color:var(--muted)">Fill the form to see preview…</div>
-      </div>
-    </div>
-
-    <div class="card" style="margin-top:12px">
-      <div class="card-title" style="margin-bottom:12px">Pipeline Result</div>
-      <div id="t2t-result-summary" style="display:none;margin-bottom:12px">
-        <div id="t2t-result-badge" style="text-align:center;padding:20px;border-radius:10px;margin-bottom:12px">
-          <div id="t2t-result-icon" style="font-size:2.5rem;margin-bottom:8px">—</div>
-          <div id="t2t-result-status" style="font-size:1.2rem;font-weight:800">—</div>
-          <div id="t2t-result-rc" style="font-size:.82rem;margin-top:4px;opacity:.7">RC: —</div>
-        </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:.78rem">
-          <div><strong>TX Ref:</strong><br><code id="t2t-r-txref">—</code></div>
-          <div><strong>Auth Code:</strong><br><code id="t2t-r-auth">—</code></div>
-          <div><strong>STAN:</strong><br><code id="t2t-r-stan">—</code></div>
-          <div><strong>RRN:</strong><br><code id="t2t-r-rrn">—</code></div>
-          <div><strong>Processing Time:</strong><br><code id="t2t-r-ms">—</code></div>
-          <div><strong>Response:</strong><br><code id="t2t-r-msg">—</code></div>
-        </div>
-      </div>
-      <pre class="result" id="t2t-result" style="max-height:300px"></pre>
-    </div>
-
-    <div class="card" style="margin-top:12px">
-      <div class="card-title">Quick Terminal Presets</div>
-      <div id="t2t-terminal-list" style="font-size:.8rem;color:var(--muted)">Loading terminals…</div>
-    </div>
-  </div>
-</div>
-</div>
-
-<!-- ══ TAB 2: BULK SEND ═════════════════════════════════════ -->
-<div id="t2t-bulk" class="tab-pane" data-g="t2t">
-<div class="grid-2" style="gap:16px;margin-top:16px;align-items:start">
-  <div class="card">
-    <div class="card-title">Bulk Transaction Send</div>
-    <div class="card-sub" style="margin-bottom:16px">Send multiple T2T transactions in one batch. Each row is a separate transaction processed independently through the full pipeline.</div>
-
-    <div class="form-row">
-      <div class="form-group"><label>Batch Type</label>
-        <select id="bulk-type"><option value="T2T">T2T</option><option value="S2S">S2S</option><option value="WALLET">WALLET</option></select>
-      </div>
-      <div class="form-group"><label>Currency</label>
-        <select id="bulk-cur"><option>USD</option><option>EUR</option><option>GBP</option><option>AED</option></select>
-      </div>
-    </div>
-
-    <div class="form-group">
-      <label>Transactions (one per line: SOURCE|DESTINATION|AMOUNT|DESCRIPTION)</label>
-      <textarea id="bulk-data" class="input-mono" rows="8" placeholder="TERMINAL:TID00001:USD|TERMINAL:TID00002:USD|100.00|Payment 1
-TERMINAL:TID00001:USD|TERMINAL:TID00003:USD|250.00|Payment 2
-WALLET:USER:alice|WALLET:USER:bob|50.00|Transfer
-MERCHANT:MERCH-001:USD|MERCHANT:MERCH-002:USD|500.00|Settlement"></textarea>
-    </div>
-
-    <div class="form-row">
-      <div class="form-group"><label>Delay Between Txns (ms)</label><input id="bulk-delay" type="number" value="200" placeholder="200"></div>
-      <div class="form-group"><label>Stop on First Failure</label>
-        <select id="bulk-stop"><option value="false">No — continue all</option><option value="true">Yes — stop on error</option></select>
-      </div>
-    </div>
-
-    <button class="btn btn-primary" onclick="t2tBulkSend()">📦 Process Batch</button>
-    <div id="bulk-progress" style="display:none;margin-top:12px;padding:12px;background:var(--accent-bg);border:1px solid var(--accent-border);border-radius:8px;font-size:.82rem">
-      <div id="bulk-progress-bar" style="height:4px;background:var(--accent);border-radius:4px;width:0%;transition:width 300ms"></div>
-      <div id="bulk-status" style="margin-top:6px">Processing…</div>
-    </div>
-    <div id="bulk-result" class="result" style="max-height:400px"></div>
-  </div>
-  <div class="card">
-    <div class="card-title">Batch Results</div>
-    <div class="table-wrap" style="max-height:500px;overflow-y:auto">
-      <table>
-        <thead><tr><th>#</th><th>TxRef</th><th>Amount</th><th>Status</th><th>RC</th><th>Auth</th><th>Ms</th></tr></thead>
-        <tbody id="bulk-tbody"><tr><td colspan="7" style="text-align:center;color:var(--muted)">No batch processed yet</td></tr></tbody>
+      <div class="card-title" style="margin-bottom:12px">Your Receiving Details</div>
+      <p style="font-size:.82rem;color:var(--muted);margin-bottom:12px">Send these to your customer:</p>
+      <table class="t2e-cred" style="width:100%;border-collapse:collapse">
+        <tr><td>Server URL</td><td>https://primestack-global-server-network.onrender.com</td></tr>
+        <tr style="border-top:1px solid var(--border)"><td>HMAC Key ID</td><td>psk_8c404d74df8344f6f3c27d767bc64694c7571fdf00d6e4da</td></tr>
+        <tr style="border-top:1px solid var(--border)"><td>Your Terminal</td><td style="font-weight:700;color:var(--accent);font-size:.85rem">PST-001-PRIME</td></tr>
+        <tr style="border-top:1px solid var(--border)"><td>Transfer endpoint</td><td>POST /t2t/transfer</td></tr>
+        <tr style="border-top:1px solid var(--border)"><td>Ping endpoint</td><td>POST /t2t/ping</td></tr>
       </table>
     </div>
-    <div id="bulk-summary" style="display:none;margin-top:10px;padding:10px;background:var(--success-bg);border:1px solid var(--success-border);border-radius:8px;font-size:.82rem"></div>
-  </div>
-</div>
-</div>
-
-<!-- ══ TAB 3: LOOKUP / REVERSE ══════════════════════════════ -->
-<div id="t2t-lookup" class="tab-pane" data-g="t2t">
-<div class="grid-2" style="gap:16px;margin-top:16px;align-items:start">
-  <div>
     <div class="card">
-      <div class="card-title">Lookup Transaction</div>
-      <div class="form-group"><label>TX Reference</label>
-        <div style="display:flex;gap:8px">
-          <input id="lu-ref" class="input-mono" placeholder="PS2026102600…" style="flex:1">
-          <button class="btn btn-primary" onclick="t2tLookup()">Lookup</button>
-        </div>
+      <div class="card-title" style="margin-bottom:12px">IP Whitelist</div>
+      <p style="font-size:.82rem;color:var(--muted);margin-bottom:12px">Only whitelisted IPs can send you transfers.</p>
+      <div style="display:flex;gap:8px;margin-bottom:8px">
+        <input id="t2e-ip-in" class="input-mono" placeholder="e.g. 216.24.57.16" style="flex:1">
+        <button class="btn btn-success btn-sm" onclick="t2eAdd()">+ Add IP</button>
       </div>
-      <pre class="result" id="lu-result" style="max-height:400px"></pre>
-    </div>
-    <div class="card" style="margin-top:12px">
-      <div class="card-title">Reverse Transaction</div>
-      <div class="card-sub" style="margin-bottom:12px">Creates a mirror transaction that debits destination and credits source. Requires approved original.</div>
-      <div class="form-group"><label>TX Reference to Reverse *</label><input id="rev-ref" class="input-mono" placeholder="PS2026102600…"></div>
-      <div class="form-group"><label>Reason *</label>
-        <select id="rev-reason">
-          <option value="Customer request">Customer request</option>
-          <option value="Duplicate transaction">Duplicate transaction</option>
-          <option value="Fraud suspected">Fraud suspected</option>
-          <option value="Merchant error">Merchant error</option>
-          <option value="Technical error">Technical error</option>
-          <option value="Chargeback">Chargeback</option>
-          <option value="Settlement error">Settlement error</option>
-        </select>
-      </div>
-      <div class="form-group"><label>Reversed By</label><input id="rev-by" placeholder="Admin name"></div>
-      <button class="btn btn-danger" onclick="t2tReverse()">↩ Reverse Transaction</button>
-      <pre class="result" id="rev-result"></pre>
+      <div id="t2e-wl-msg" style="font-size:.78rem;margin-bottom:6px"></div>
+      <button class="btn btn-ghost btn-sm" onclick="t2eWlLoad()" style="margin-bottom:8px">Refresh list</button>
+      <div id="t2e-wl-list" style="font-size:.78rem;color:var(--muted)">Click Refresh to load</div>
     </div>
   </div>
   <div class="card">
-    <div class="card-title" style="justify-content:space-between">
-      Recent Transactions
-      <div style="display:flex;gap:6px">
-        <select id="lu-filter-type" style="padding:4px 8px;border:1px solid var(--border2);border-radius:6px;font-size:.78rem" onchange="t2tLoadHistory()">
-          <option value="">All Types</option><option value="T2T">T2T</option><option value="S2S">S2S</option><option value="WALLET">WALLET</option><option value="ISO8583">ISO8583</option>
-        </select>
-        <select id="lu-filter-status" style="padding:4px 8px;border:1px solid var(--border2);border-radius:6px;font-size:.78rem" onchange="t2tLoadHistory()">
-          <option value="">All Status</option><option value="APPROVED">APPROVED</option><option value="DECLINED">DECLINED</option><option value="REVERSED">REVERSED</option>
-        </select>
-        <button class="btn btn-ghost btn-sm" onclick="t2tLoadHistory()">↻</button>
-      </div>
-    </div>
-    <div class="table-wrap" style="max-height:600px;overflow-y:auto">
-      <table>
-        <thead><tr><th>TxRef</th><th>Type</th><th>Amount</th><th>Terminal</th><th>Status</th><th>RC</th><th>MS</th><th>Time</th></tr></thead>
-        <tbody id="t2t-hist-tbody"><tr><td colspan="8" style="text-align:center;color:var(--muted)">Loading…</td></tr></tbody>
-      </table>
-    </div>
-  </div>
-</div>
-</div>
-
-<!-- ══ TAB 4: LIVE STREAM ════════════════════════════════════ -->
-<div id="t2t-stream" class="tab-pane" data-g="t2t">
-<div class="card" style="margin-top:16px">
-  <div class="card-header">
-    <div>
-      <div class="card-title">Live Transaction Stream</div>
-      <div class="card-sub">Auto-refreshes every 3 seconds. Shows real-time transaction activity.</div>
-    </div>
-    <div style="display:flex;gap:8px;align-items:center">
-      <span id="stream-indicator" style="width:10px;height:10px;border-radius:50%;background:var(--muted);display:inline-block"></span>
-      <span id="stream-status" style="font-size:.78rem;color:var(--muted)">Stopped</span>
-      <button class="btn btn-success btn-sm" id="stream-start-btn" onclick="t2tStreamStart()">▶ Start</button>
-      <button class="btn btn-danger btn-sm" id="stream-stop-btn" onclick="t2tStreamStop()" style="display:none">⏹ Stop</button>
-    </div>
-  </div>
-  <div class="table-wrap" style="max-height:600px;overflow-y:auto">
-    <table>
-      <thead><tr><th>TxRef</th><th>Type</th><th>Amount</th><th>Currency</th><th>Source</th><th>Destination</th><th>Terminal</th><th>Risk</th><th>Status</th><th>RC</th><th>Auth Code</th><th>Time</th></tr></thead>
-      <tbody id="t2t-stream-tbody"><tr><td colspan="12" style="text-align:center;padding:24px;color:var(--muted)">Click Start to begin live stream</td></tr></tbody>
-    </table>
-  </div>
-  <div style="margin-top:8px;font-size:.72rem;color:var(--muted)" id="stream-count">0 transactions loaded</div>
-</div>
-</div>
-
-<!-- ══ TAB 5: ROUTING RULES ═════════════════════════════════ -->
-<div id="t2t-routing" class="tab-pane" data-g="t2t">
-<div class="grid-2" style="gap:16px;margin-top:16px;align-items:start">
-  <div>
-    <div class="card">
-      <div class="card-title">Register Acquirer</div>
-      <div class="form-row">
-        <div class="form-group"><label>Code *</label><input id="acq2-code" class="input-mono" placeholder="ACQ-001"></div>
-        <div class="form-group"><label>Name *</label><input id="acq2-name" placeholder="Primary Bank Acquirer"></div>
-      </div>
-      <div class="form-row">
-        <div class="form-group"><label>Host *</label><input id="acq2-host" placeholder="acquirer.bank.com"></div>
-        <div class="form-group"><label>Port *</label><input id="acq2-port" type="number" placeholder="8583" value="8583"></div>
-      </div>
-      <div class="form-group"><label>Protocol</label><select id="acq2-proto"><option value="ISO8583">ISO8583</option><option value="REST">REST</option></select></div>
-      <button class="btn btn-primary" onclick="t2tRegAcquirer()">Register Acquirer</button>
-      <pre class="result" id="acq2-result"></pre>
-    </div>
-    <div class="card" style="margin-top:12px">
-      <div class="card-title">Create Routing Rule</div>
-      <div class="form-group"><label>Rule Name *</label><input id="rr2-name" placeholder="Visa card USD routing"></div>
-      <div class="form-group"><label>Acquirer *</label><select id="rr2-acquirer"><option value="">Loading…</option></select></div>
-      <div class="form-row">
-        <div class="form-group"><label>Match TX Type</label><select id="rr2-txtype"><option value="">Any</option><option value="T2T">T2T</option><option value="S2S">S2S</option><option value="ISO8583">ISO8583</option></select></div>
-        <div class="form-group"><label>Match Currency</label><input id="rr2-currency" placeholder="USD (blank=any)"></div>
-      </div>
-      <div class="form-row">
-        <div class="form-group"><label>Match Card BIN</label><input id="rr2-bin" placeholder="4111 (blank=any)"></div>
-        <div class="form-group"><label>Priority</label><input id="rr2-priority" type="number" value="100"></div>
-      </div>
-      <button class="btn btn-primary" onclick="t2tCreateRule()">Create Rule</button>
-      <pre class="result" id="rr2-result"></pre>
-    </div>
-  </div>
-  <div>
-    <div class="card"><div class="card-header"><div class="card-title">Acquirers</div><button class="btn btn-ghost btn-sm" onclick="t2tLoadAcquirers()">↻</button></div>
-    <div class="table-wrap"><table><thead><tr><th>Code</th><th>Name</th><th>Host:Port</th><th>Protocol</th></tr></thead>
-    <tbody id="acq2-tbody"><tr><td colspan="4" style="text-align:center;color:var(--muted)">Loading…</td></tr></tbody></table></div></div>
-    <div class="card" style="margin-top:12px"><div class="card-header"><div class="card-title">Routing Rules</div><button class="btn btn-ghost btn-sm" onclick="t2tLoadRules()">↻</button></div>
-    <div class="table-wrap"><table><thead><tr><th>Name</th><th>Acquirer</th><th>Type</th><th>Currency</th><th>Priority</th></tr></thead>
-    <tbody id="rr2-tbody"><tr><td colspan="5" style="text-align:center;color:var(--muted)">Loading…</td></tr></tbody></table></div></div>
-  </div>
-</div>
-</div>
-
-<!-- ══ TAB 6: HISTORY ════════════════════════════════════════ -->
-<div id="t2t-history" class="tab-pane" data-g="t2t">
-<div class="card" style="margin-top:16px">
-  <div class="card-header">
-    <div class="card-title">Full Transaction History</div>
+    <div class="card-title" style="margin-bottom:12px">Ping — Verify Sender Connection</div>
+    <p style="font-size:.82rem;color:var(--muted);margin-bottom:12px">Test that the sender IP is whitelisted before they send funds.</p>
     <div style="display:flex;gap:8px">
-      <input id="hist-search" placeholder="Search TxRef, terminal, merchant…" style="padding:5px 10px;border:1px solid var(--border2);border-radius:6px;font-size:.82rem;width:200px" oninput="t2tLoadHistory()">
-      <select id="hist-type" style="padding:4px 8px;border:1px solid var(--border2);border-radius:6px;font-size:.78rem" onchange="t2tLoadHistory()">
-        <option value="">All Types</option><option value="T2T">T2T</option><option value="S2S">S2S</option><option value="WALLET">WALLET</option><option value="ISO8583">ISO8583</option><option value="REFUND">REFUND</option>
-      </select>
-      <select id="hist-status" style="padding:4px 8px;border:1px solid var(--border2);border-radius:6px;font-size:.78rem" onchange="t2tLoadHistory()">
-        <option value="">All Status</option><option value="APPROVED">APPROVED</option><option value="DECLINED">DECLINED</option><option value="REVERSED">REVERSED</option><option value="FAILED">FAILED</option>
-      </select>
-      <button class="btn btn-ghost btn-sm" onclick="t2tLoadHistory()">↻ Refresh</button>
+      <input id="t2e-ping-in" class="input-mono" placeholder="Sender terminal ID e.g. SA-TERM-001" style="flex:1">
+      <button class="btn btn-primary btn-sm" onclick="t2ePing()">Ping</button>
     </div>
+    <div id="t2e-ping-out" style="margin-top:8px"></div>
   </div>
-  <div class="table-wrap">
-    <table>
-      <thead><tr><th>TxRef</th><th>Type</th><th>Amount</th><th>Ccy</th><th>From</th><th>To</th><th>Terminal</th><th>Risk</th><th>RC</th><th>Auth</th><th>Status</th><th>Processing</th><th>Received</th></tr></thead>
-      <tbody id="hist-tbody"><tr><td colspan="13" style="text-align:center;padding:24px;color:var(--muted)">Loading…</td></tr></tbody>
+</div>
+
+<div id="t2e-send" class="tab-pane" data-g="t2e">
+  <div class="card" style="max-width:520px">
+    <div class="card-title" style="margin-bottom:16px">Execute T2T Transfer</div>
+    <div class="form-group"><label>Sender Terminal ID <span style="font-weight:400;color:var(--muted)">(external)</span></label><input id="t2e-src" class="input-mono" placeholder="e.g. SA-TERM-001"></div>
+    <div class="form-group"><label>Destination Terminal ID <span style="font-weight:400;color:var(--muted)">(yours)</span></label><input id="t2e-dst" class="input-mono" value="PST-001-PRIME"></div>
+    <div class="form-row">
+      <div class="form-group"><label>Amount</label><input id="t2e-amt" type="number" step="0.01" placeholder="1000.00"></div>
+      <div class="form-group"><label>Currency</label><select id="t2e-cur"><option>USD</option><option>EUR</option><option>INR</option><option>SGD</option><option>GBP</option><option>ZAR</option><option>AED</option></select></div>
+    </div>
+    <div class="form-group"><label>Description</label><input id="t2e-desc" placeholder="Optional description"></div>
+    <button class="btn btn-primary" onclick="t2eTx()">Execute Transfer</button>
+    <div id="t2e-tx-out" class="result"></div>
+  </div>
+</div>
+
+<div id="t2e-hist" class="tab-pane" data-g="t2e">
+  <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px">
+    <input id="t2e-hist-in" class="input-mono" placeholder="Filter by terminal ID" style="width:260px">
+    <button class="btn btn-primary btn-sm" onclick="t2eHistLoad()">Load</button>
+    <span id="t2e-hist-n" style="font-size:.75rem;color:var(--muted)"></span>
+  </div>
+  <div class="card" style="padding:0;overflow:hidden">
+    <table style="width:100%;border-collapse:collapse;font-size:.78rem">
+      <thead><tr style="background:var(--surf2)">
+        <th style="padding:8px;text-align:left;border-bottom:1px solid var(--border);color:var(--muted);font-size:.65rem;text-transform:uppercase">Reference</th>
+        <th style="padding:8px;text-align:left;border-bottom:1px solid var(--border);color:var(--muted);font-size:.65rem;text-transform:uppercase">From</th>
+        <th style="padding:8px;text-align:left;border-bottom:1px solid var(--border);color:var(--muted);font-size:.65rem;text-transform:uppercase">To</th>
+        <th style="padding:8px;text-align:left;border-bottom:1px solid var(--border);color:var(--muted);font-size:.65rem;text-transform:uppercase">Amount</th>
+        <th style="padding:8px;text-align:left;border-bottom:1px solid var(--border);color:var(--muted);font-size:.65rem;text-transform:uppercase">Status</th>
+        <th style="padding:8px;text-align:left;border-bottom:1px solid var(--border);color:var(--muted);font-size:.65rem;text-transform:uppercase">Date</th>
+      </tr></thead>
+      <tbody id="t2e-hist-body"><tr><td colspan="6" style="text-align:center;padding:24px;color:var(--muted)">Click Load to view transfers</td></tr></tbody>
     </table>
   </div>
-  <div id="hist-meta" style="font-size:.72rem;color:var(--muted);margin-top:8px;display:flex;gap:16px"></div>
 </div>
+
+<div id="t2e-bal" class="tab-pane" data-g="t2e">
+  <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">
+    <input id="t2e-bal-in" class="input-mono" placeholder="Terminal ID e.g. PST-001-PRIME" style="width:280px">
+    <button class="btn btn-primary btn-sm" onclick="t2eBalCheck()">Check Balance</button>
+    <button class="btn btn-ghost btn-sm" onclick="t2eTerminals()">All Terminals</button>
+  </div>
+  <div id="t2e-bal-out" style="margin-bottom:12px"></div>
+  <div id="t2e-term-list"></div>
 </div>
 
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-  initTabs('t2t');
-  t2tLoadStats();
-  t2tLoadTerminals();
-  t2tLoadHistory();
-  t2tLoadAcquirers();
-  t2tLoadRules();
-});
+(function(){
+const B='https://primestack-global-server-network.onrender.com';
+const K='psk_8c404d74df8344f6f3c27d767bc64694c7571fdf00d6e4da';
+let S=localStorage.getItem('t2e_s')||'';
+async function sig(){if(!S){S=prompt('Enter HMAC secret for key psk_8c404d74...')||'';if(S)localStorage.setItem('t2e_s',S);}const t=Date.now().toString();const e=new TextEncoder();const k=await crypto.subtle.importKey('raw',e.encode(S),{name:'HMAC',hash:'SHA-256'},false,['sign']);const s=await crypto.subtle.sign('HMAC',k,e.encode(K+t));return{t,h:Array.from(new Uint8Array(s)).map(b=>b.toString(16).padStart(2,'0')).join('')};}
+async function go(m,p,b){try{const{t,h}=await sig();const r=await fetch(B+p,{method:m,headers:{'Content-Type':'application/json','x-primestack-key-id':K,'x-primestack-timestamp':t,'x-primestack-signature':h},body:b?JSON.stringify(b):undefined,signal:AbortSignal.timeout(12000)});return{ok:r.ok,d:await r.json()};}catch(e){return{ok:false,d:{error:{message:e.message}}};}}
+function err(d){return '<span style="color:var(--danger);font-size:.82rem">'+JSON.stringify(d.error||d)+'</span>';}
+window.t2eAdd=async function(){const ip=document.getElementById('t2e-ip-in').value.trim();if(!ip){toast('Enter an IP','err');return;}const r=await go('POST','/t2t/whitelist',{ip,action:'add'});if(r.ok){toast('IP '+ip+' whitelisted','ok');document.getElementById('t2e-ip-in').value='';t2eWlLoad();}else{document.getElementById('t2e-wl-msg').innerHTML=err(r.d);}};
+window.t2eWlLoad=async function(){const r=await go('GET','/t2t/whitelist',null);const el=document.getElementById('t2e-wl-list');if(r.ok&&r.d.data){const ips=r.d.data.whitelistedIps||[];el.innerHTML=ips.length?ips.map(x=>'<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border)"><span style="font-family:monospace">'+x.ip+'</span><span style="color:var(--muted);font-size:.72rem">'+(x.note||'')+'</span><button class="btn btn-danger btn-sm" onclick="t2eRm(\''+x.ip+'\')">Remove</button></div>').join(''):'<span style="color:var(--muted)">No IPs whitelisted yet</span>';}else{el.innerHTML=err(r.d);}};
+window.t2eRm=async function(ip){const r=await go('POST','/t2t/whitelist',{ip,action:'remove'});if(r.ok){toast('Removed','ok');t2eWlLoad();}};
+window.t2ePing=async function(){const tid=document.getElementById('t2e-ping-in').value.trim()||undefined;const r=await go('POST','/t2t/ping',{terminalId:tid});const el=document.getElementById('t2e-ping-out');if(r.ok&&r.d.data){const d=r.d.data;el.innerHTML=d.reachable?'<div style="padding:10px;background:var(--success-bg,rgba(24,116,58,.1));border:1px solid var(--success);border-radius:6px;font-size:.85rem">✅ Connected — IP <code>'+d.callerIp+'</code> is whitelisted. Ready to transfer.</div>':'<div style="padding:10px;background:rgba(181,9,9,.08);border:1px solid var(--danger);border-radius:6px;font-size:.85rem">❌ IP <code>'+d.callerIp+'</code> not whitelisted. Add it in Setup first.</div>';}else{el.innerHTML=err(r.d);}};
+window.t2eTx=async function(){const src=document.getElementById('t2e-src').value.trim(),dst=document.getElementById('t2e-dst').value.trim(),amt=document.getElementById('t2e-amt').value.trim(),cur=document.getElementById('t2e-cur').value,desc=document.getElementById('t2e-desc').value.trim();if(!src||!amt){toast('Source terminal and amount required','err');return;}const r=await go('POST','/t2t/transfer',{sourceId:src,destId:dst,amount:amt,currency:cur,description:desc||undefined});const el=document.getElementById('t2e-tx-out');if(r.ok&&r.d.data){const d=r.d.data;el.innerHTML='<div style="margin-top:12px;padding:16px;background:var(--success-bg,rgba(24,116,58,.1));border:1px solid var(--success);border-radius:8px"><strong style="font-size:.95rem">✅ '+d.reference+' — COMPLETED</strong><br><br><table style="font-size:.82rem;border-collapse:collapse"><tr><td style="color:var(--muted);padding:3px 16px 3px 0">Amount</td><td><strong>'+d.amount+' '+d.currency+'</strong></td></tr><tr><td style="color:var(--muted);padding:3px 16px 3px 0">From</td><td>'+d.sourceId+'</td></tr><tr><td style="color:var(--muted);padding:3px 16px 3px 0">To</td><td>'+d.destId+'</td></tr><tr><td style="color:var(--muted);padding:3px 16px 3px 0">Your balance</td><td><strong>'+d.destBalance+' '+d.currency+'</strong></td></tr><tr><td style="color:var(--muted);padding:3px 16px 3px 0">Journal</td><td style="font-family:monospace;font-size:.72rem">'+d.journalEntryRef+'</td></tr></table></div>';toast('Transfer completed','ok');}else{el.innerHTML='<div style="margin-top:8px;padding:12px;background:rgba(181,9,9,.08);border:1px solid var(--danger);border-radius:8px;font-size:.82rem">'+JSON.stringify(r.d.error||r.d)+'</div>';}};
+window.t2eHistLoad=async function(){const tid=document.getElementById('t2e-hist-in').value.trim();const r=await go('GET','/t2t/transfers'+(tid?'?tid='+encodeURIComponent(tid):''),null);const rows=r.d.data||[];document.getElementById('t2e-hist-n').textContent=rows.length+' transfers';document.getElementById('t2e-hist-body').innerHTML=rows.length?rows.map(t=>'<tr><td style="padding:8px;font-family:monospace;font-size:.7rem">'+t.reference+'</td><td style="padding:8px">'+t.sourceId+'</td><td style="padding:8px">'+t.destId+'</td><td style="padding:8px;font-weight:600">'+t.amount+' '+t.currency+'</td><td style="padding:8px"><span class="badge badge-green">'+t.status+'</span></td><td style="padding:8px;font-size:.72rem;color:var(--muted)">'+(t.completedAt?new Date(t.completedAt).toLocaleString():'-')+'</td></tr>').join(''):'<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--muted)">No transfers yet</td></tr>';};
+window.t2eBalCheck=async function(){const tid=document.getElementById('t2e-bal-in').value.trim();if(!tid){toast('Enter terminal ID','err');return;}const r=await go('GET','/t2t/balance/'+encodeURIComponent(tid),null);const el=document.getElementById('t2e-bal-out');if(r.ok&&r.d.data){const d=r.d.data;el.innerHTML='<div style="padding:16px;background:var(--surf2);border:1px solid var(--border);border-radius:8px;display:inline-block"><div style="font-size:.78rem;color:var(--muted)">'+d.terminalId+'</div><div style="font-size:2rem;font-weight:700;letter-spacing:-.04em">'+d.balance+' '+d.currency+'</div></div>';}else{el.innerHTML=err(r.d);}};
+window.t2eTerminals=async function(){const r=await go('GET','/t2t/terminals',null);const rows=r.d.data||[];document.getElementById('t2e-term-list').innerHTML=rows.length?'<div class="card" style="padding:0;overflow:hidden;margin-top:8px"><table style="width:100%;border-collapse:collapse;font-size:.82rem"><thead><tr style="background:var(--surf2)"><th style="padding:8px;text-align:left;border-bottom:1px solid var(--border)">Terminal ID</th><th style="padding:8px;text-align:left;border-bottom:1px solid var(--border)">Model</th><th style="padding:8px;text-align:left;border-bottom:1px solid var(--border)">Location</th></tr></thead><tbody>'+rows.map(t=>'<tr><td style="padding:8px;font-family:monospace">'+t.tid+'</td><td style="padding:8px">'+(t.model||'External')+'</td><td style="padding:8px">'+(t.location||'-')+'</td></tr>').join('')+'</tbody></table></div>':'<div style="color:var(--muted);padding:12px">No terminals yet</div>';};
+document.addEventListener('DOMContentLoaded',function(){initTabs('t2e');t2eWlLoad();});
+})();
+</script>
+`);
+}
 
-// ── Stats ──────────────────────────────────────────────────────
 function t2tLoadStats() {
   api('GET','/transactions?pageSize=200').then(function(r) {
     if(!r.ok){toast('Could not load transaction statistics','err');return;}
