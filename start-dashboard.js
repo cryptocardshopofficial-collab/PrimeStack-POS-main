@@ -8,6 +8,10 @@ import { readFileSync } from 'fs';
 import { dashboardLocalizationScript } from './dashboard-localization.js';
 
 const PRODUCT_GUIDE_HTML = readFileSync(new URL('./product-guide.html', import.meta.url), 'utf8');
+const PUBLIC_SITE_HTML = readFileSync(new URL('./public-site.html', import.meta.url), 'utf8');
+const DEVELOPER_PORTAL_HTML = readFileSync(new URL('./developer-portal.html', import.meta.url), 'utf8');
+const DEVELOPER_SERVICE_HTML = readFileSync(new URL('./developer-service.html', import.meta.url), 'utf8');
+const PUBLIC_BRAND_IMAGE = readFileSync(new URL('./Designer (1).jpg', import.meta.url));
 
 // Base URL the browser-side pages call for API requests.
 // Set API_URL on Render to the deployed API service origin.
@@ -355,6 +359,11 @@ function toast(msg, type) {
 function api(method, path, body) {
   var opts = { method: method, headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' } };
   if (body) opts.body = JSON.stringify(body);
+  if (typeof AbortController !== 'undefined') {
+    var controller = new AbortController();
+    opts.signal = controller.signal;
+    setTimeout(function() { controller.abort(); }, 15000);
+  }
   return fetch('/api' + path, opts).then(function(r) {
     return r.json().then(function(d) { return { ok: r.ok, status: r.status, data: d }; });
   }).catch(function(e) { return { ok: false, status: 0, data: { error: e.message } }; });
@@ -3296,8 +3305,33 @@ function fmtUSD(n) { return '$'+fmtAmt(n); }
 // ── Load fiat accounts from live ledger ────────────────────────────────────
 function loadFiatAccounts() {
   api('GET','/accounts').then(function(r) {
-    if (!r.ok) { toast('Could not load accounts — ledger offline','err'); return; }
-    _accounts = Array.isArray(r.data.data) ? r.data.data : Array.isArray(r.data) ? r.data : [];
+    if (!r.ok) {
+      var message = (r.data && (r.data.error || r.data.message)) || 'Could not load ledger accounts';
+      document.getElementById('ws-fiat').textContent = 'Unavailable';
+      document.getElementById('ws-pending').textContent = 'Unavailable';
+      document.getElementById('fiat-accounts-tbody').innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--danger);padding:24px">'+message+' <button class="btn btn-ghost btn-sm" onclick="loadFiatAccounts()">Retry</button></td></tr>';
+      toast(message,'err');
+      return;
+    }
+    var payload = r.data && r.data.data !== undefined ? r.data.data : r.data;
+    _accounts = Array.isArray(payload) ? payload : [];
+    _accounts = _accounts.map(function(a) {
+      var accountNumber = a.account_number || a.accountNumber || a.code || '';
+      var accountType = a.account_type || a.accountType || a.type || 'LEDGER';
+      var available = a.available_balance != null ? a.available_balance :
+        (a.availableBalance != null ? a.availableBalance :
+          (a.balance != null && a.heldBalance != null ? (parseFloat(a.balance) - parseFloat(a.heldBalance)).toString() : 0));
+      var held = a.held_balance != null ? a.held_balance : (a.heldBalance != null ? a.heldBalance : 0);
+      return {
+        account_number: accountNumber,
+        name: a.name || accountNumber,
+        account_type: accountType,
+        currency: a.currency || 'USD',
+        available_balance: available,
+        held_balance: held,
+        status: a.status || 'ACTIVE'
+      };
+    });
 
     var totalBal = _accounts.reduce(function(s,a){ return s + Math.max(0,parseFloat(a.available_balance||0)); },0);
     var totalHeld = _accounts.reduce(function(s,a){ return s + parseFloat(a.held_balance||0); },0);
@@ -3373,7 +3407,15 @@ function postCreditEntry() {
 function loadRecentCredits() {
   api('GET','/transactions?limit=10').then(function(r) {
     var txns = Array.isArray(r.data.data) ? r.data.data : Array.isArray(r.data) ? r.data : [];
-    var approvedTxns = txns.filter(function(t){ return t.status === 'APPROVED'; });
+    if (!r.ok) {
+      document.getElementById('recent-credits').innerHTML = '<div style="color:var(--danger);font-size:.82rem;padding:8px">Transactions unavailable — '+((r.data && (r.data.message || r.data.error)) || 'please retry')+'</div>';
+      document.getElementById('ws-in').textContent = 'Unavailable';
+      return;
+    }
+    var approvedTxns = txns.filter(function(t){
+      var status = String(t.status || '').toUpperCase();
+      return status === 'APPROVED' || status === 'SETTLED' || status === 'CAPTURED' || status === 'POSTED';
+    });
 
     if (!approvedTxns.length) {
       document.getElementById('recent-credits').innerHTML = '<div style="color:var(--muted);font-size:.82rem;padding:8px">No approved transactions found</div>';
@@ -3382,10 +3424,13 @@ function loadRecentCredits() {
     }
 
     var html = approvedTxns.slice(0,6).map(function(t) {
+      var txType = t.tx_type || t.txType || t.type || 'TRANSACTION';
+      var receivedAt = t.received_at || t.receivedAt || t.created_at || t.createdAt || t.postedAt;
+      var txRef = t.tx_ref || t.txRef || t.reference || t.rrn || t.stan || '-';
       return '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border)">' +
-        '<div><div style="font-weight:600;font-size:.82rem">' + t.tx_type + '</div>' +
-        '<div style="font-size:10px;color:var(--muted)">' + new Date(t.received_at).toLocaleString() + '</div>' +
-        '<div style="font-size:10px;color:var(--muted);font-family:monospace">' + t.tx_ref + '</div></div>' +
+        '<div><div style="font-weight:600;font-size:.82rem">' + txType + '</div>' +
+        '<div style="font-size:10px;color:var(--muted)">' + (receivedAt ? new Date(receivedAt).toLocaleString() : '-') + '</div>' +
+        '<div style="font-size:10px;color:var(--muted);font-family:monospace">' + txRef + '</div></div>' +
         '<div style="font-weight:700;color:var(--success)">+' + fmtUSD(t.amount) + ' ' + t.currency + '</div>' +
         '</div>';
     }).join('');
@@ -3394,7 +3439,7 @@ function loadRecentCredits() {
     // Update incoming 24h stat from real data
     var today = new Date().toDateString();
     var inToday = approvedTxns
-      .filter(function(t){ return new Date(t.received_at).toDateString() === today; })
+      .filter(function(t){ var date = t.received_at || t.receivedAt || t.created_at || t.createdAt || t.postedAt; return date && new Date(date).toDateString() === today; })
       .reduce(function(s,t){ return s + parseFloat(t.amount||0); }, 0);
     document.getElementById('ws-in').textContent = fmtUSD(inToday) + ' USD';
   });
@@ -3408,6 +3453,11 @@ function loadFundHistory() {
   // Pull real transactions from switch core
   api('GET','/transactions?limit=50').then(function(r) {
     var txns = Array.isArray(r.data.data)?r.data.data:Array.isArray(r.data)?r.data:[];
+    if (!r.ok) {
+      document.getElementById('fund-history-tbody').innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--danger);padding:24px">Transactions unavailable — '+((r.data && (r.data.message || r.data.error)) || 'please retry')+'</td></tr>';
+      document.getElementById('fund-history-meta').textContent = 'Balance history could not be loaded';
+      return;
+    }
 
     // Build fund history from transactions (enrich with source info)
     var rows = txns.map(function(t) {
@@ -5646,8 +5696,8 @@ function clearedSessionCookie() {
   return `${SESSION_COOKIE}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0`;
 }
 
-function signRequest(keyId, timestamp, rawBody) {
-  return createHmac('sha256', CONSOLE_HMAC_SECRET).update(`${keyId}${timestamp}${rawBody}`).digest('hex');
+function signRequest(keyId, timestamp, nonce, rawBody) {
+  return createHmac('sha256', CONSOLE_HMAC_SECRET).update(`${keyId}${timestamp}${nonce}${rawBody}`).digest('hex');
 }
 
 // Proxy a console request to the upstream API, signing it so the closed-by-default
@@ -5676,10 +5726,12 @@ function proxyRequest(req, res, targetOrigin, targetPath) {
 
     // The API contract is a millisecond epoch (see src/plugins/auth.ts).
     const timestamp = String(Date.now());
+    const nonce = randomUUID().replace(/-/g, '');
     headers[`${HMAC_HEADER_PREFIX}-key-id`] = CONSOLE_HMAC_KEY_ID;
     headers[`${HMAC_HEADER_PREFIX}-timestamp`] = timestamp;
+    headers[`${HMAC_HEADER_PREFIX}-nonce`] = nonce;
     headers[`${HMAC_HEADER_PREFIX}-signature`] =
-      signRequest(CONSOLE_HMAC_KEY_ID, timestamp, payload.length > 0 ? payload.toString('utf8') : '');
+      signRequest(CONSOLE_HMAC_KEY_ID, timestamp, nonce, payload.length > 0 ? payload.toString('utf8') : '');
     if (payload.length > 0) headers['content-length'] = payload.length;
 
     const options = {
@@ -6914,7 +6966,6 @@ function t2tEnginePage() {
       <p style="font-size:.82rem;color:var(--muted);margin-bottom:12px">Send these to your customer:</p>
       <table class="t2e-cred" style="width:100%;border-collapse:collapse">
         <tr><td>Server URL</td><td>https://primestack-global-server-network.onrender.com</td></tr>
-        <tr style="border-top:1px solid var(--border)"><td>HMAC Key ID</td><td>psk_8c404d74df8344f6f3c27d767bc64694c7571fdf00d6e4da</td></tr>
         <tr style="border-top:1px solid var(--border)"><td>Your Terminal</td><td style="font-weight:700;color:var(--accent);font-size:.85rem">PST-001-PRIME</td></tr>
         <tr style="border-top:1px solid var(--border)"><td>Transfer endpoint</td><td>POST /t2t/transfer</td></tr>
         <tr style="border-top:1px solid var(--border)"><td>Ping endpoint</td><td>POST /t2t/ping</td></tr>
@@ -7011,11 +7062,7 @@ function t2tEnginePage() {
 
 <script>
 (function(){
-const B='https://primestack-global-server-network.onrender.com';
-const K='psk_8c404d74df8344f6f3c27d767bc64694c7571fdf00d6e4da';
-let S=localStorage.getItem('t2e_s')||'';
-async function sig(){if(!S){S=prompt('Enter HMAC secret for key psk_8c404d74...')||'';if(S)localStorage.setItem('t2e_s',S);}const t=Date.now().toString();const e=new TextEncoder();const k=await crypto.subtle.importKey('raw',e.encode(S),{name:'HMAC',hash:'SHA-256'},false,['sign']);const s=await crypto.subtle.sign('HMAC',k,e.encode(K+t));return{t,h:Array.from(new Uint8Array(s)).map(b=>b.toString(16).padStart(2,'0')).join('')};}
-async function go(m,p,b){try{const{t,h}=await sig();const r=await fetch(B+p,{method:m,headers:{'Content-Type':'application/json','x-primestack-key-id':K,'x-primestack-timestamp':t,'x-primestack-signature':h},body:b?JSON.stringify(b):undefined,signal:AbortSignal.timeout(12000)});return{ok:r.ok,d:await r.json()};}catch(e){return{ok:false,d:{error:{message:e.message}}};}}
+async function go(m,p,b){try{const headers={'Content-Type':'application/json'};if(m==='POST'&&p==='\/t2t\/transfer'){headers['x-primestack-idempotency-key']=crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2)+Date.now().toString(36);}const r=await fetch('/api'+p,{method:m,headers,body:b?JSON.stringify(b):undefined,credentials:'same-origin',signal:AbortSignal.timeout(12000)});return{ok:r.ok,d:await r.json()};}catch(e){return{ok:false,d:{error:{message:e.message}}};}}
 function err(d){return '<span style="color:var(--danger);font-size:.82rem">'+JSON.stringify(d.error||d)+'</span>';}
 window.t2eAdd=async function(){const ip=document.getElementById('t2e-ip-in').value.trim();if(!ip){toast('Enter an IP','err');return;}const r=await go('POST','/t2t/whitelist',{ip,action:'add'});if(r.ok){toast('IP '+ip+' whitelisted','ok');document.getElementById('t2e-ip-in').value='';t2eWlLoad();}else{document.getElementById('t2e-wl-msg').innerHTML=err(r.d);}};
 window.t2eWlLoad=async function(){const r=await go('GET','/t2t/whitelist',null);const el=document.getElementById('t2e-wl-list');if(r.ok&&r.d.data){const ips=r.d.data.whitelistedIps||[];el.innerHTML=ips.length?ips.map(x=>'<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border)"><span style="font-family:monospace">'+x.ip+'</span><span style="color:var(--muted);font-size:.72rem">'+(x.note||'')+'</span><button class="btn btn-danger btn-sm" onclick="t2eRm(\''+x.ip+'\')">Remove</button></div>').join(''):'<span style="color:var(--muted)">No IPs whitelisted yet</span>';}else{el.innerHTML=err(r.d);}};
@@ -7052,6 +7099,7 @@ function t2tLoadStats() {
     var list=Array.isArray(r.data.data)?r.data.data:Array.isArray(r.data)?r.data:[];
     document.getElementById('t2t-stat-pending').textContent = Array.isArray(list)?list.length:'—';
     if(!r.ok)toast('Could not load settlement queue statistics','err');
+    else if(r.data.meta && r.data.meta.degraded){document.getElementById('t2t-stat-pending').textContent='—';}
   });
 }
 
@@ -7385,6 +7433,10 @@ function t2tLoadAcquirers(){
   api('GET','/acquirers').then(function(r){
     var list=Array.isArray(r.data.data)?r.data.data:Array.isArray(r.data)?r.data:[];
     if(!r.ok){document.getElementById('acq2-tbody').innerHTML='<tr><td colspan="4">Unable to load acquirers</td></tr>';toast('Could not load acquirers','err');return;}
+    if(r.data.meta && r.data.meta.degraded){
+      document.getElementById('acq2-tbody').innerHTML='<tr><td colspan="4">Acquirer service is temporarily unavailable</td></tr>';
+      return;
+    }
     var rows=list.map(function(a){return '<tr><td><strong>'+t2tEscapeHtml(a.code)+'</strong></td><td>'+t2tEscapeHtml(a.name)+'</td><td><code>'+t2tEscapeHtml(a.host)+':'+t2tEscapeHtml(a.port)+'</code></td><td><span class="badge badge-blue">'+t2tEscapeHtml(a.protocol)+'</span></td></tr>';}).join('');
     document.getElementById('acq2-tbody').innerHTML=rows||'<tr><td colspan="4" style="text-align:center;color:var(--muted)">No acquirers</td></tr>';
     var sel=document.getElementById('rr2-acquirer');
@@ -7418,9 +7470,6 @@ function t2tCreateRule(){
     showResult('rr2-result',r.data.data||r.data,r.ok);
     if(r.ok){toast('Rule created','ok');t2tLoadRules();}else toast('Failed: '+((r.data.error&&r.data.error.message)||'check fields'),'err');
   });
-}
-</script>
-`);
 }
 
 // --- Payment Rails Page -------------------------------------------------------
@@ -7589,7 +7638,7 @@ function railsPage() {
   <div class="card"><div class="card-title">Required Environment Variables</div><pre style="background:var(--bg);padding:14px;border-radius:8px;font-size:.75rem;font-family:monospace;border:1px solid var(--border);line-height:1.8">WISE_API_KEY=your_api_token
 WISE_PROFILE_ID=your_profile_id
 WISE_ENV=live
-WISE_WEBHOOK_SECRET=from_wise_dashboard
+WISE_WEBHOOK_PUBLIC_KEY=Wise_RSA_public_key_PEM
 RAILS_PORT=8082</pre><div style="font-size:.78rem;color:var(--text2);margin-top:8px">Virtual IBANs are issued in your Wise business profile, then registered here as customers (Wise IBAN / account number) so incoming credits can be matched and forwarded.</div></div>
 </div>
 </div>
@@ -7841,6 +7890,49 @@ const server = createServer((req, res) => {
     return;
   }
 
+  // -- Public website --
+  const publicPages = new Set([
+    '/', '/payments', '/collect', '/send', '/payouts', '/wallets',
+    '/banking', '/settlement', '/network', '/technology', '/iso20022', '/iso8583',
+    '/security', '/compliance', '/solutions', '/merchants', '/enterprises', '/partners',
+    '/company', '/about', '/careers', '/contact',
+    '/terms', '/privacy', '/cookies', '/acceptable-use'
+  ]);
+  if (req.method === 'GET' && publicPages.has(path)) {
+    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+    res.end(PUBLIC_SITE_HTML);
+    return;
+  }
+  if (req.method === 'GET' && path.startsWith('/developer/')) {
+    const serviceSlug = decodeURIComponent(path.slice('/developer/'.length)).replace(/[^a-z0-9-]/g, '');
+    const developerServicePages = new Set([
+      't2t', 's2s', 'external-terminal', 'api', 'security',
+      'banking', 'wallets', 'iso20022', 'iso8583', 'ping'
+    ]);
+    if (developerServicePages.has(serviceSlug)) {
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+      res.end(DEVELOPER_SERVICE_HTML);
+      return;
+    }
+  }
+  if (req.method === 'GET' && path === '/developer') {
+    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+    res.end(DEVELOPER_PORTAL_HTML);
+    return;
+  }
+  let decodedPublicPath = '';
+  try { decodedPublicPath = decodeURIComponent(path); } catch {}
+  if (req.method === 'GET' && decodedPublicPath === '/Designer (1).jpg') {
+    res.writeHead(200, { 'Content-Type': 'image/jpeg', 'Cache-Control': 'public, max-age=86400' });
+    res.end(PUBLIC_BRAND_IMAGE);
+    return;
+  }
+  if (req.method === 'POST' && path.startsWith('/api/public/')) {
+    const target = resolveProxy(url);
+    proxyRequest(req, res, target.origin, target.path);
+    return;
+  }
+
   // -- Operator sign-in / sign-out (public) --
   if (path === '/login') {
     handleLogin(req, res);
@@ -7924,20 +8016,11 @@ const server = createServer((req, res) => {
   let html = null;
   
 function developerPortalPage() {
-  try {
-    const fs = require('fs');
-    const path = require('path');
-    const portalPath = path.join(process.cwd(), 'developer-portal.html');
-    if (fs.existsSync(portalPath)) {
-      return fs.readFileSync(portalPath, 'utf8');
-    }
-  } catch (e) {}
-  // Fallback if file not found
-  return '<!DOCTYPE html><html><body style="background:#020914;color:#e2e8f0;font-family:monospace;padding:40px">Developer portal file not found. Please check deployment.</body></html>';
+  return DEVELOPER_PORTAL_HTML;
 }
 
 switch (path) {
-    case '/developer':             html = developerPortalPage();
+    case '/developer':             html = developerPortalPage(); break;
     case '/':                      html = landingPage();         break;
     case '/platform':              html = platformOverview();    break;
     case '/platform/banks':        html = platformBanks();       break;
@@ -7994,12 +8077,15 @@ switch (path) {
   }
 
   res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-  res.end(html.replace('</body>', `${dashboardLocalizationScript()}</body>`));
+  const output = path === '/developer'
+    ? html
+    : html.replace('</body>', `${dashboardLocalizationScript()}</body>`);
+  res.end(output);
 });
 
 // Public console port. In the single-service deployment the Fastify API runs
 // internally on API_PORT and this console owns the platform-assigned PORT.
-const PORT = Number(process.env.PORT || 3000);
+const PORT = Number(process.env.PORT || 9005);
 if (!Number.isInteger(PORT) || PORT < 1 || PORT > 65535) {
   throw new Error('PORT must be an integer between 1 and 65535');
 }
@@ -8012,6 +8098,3 @@ server.listen(PORT, '0.0.0.0', () => {
   console.log(`  Ops:        http://localhost:${PORT}/ops`);
   console.log(`  Monitoring: http://localhost:${PORT}/platform/monitoring`);
 });
-
-
-
