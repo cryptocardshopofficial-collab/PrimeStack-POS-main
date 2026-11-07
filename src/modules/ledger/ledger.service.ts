@@ -69,6 +69,32 @@ export class LedgerService {
     });
   }
 
+  async listAccounts(filters: { currency?: string; type?: string; status?: string } = {}) {
+    const accounts = await this.prisma.account.findMany({
+      where: {
+        ...(filters.currency ? { currency: filters.currency.toUpperCase() } : {}),
+        ...(filters.type ? { type: filters.type as never } : {}),
+        ...(filters.status ? { status: filters.status as never } : {}),
+      },
+      orderBy: [{ currency: "asc" }, { code: "asc" }],
+    });
+
+    return accounts.map((account) => ({
+      id: account.id,
+      account_number: account.code,
+      name: account.name,
+      account_type: account.type,
+      subtype: account.subtype,
+      currency: account.currency,
+      balance: account.balance.toString(),
+      held_balance: account.heldBalance.toString(),
+      available_balance: new Decimal(account.balance).minus(account.heldBalance).toString(),
+      status: account.status,
+      created_at: account.createdAt.toISOString(),
+      updated_at: account.updatedAt.toISOString(),
+    }));
+  }
+
   async getBalance(accountCode: string): Promise<AccountBalance> {
     const account = await this.prisma.account.findUnique({
       where: { code: accountCode },

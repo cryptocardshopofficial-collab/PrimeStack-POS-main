@@ -20,6 +20,16 @@ export function registerLedgerRoutes(
 ): void {
   // ── Account Management ──────────────────────────
 
+  app.get("/ledger/accounts", async (request: FastifyRequest, reply: FastifyReply) => {
+    const query = request.query as Record<string, unknown>;
+    const accounts = await ledgerService.listAccounts({
+      currency: query.currency as string | undefined,
+      type: query.type as string | undefined,
+      status: query.status as string | undefined,
+    });
+    return sendSuccess(reply, accounts);
+  });
+
   app.post("/ledger/accounts", async (request: FastifyRequest, reply: FastifyReply) => {
     const parsed = createAccountSchema.safeParse(request.body);
     if (!parsed.success) {

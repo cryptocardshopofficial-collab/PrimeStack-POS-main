@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "PrimeStack Global Server Network — Production-grade global server network with double-entry ledger, ISO8583 engine, and multi-currency transfer processing",
   "main": "dist/server.js",
+  "type": "module",
   "scripts": {
     "dev": "tsx watch src/server.ts",
     "build": "tsc",
