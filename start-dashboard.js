@@ -7,11 +7,20 @@ import { randomUUID, createHmac, timingSafeEqual } from 'crypto';
 import { readFileSync } from 'fs';
 import { dashboardLocalizationScript } from './dashboard-localization.js';
 
-const PRODUCT_GUIDE_HTML = readFileSync(new URL('./product-guide.html', import.meta.url), 'utf8');
-const PUBLIC_SITE_HTML = readFileSync(new URL('./public-site.html', import.meta.url), 'utf8');
-const DEVELOPER_PORTAL_HTML = readFileSync(new URL('./developer-portal.html', import.meta.url), 'utf8');
-const DEVELOPER_SERVICE_HTML = readFileSync(new URL('./developer-service.html', import.meta.url), 'utf8');
-const PUBLIC_BRAND_IMAGE = readFileSync(new URL('./Designer (1).jpg', import.meta.url));
+function readOptional(relativePath, encoding) {
+  try {
+    return readFileSync(new URL(relativePath, import.meta.url), encoding);
+  } catch (error) {
+    console.error('[startup] Optional asset is missing: ' + relativePath, error.message);
+    return encoding ? '' : Buffer.alloc(0);
+  }
+}
+
+const PRODUCT_GUIDE_HTML = readOptional('./product-guide.html', 'utf8');
+const PUBLIC_SITE_HTML = readOptional('./public-site.html', 'utf8');
+const DEVELOPER_PORTAL_HTML = readOptional('./developer-portal.html', 'utf8');
+const DEVELOPER_SERVICE_HTML = readOptional('./developer-service.html', 'utf8');
+const PUBLIC_BRAND_IMAGE = readOptional('./Designer (1).jpg');
 
 // Base URL the browser-side pages call for API requests.
 // Set API_URL on Render to the deployed API service origin.
