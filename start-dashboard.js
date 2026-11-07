@@ -431,7 +431,7 @@ function refreshHealthBadge(elId, port) {
     el.innerHTML = '<span class="dot"></span> Unknown';
   });
 }
-</script>`;
+<\/script>`;
 
 // --- Layout helpers ---------------------------------------------------------
 const iconPaths = {
@@ -540,7 +540,7 @@ function sidebar(active) {
     });
     activate(selected,false);
   })();
-  </script>
+  <\/script>
   <div class="sidebar-footer">PrimeStack Global Server Network v201.3 — <a href="/platform/monitoring" style="color:var(--accent);text-decoration:none">14 services</a> · <a href="/platform/guide" style="color:var(--accent);text-decoration:none">Instructions</a></div>
 </nav>`;
 }
@@ -551,7 +551,7 @@ function page(title, active, content) {
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<script>window.__API_URL__=${JSON.stringify(API_URL)};</script>
+<script>window.__API_URL__=${JSON.stringify(API_URL)};<\/script>
 <title>${title} — PrimeStack</title>
 ${CSS}
 </head>
@@ -574,7 +574,7 @@ function landingPage() {
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<script>window.__API_URL__=${JSON.stringify(API_URL)};</script>
+<script>window.__API_URL__=${JSON.stringify(API_URL)};<\/script>
 <title>PrimeStack — Console</title>
 ${CSS}
 <style>
@@ -704,7 +704,7 @@ document.addEventListener('DOMContentLoaded', function() {
     else { el.textContent = ok + '/' + keys.length; el.className = 'stat-value stat-warn'; }
   }).catch(function(){ document.getElementById('platform-status').textContent = 'N/A'; });
 });
-</script>
+<\/script>
 `);
 }
 
@@ -879,7 +879,7 @@ function bkToast(msg,type){
   window._bkTT=setTimeout(function(){t.classList.remove('show');},3800);
 }
 loadBanks();
-</script>
+<\/script>
 `);
 }
 
@@ -1006,7 +1006,7 @@ function loadJournal() {
   });
 }
 document.addEventListener('DOMContentLoaded', function() { initTabs('fund'); });
-</script>
+<\/script>
 `);
 }
 
@@ -1095,7 +1095,7 @@ function purgeIps() {
   }).catch(function(error){showResult('ip-purge-result',{error:error.message},false);toast(error.message,'err');});
 }
 document.addEventListener('DOMContentLoaded', loadIps);
-</script>
+<\/script>
 `);
 }
 
@@ -1153,7 +1153,7 @@ document.addEventListener('DOMContentLoaded', function() {
   api('GET','/settlement/queue').then(function(r){document.getElementById('settle-queue').textContent=(r.data.total||r.data.count||'0');});
   api('GET','/settlement/net').then(function(r){document.getElementById('settle-net').textContent=(r.data.net||r.data.total||'—');});
 });
-</script>
+<\/script>
 `);
 }
 
@@ -1304,7 +1304,7 @@ function updateCountryRule(code,allowed,riskScore){
   api('PUT','/risk/countries/'+encodeURIComponent(code),{allowed:allowed,riskScore:riskScore}).then(function(r){if(r.ok){toast('Country rule updated','ok');loadCountries();}else toast('Could not update country rule','err');});
 }
 document.addEventListener('DOMContentLoaded', function(){initTabs('risk');});
-</script>
+<\/script>
 `);
 }
 
@@ -1441,7 +1441,7 @@ document.addEventListener('DOMContentLoaded', function(){
   refreshAll();
   window.setInterval(refreshAll,15000);
 });
-</script>
+<\/script>
 `);
 }
 
@@ -1471,7 +1471,7 @@ function loadMerchants(){
   });
 }
 document.addEventListener('DOMContentLoaded', loadMerchants);
-</script>
+<\/script>
 `);
 }
 
@@ -1517,7 +1517,7 @@ document.addEventListener('DOMContentLoaded', function(){
   api('GET','/transactions').then(function(r){var t=r.data.transactions||r.data||[];document.getElementById('m-txns').textContent=t.length;});
   api('GET','/terminals').then(function(r){var t=r.data.terminals||r.data||[];document.getElementById('m-terminals').textContent=t.length;});
 });
-</script>
+<\/script>
 `);
 }
 
@@ -1606,7 +1606,7 @@ function sendS2S(){api('POST','/transfers',{type:'s2s',fromSwitch:document.getEl
 function sendWallet(){api('POST','/transfers',{type:'wallet',fromWallet:document.getElementById('wt-from').value,toWallet:document.getElementById('wt-to').value,amount:document.getElementById('wt-amount').value,currency:document.getElementById('wt-cur').value,memo:document.getElementById('wt-memo').value}).then(function(r){showResult('wt-result',r.data,r.ok);});}
 function sendIso(){api('POST','/iso8583/process',{mti:document.getElementById('iso-mti').value,pan:document.getElementById('iso-pan').value,expiry:document.getElementById('iso-exp').value,amount:document.getElementById('iso-amount').value,terminalId:document.getElementById('iso-tid').value}).then(function(r){showResult('iso-send-result',r.data,r.ok);});}
 document.addEventListener('DOMContentLoaded', function(){initTabs('send');});
-</script>
+<\/script>
 `);
 }
 
@@ -1665,7 +1665,7 @@ function payBank(){api('POST','/transfers',{type:'bank_payout',beneficiaryName:d
 function payCrypto(){api('POST','/transfers',{type:'crypto_payout',address:document.getElementById('pc-addr').value,amount:document.getElementById('pc-amount').value,asset:document.getElementById('pc-asset').value,network:document.getElementById('pc-net').value}).then(function(r){showResult('pay-crypto-result',r.data,r.ok);if(r.ok)toast('Crypto payout sent','ok');});}
 function loadPayHistory(){api('GET','/transfers').then(function(r){var rows=(r.data.data||r.data||[]).slice(0,30).map(function(t){return '<tr><td><code>'+t.id+'</code></td><td>'+t.type+'</td><td>'+t.amount+'</td><td>'+(t.beneficiaryName||t.address||'')+'</td><td><span class="badge '+(t.status==='completed'?'badge-green':t.status==='pending'?'badge-yellow':'badge-gray')+'">'+t.status+'</span></td><td>'+new Date(t.created_at).toLocaleDateString()+'</td></tr>';}).join('');document.getElementById('pay-hist-tbody').innerHTML=rows||'<tr><td colspan="6" style="text-align:center;color:var(--muted)">No payouts</td></tr>';});}
 document.addEventListener('DOMContentLoaded', function(){initTabs('payout');});
-</script>
+<\/script>
 `);
 }
 
@@ -1702,7 +1702,7 @@ function loadHistory(){
   });
 }
 document.addEventListener('DOMContentLoaded', loadHistory);
-</script>
+<\/script>
 `);
 }
 
@@ -1729,7 +1729,7 @@ function loadTerminals(){
   });
 }
 document.addEventListener('DOMContentLoaded', loadTerminals);
-</script>
+<\/script>
 `);
 }
 
@@ -1760,7 +1760,7 @@ function genKey(){api('POST','/security/hmac/keys',{label:document.getElementByI
 function loadKeys(){api('GET','/security/hmac/keys').then(function(r){var rows=(r.data.data||r.data||[]).map(function(k){return '<tr><td><code>'+k.client_id||k.clientId+'</code></td><td>'+k.label+'</td><td>'+(k.createdAt?new Date(k.createdAt).toLocaleDateString():'')+'</td><td><button class="btn btn-danger btn-sm" onclick="revokeKey(\''+k.id+'\')">Revoke</button></td></tr>';}).join('');document.getElementById('keys-tbody').innerHTML=rows||'<tr><td colspan="4" style="text-align:center;color:var(--muted)">No keys</td></tr>';});}
 function revokeKey(id){if(!confirm('Revoke key '+id+'?'))return;api('DELETE','/security/hmac/keys/'+id).then(function(r){toast(r.ok?'Revoked':'Error','ok');loadKeys();});}
 document.addEventListener('DOMContentLoaded', loadKeys);
-</script>
+<\/script>
 `);
 }
 
@@ -2055,7 +2055,7 @@ function loadLinks() {
   renderTable();
   toast('Refreshed', 'ok');
 }
-</script>
+<\/script>
 `);
 }
 
@@ -2471,7 +2471,7 @@ function downloadTerminalConfig() {
 }
 
 document.addEventListener('DOMContentLoaded', function(){ initTabs('treg'); });
-</script>
+<\/script>
 `);
 }
 
@@ -2833,7 +2833,7 @@ function downloadBankConfig() {
 }
 
 document.addEventListener('DOMContentLoaded', function(){ initTabs('rbs'); });
-</script>
+<\/script>
 `);
 }
 
@@ -3901,7 +3901,7 @@ document.addEventListener('DOMContentLoaded', function() {
   loadFundHistory();
   loadCryptoTxns();
 });
-</script>
+<\/script>
 `);
 }
 
@@ -3984,7 +3984,7 @@ function loadFirmware(){api('GET','/terminals/firmware').then(function(r){docume
 function loadParams(){api('GET','/terminals/parameters').then(function(r){document.getElementById('params-content').innerHTML='<pre style="font-size:.78rem;white-space:pre-wrap">'+JSON.stringify(r.data,null,2)+'</pre>';});}
 function loadFleet(){api('GET','/terminals/fleet').then(function(r){document.getElementById('fleet-content').innerHTML='<pre style="font-size:.78rem;white-space:pre-wrap">'+JSON.stringify(r.data,null,2)+'</pre>';});}
 document.addEventListener('DOMContentLoaded', function(){initTabs('opst');loadAllTerminals();});
-</script>
+<\/script>
 `);
 }
 
@@ -4045,7 +4045,7 @@ function loadApiKeys(){api('GET','/security/api-keys').then(function(r){var rows
 function loadUsers(){api('GET','/security/users').then(function(r){var rows=(r.data.data||r.data||[]).map(function(u){return '<tr><td><code>'+u.id+'</code></td><td>'+u.name+'</td><td>'+u.role+'</td><td><span class="badge '+(u.status==='active'?'badge-green':'badge-gray')+'">'+u.status+'</span></td></tr>';}).join('');document.getElementById('usr-tbody').innerHTML=rows||'<tr><td colspan="4" style="text-align:center;color:var(--muted)">No users</td></tr>';});}
 function verifyHmac(){api('POST','/security/hmac/verify',{keyId:document.getElementById('vf-keyid').value,payload:document.getElementById('vf-payload').value,signature:document.getElementById('vf-sig').value}).then(function(r){showResult('vf-result',r.data,r.ok);});}
 document.addEventListener('DOMContentLoaded', function(){initTabs('net');});
-</script>
+<\/script>
 `);
 }
 
@@ -4120,7 +4120,7 @@ function loadHosts(){api('GET','/iso8583/hosts').then(function(r){var rows=(r.da
 function loadMessages(){api('GET','/iso8583/messages').then(function(r){var rows=(r.data.data||r.data||[]).slice(0,30).map(function(m){return '<tr><td><code>'+m.id+'</code></td><td><code>'+m.mti+'</code></td><td>'+(m.amount||'')+'</td><td><span class="badge '+(m.status==='approved'?'badge-green':m.status==='declined'?'badge-red':'badge-yellow')+'">'+m.status+'</span></td><td>'+new Date(m.created_at).toLocaleString()+'</td></tr>';}).join('');document.getElementById('msgs-tbody').innerHTML=rows||'<tr><td colspan="5" style="text-align:center;color:var(--muted)">No messages</td></tr>';});}
 function loadMetrics(){api('GET','/iso8583/metrics').then(function(r){document.getElementById('metrics-content').innerHTML='<pre style="font-size:.78rem;white-space:pre-wrap">'+JSON.stringify(r.data,null,2)+'</pre>';});}
 document.addEventListener('DOMContentLoaded', function(){initTabs('iso');});
-</script>
+<\/script>
 `);
 }
 
@@ -4180,7 +4180,7 @@ function loadLedgerEntries(){api('GET','/wallets/entries').then(function(r){var 
 function lookupHold(){api('GET','/wallets/holds/'+document.getElementById('lh-ref').value).then(function(r){showResult('lh-result',r.data,r.ok);});}
 function postEntry(){api('POST','/wallets/entries',{accountId:document.getElementById('lp-account').value,type:document.getElementById('lp-type').value,amount:document.getElementById('lp-amount').value,currency:document.getElementById('lp-cur').value,reference:document.getElementById('lp-ref').value,description:document.getElementById('lp-desc').value}).then(function(r){showResult('lp-result',r.data,r.ok);if(r.ok)toast('Entry posted','ok');});}
 document.addEventListener('DOMContentLoaded', function(){initTabs('led');refreshHealthBadge('led-badge',4001);});
-</script>
+<\/script>
 `);
 }
 
@@ -4286,7 +4286,7 @@ function purgeIpEntries(){
   }).catch(function(error){showResult('iwp-result',{error:error.message},false);toast(error.message,'err');});
 }
 document.addEventListener('DOMContentLoaded', function(){initTabs('ipw');refreshHealthBadge('ipw-badge',4002);});
-</script>
+<\/script>
 `);
 }
 
@@ -4330,7 +4330,7 @@ function loadAuthKeys(){api('GET','/auth/keys').then(function(r){document.getEle
 function verifyAuth(){api('POST','/auth/verify',{keyId:document.getElementById('av-kid').value,payload:document.getElementById('av-payload').value,signature:document.getElementById('av-sig').value}).then(function(r){showResult('av-result',r.data,r.ok);});}
 function signPayload(){api('POST','/auth/sign',{keyId:document.getElementById('as-kid').value,payload:document.getElementById('as-payload').value}).then(function(r){showResult('as-result',r.data,r.ok);});}
 document.addEventListener('DOMContentLoaded', function(){initTabs('authsvc');refreshHealthBadge('auth-badge',4003);});
-</script>
+<\/script>
 `);
 }
 
@@ -4489,7 +4489,7 @@ function queueCommand(){
 function loadTrmGroups(){api('GET','/terminals/groups').then(function(r){document.getElementById('trmg-content').innerHTML='<pre style="font-size:.78rem;white-space:pre-wrap">'+JSON.stringify(r.data.data||r.data,null,2)+'</pre>';});}
 function loadTrmFleet(){api('GET','/terminals/fleet/overview').then(function(r){document.getElementById('trmfl-content').innerHTML='<pre style="font-size:.78rem;white-space:pre-wrap">'+JSON.stringify(r.data.data||r.data,null,2)+'</pre>';});}
 document.addEventListener('DOMContentLoaded', function(){initTabs('trmsvc');loadTrm();loadMerchants();refreshHealthBadge('trm-badge',4004);});
-</script>
+<\/script>
 `);
 }
 
@@ -4640,7 +4640,7 @@ function loadSettlementQueue(){
   });
 }
 document.addEventListener('DOMContentLoaded', function(){initTabs('sc');loadTxList();loadAcquirers();loadRoutingRules();loadSettlementQueue();refreshHealthBadge('sc-badge',4010);});
-</script>
+<\/script>
 `);
 }
 
@@ -5060,7 +5060,7 @@ document.addEventListener('DOMContentLoaded', function(){
   loadBankHosts();
   loadReceiveHistory();
 });
-</script>
+<\/script>
 `);
 }
 
@@ -5111,7 +5111,7 @@ function createTransfer(){api('POST','/transfers',{transferRef:document.getEleme
 function loadTransfers(){api('GET','/transfers').then(function(r){var rows=(r.data.data||r.data||[]).slice(0,30).map(function(t){return '<tr><td><code>'+t.transfer_ref+'</code></td><td><code>'+t.source_id+'</code></td><td><code>'+t.dest_id+'</code></td><td>'+t.amount+'</td><td><span class="badge '+(t.status==='completed'?'badge-green':t.status==='pending'?'badge-yellow':'badge-red')+'">'+t.status+'</span></td><td>'+new Date(t.created_at).toLocaleDateString()+'</td></tr>';}).join('');document.getElementById('xfrl-tbody').innerHTML=rows||'<tr><td colspan="6" style="text-align:center;color:var(--muted)">No transfers</td></tr>';});}
 function reverseTransfer(){api('POST','/transfers/'+document.getElementById('xfrev-ref').value+'/reverse',{reason:document.getElementById('xfrev-reason').value}).then(function(r){showResult('xfrev-result',r.data,r.ok);if(r.ok)toast('Reversed','ok');});}
 document.addEventListener('DOMContentLoaded', function(){initTabs('xfrsvc');refreshHealthBadge('xfr-badge',4005);});
-</script>
+<\/script>
 `);
 }
 
@@ -5175,7 +5175,7 @@ function doAml(){api('POST','/risk/aml',{name:document.getElementById('aml-n').v
 function loadRskCtry(){api('GET','/risk/countries').then(function(r){var rows=(r.data.data||r.data||[]).map(function(c){return '<tr><td>'+c.country_code+'</td><td><span class='badge '+(c.risk_score>70?'badge-red':c.risk_score>40?'badge-yellow':'badge-green')+'">'+c.risk_score>70?'high':c.risk_score>40?'medium':'low'+'</span></td><td>'+(c.restricted?'Yes':'No')+'</td></tr>';}).join('');document.getElementById('rc-tbody').innerHTML=rows||'<tr><td colspan="3" style="text-align:center;color:var(--muted)">No data</td></tr>';});}
 function loadRskDec(){api('GET','/risk/decisions').then(function(r){document.getElementById('rsk-dec-content').innerHTML='<pre style="font-size:.78rem;white-space:pre-wrap">'+JSON.stringify(r.data,null,2)+'</pre>';});}
 document.addEventListener('DOMContentLoaded', function(){initTabs('rsksvc');refreshHealthBadge('rsk-badge',4006);});
-</script>
+<\/script>
 `);
 }
 
@@ -5213,7 +5213,7 @@ function loadAudEvents(){api('GET','/audit/events').then(function(r){var rows=(r
 function loadAudAlerts(){api('GET','/audit/alerts').then(function(r){var rows=(r.data.data||r.data||[]).map(function(a){return '<tr><td><code>'+a.id+'</code></td><td><span class="badge '+(a.severity==='critical'?'badge-red':a.severity==='high'?'badge-yellow':'badge-gray')+'">'+a.severity+'</span></td><td>'+(a.description||a.message||'')+'</td><td>'+a.status+'</td><td>'+new Date(a.created_at).toLocaleString()+'</td></tr>';}).join('');document.getElementById('aa-tbody').innerHTML=rows||'<tr><td colspan="5" style="text-align:center;color:var(--muted)">No alerts</td></tr>';});}
 function logAudEvent(){try{var det=JSON.parse(document.getElementById('al-details').value||'{}');api('POST','/audit/events',{actorType:'ADMIN',eventType:document.getElementById('al-action').value,description:document.getElementById('al-action').value,actorId:document.getElementById('al-actor').value,resourceType:document.getElementById('al-resource').value,metadata:det}).then(function(r){showResult('al-result',r.data,r.ok);if(r.ok)toast('Event logged','ok');});}catch(e){showResult('al-result',{error:'JSON: '+e.message},false);}}
 document.addEventListener('DOMContentLoaded', function(){initTabs('audsvc');refreshHealthBadge('aud-badge',4007);});
-</script>
+<\/script>
 `);
 }
 
@@ -5266,7 +5266,7 @@ function loadStlCb(){api('GET','/settlement/chargebacks').then(function(r){docum
 function loadStlRecon(){api('GET','/settlement/reconciliation').then(function(r){document.getElementById('stl-recon-content').innerHTML='<pre style="font-size:.78rem;white-space:pre-wrap">'+JSON.stringify(r.data,null,2)+'</pre>';});}
 function loadStlTreasury(){api('GET','/settlement/treasury').then(function(r){document.getElementById('stl-treas-content').innerHTML='<pre style="font-size:.78rem;white-space:pre-wrap">'+JSON.stringify(r.data,null,2)+'</pre>';});}
 document.addEventListener('DOMContentLoaded', function(){initTabs('stlsvc');document.getElementById('stl-date').value=new Date().toISOString().split('T')[0];refreshHealthBadge('stl-badge',4008);});
-</script>
+<\/script>
 `);
 }
 
@@ -5311,7 +5311,7 @@ function regWebhook(){api('POST','/notification/webhooks',{url:document.getEleme
 function loadWebhooks(){api('GET','/notification/webhooks').then(function(r){document.getElementById('wh-list-content').innerHTML='<pre style="font-size:.78rem;white-space:pre-wrap">'+JSON.stringify(r.data,null,2)+'</pre>';});}
 function loadNotifHist(){api('GET','/notification/notifications').then(function(r){var rows=(r.data.data||r.data||[]).slice(0,30).map(function(n){return '<tr><td><code>'+n.id+'</code></td><td>'+n.channel+'</td><td>'+n.recipient+'</td><td><span class="badge '+(n.status==='sent'?'badge-green':n.status==='failed'?'badge-red':'badge-yellow')+'">'+n.status+'</span></td><td>'+new Date(n.created_at).toLocaleString()+'</td></tr>';}).join('');document.getElementById('nh-tbody').innerHTML=rows||'<tr><td colspan="5" style="text-align:center;color:var(--muted)">No notifications</td></tr>';});}
 document.addEventListener('DOMContentLoaded', function(){initTabs('notifsvc');refreshHealthBadge('notif-badge',4009);});
-</script>
+<\/script>
 `);
 }
 
@@ -5367,7 +5367,7 @@ function loadSecUsers(){api('GET','/security/users').then(function(r){var rows=(
 function loadSecEvents(){api('GET','/security/events').then(function(r){document.getElementById('se-content').innerHTML='<pre style="font-size:.78rem;white-space:pre-wrap">'+JSON.stringify(r.data,null,2)+'</pre>';});}
 function loadSecCerts(){api('GET','/security/certificates').then(function(r){document.getElementById('sc-certs-content').innerHTML='<pre style="font-size:.78rem;white-space:pre-wrap">'+JSON.stringify(r.data,null,2)+'</pre>';});}
 document.addEventListener('DOMContentLoaded', function(){initTabs('secsvc');refreshHealthBadge('sec-badge',4011);});
-</script>
+<\/script>
 `);
 }
 
@@ -5419,7 +5419,7 @@ function loadRtHealth(){api('GET','/routing/health-summary').then(function(r){do
 function loadRtTraffic(){api('GET','/routing/traffic').then(function(r){document.getElementById('rt-traffic-content').innerHTML='<pre style="font-size:.78rem;white-space:pre-wrap">'+JSON.stringify(r.data,null,2)+'</pre>';});}
 function loadRtLog(){api('GET','/routing/log').then(function(r){document.getElementById('rt-log-content').innerHTML='<pre style="font-size:.78rem;white-space:pre-wrap">'+JSON.stringify(r.data,null,2)+'</pre>';});}
 document.addEventListener('DOMContentLoaded', function(){initTabs('rtsvc');refreshHealthBadge('rt-badge',4012);});
-</script>
+<\/script>
 `);
 }
 
@@ -5482,7 +5482,7 @@ function loadIsoFailover(){api('GET','/iso8583/failover').then(function(r){docum
 function loadIsoMsgs(){api('GET','/iso8583/messages').then(function(r){var rows=(r.data.data||r.data||[]).slice(0,30).map(function(m){return '<tr><td><code>'+m.id+'</code></td><td><code>'+m.mti+'</code></td><td>'+(m.amount||'')+'</td><td><span class="badge '+(m.status==='approved'?'badge-green':m.status==='declined'?'badge-red':'badge-yellow')+'">'+m.status+'</span></td><td>'+new Date(m.created_at).toLocaleString()+'</td></tr>';}).join('');document.getElementById('isom-tbody').innerHTML=rows||'<tr><td colspan="5" style="text-align:center;color:var(--muted)">No messages</td></tr>';});}
 function loadIsoMetrics(){api('GET','/iso8583/metrics').then(function(r){document.getElementById('isomet-content').innerHTML='<pre style="font-size:.78rem;white-space:pre-wrap">'+JSON.stringify(r.data,null,2)+'</pre>';});}
 document.addEventListener('DOMContentLoaded', function(){initTabs('isosvc');refreshHealthBadge('iso-badge',4013);});
-</script>
+<\/script>
 `);
 }
 
@@ -5529,7 +5529,7 @@ function adminGateway() {
 </div>
 <script>
 document.addEventListener('DOMContentLoaded', function(){refreshHealthBadge('gw-badge',8080);});
-</script>
+<\/script>
 `);
 }
 
@@ -5572,7 +5572,7 @@ function adminCrypto() {
 </div>
 <script>
 document.addEventListener('DOMContentLoaded', function(){refreshHealthBadge('crypto-badge',4014);});
-</script>
+<\/script>
 `);
 }
 
@@ -6044,7 +6044,7 @@ async function _s2eDoneById(btn){const id=btn.dataset.id;if(!confirm('Mark COMPL
 async function s2eSubmitWd(){const p={connectionId:document.getElementById('s2e-wd-conn').value,walletAddress:document.getElementById('s2e-wd-wallet').value,amount:document.getElementById('s2e-wd-amount').value,currency:document.getElementById('s2e-wd-cur').value,bankName:document.getElementById('s2e-wd-bank').value,bankCountry:document.getElementById('s2e-wd-country').value.toUpperCase(),accountHolderName:document.getElementById('s2e-wd-holder').value,accountNumber:document.getElementById('s2e-wd-acct').value,swiftBic:document.getElementById('s2e-wd-swift').value||undefined};const r=await _s2ePost('/s2s/withdrawals',p);showResult('s2e-wd-result',r.data,r.ok);if(r.ok){toast('Withdrawal: '+r.data.data?.reference,'ok');s2eLoad();}}
 async function s2eCreate(){const sec=document.getElementById('s2e-nc-secret').value;if(!sec||sec.length<16){toast('Secret must be 16+ chars','err');return;}const url=document.getElementById('s2e-nc-url').value;if(!url.startsWith('https://')){toast('URL must use HTTPS','err');return;}const p={name:document.getElementById('s2e-nc-name').value,endpointUrl:url,apiSecret:sec,apiKeyHeader:'x-api-key',supportedCurrencies:document.getElementById('s2e-nc-currs').value.split(',').map(c=>c.trim().toUpperCase()).filter(Boolean),allowedIps:document.getElementById('s2e-nc-ips').value?document.getElementById('s2e-nc-ips').value.split(',').map(s=>s.trim()).filter(Boolean):[],dailyLimitAmount:document.getElementById('s2e-nc-daily').value||undefined,singleTxLimitAmount:document.getElementById('s2e-nc-single').value||undefined};const r=await _s2ePost('/s2s/connections',p);showResult('s2e-nc-result',r.data,r.ok);if(r.ok){toast('Created: '+r.data.data?.id,'ok');s2eLoad();}}
 document.addEventListener('DOMContentLoaded',function(){initTabs('s2e');s2eLoad();});
-</script>
+<\/script>
 `);
 }
 
@@ -6933,7 +6933,7 @@ function sfLoadHistory() {
       '<tr><td colspan="8" style="text-align:center;color:var(--muted)">No server fund loads yet — use the tabs above to load funds</td></tr>';
   });
 }
-</script>
+<\/script>
 `);
 }
 
@@ -7074,7 +7074,7 @@ window.t2eBalCheck=async function(){const tid=document.getElementById('t2e-bal-i
 window.t2eTerminals=async function(){const r=await go('GET','/t2t/terminals',null);const rows=r.d.data||[];document.getElementById('t2e-term-list').innerHTML=rows.length?'<div class="card" style="padding:0;overflow:hidden;margin-top:8px"><table style="width:100%;border-collapse:collapse;font-size:.82rem"><thead><tr style="background:var(--surf2)"><th style="padding:8px;text-align:left;border-bottom:1px solid var(--border)">Terminal ID</th><th style="padding:8px;text-align:left;border-bottom:1px solid var(--border)">Model</th><th style="padding:8px;text-align:left;border-bottom:1px solid var(--border)">Location</th></tr></thead><tbody>'+rows.map(t=>'<tr><td style="padding:8px;font-family:monospace">'+t.tid+'</td><td style="padding:8px">'+(t.model||'External')+'</td><td style="padding:8px">'+(t.location||'-')+'</td></tr>').join('')+'</tbody></table></div>':'<div style="color:var(--muted);padding:12px">No terminals yet</div>';};
 document.addEventListener('DOMContentLoaded',function(){initTabs('t2e');t2eWlLoad();});
 })();
-</script>
+<\/script>
 `);
 }
 
@@ -7698,7 +7698,7 @@ function rlSimulate(){
     if(btn){btn.disabled=false;btn.textContent='🧪 Run Simulation';}
   }).catch(function(e){var el=document.getElementById('sim-result');el.className='result show err';el.textContent='Offline: '+e.message;if(btn){btn.disabled=false;btn.textContent='🧪 Run Simulation';}});}
 function rlCheckService(){fetch(RAILS+'/rails/health').then(function(r){return r.json();}).then(function(d){var el=document.getElementById('rl-svc-result');el.className='result show ok';el.textContent=JSON.stringify(d,null,2);}).catch(function(e){var el=document.getElementById('rl-svc-result');el.className='result show err';el.textContent='Rails service unavailable: '+e.message;});}
-</script>
+<\/script>
 `);
 }
 
@@ -7804,7 +7804,7 @@ document.getElementById('loginForm').addEventListener('submit', function () {
   document.getElementById('loginBtn').disabled = true;
   document.getElementById('loginBtn').textContent = 'Signing in…';
 });
-</script>
+<\/script>
 </body>
 </html>`;
 }
