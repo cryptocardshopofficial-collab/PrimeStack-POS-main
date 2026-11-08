@@ -66,13 +66,13 @@ export class ApiGatewayService {
 
     const entries = await redis.xrevrange(key, "+", "-", "COUNT", count);
 
-    return entries.map(([id, fields]) => {
+    return entries.map(([id, fields]: [string, string[]]) => {
       const obj: Record<string, string> = { id };
       for (let i = 0; i < fields.length; i += 2) {
         obj[fields[i]] = fields[i + 1];
       }
       return obj;
-    }).filter((e) => {
+    }).filter((e: Record<string, string>) => {
       if (filters.merchantId && e.merchantId !== filters.merchantId) return false;
       if (filters.path && !e.path?.includes(filters.path)) return false;
       return true;
