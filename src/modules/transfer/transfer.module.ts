@@ -5,6 +5,7 @@ import { registerTransferRoutes } from "./transfer.routes.js";
 import { ledgerService } from "../ledger/ledger.module.js";
 import { walletService } from "../wallet/wallet.module.js";
 import { logger } from "../../core/logger.js";
+import { ForbiddenError } from "../../core/errors.js";
 
 /**
  * Transfer module — registers the service and routes.
@@ -15,7 +16,16 @@ import { logger } from "../../core/logger.js";
 export const transferService = new TransferService(prisma, ledgerService, walletService);
 
 export function registerTransferModule(app: FastifyInstance): void {
-  registerTransferRoutes(app, transferService);
+  app.register(async (adminApp) => {
+    adminApp.addHook("preHandler", async (request, reply) => {
+      await adminApp.authenticate(request, reply);
+      const role = (request.user as { role?: string } | undefined)?.role;
+      if (!role || !["SUPER_ADMIN", "ADMIN", "OPERATOR"].includes(role)) {
+        throw new ForbiddenError("Your admin role cannot perform transfer operations");
+      }
+    });
+    registerTransferRoutes(adminApp, transferService);
+  }, { prefix: "/admin" });
   logger.info("Transfer module registered");
 }
 

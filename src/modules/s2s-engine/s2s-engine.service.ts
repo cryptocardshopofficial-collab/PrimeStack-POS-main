@@ -435,19 +435,6 @@ export class S2sEngineService {
       throw new ConflictError("Duplicate payment request — idempotency key already used");
     }
 
-    // FIX 3: nonce replay prevention (Redis-first, DB fallback)
-    const nonceKey = `s2s:nonce:${input.nonce}`;
-    const nonceExists = await redis.set(nonceKey, "1", "EX", NONCE_TTL_SECONDS, "NX");
-    if (!nonceExists) {
-      // Redis says it already exists — replay attack
-      throw new AppError("Replay attack detected — nonce already used", 401, "REPLAY_DETECTED");
-    }
-    // Also persist to DB for post-TTL audit (cleanup job can prune old rows)
-    await this.prisma.$executeRaw`
-      INSERT INTO "S2sNonce" ("nonce", "createdAt")
-      VALUES (${input.nonce}, NOW())
-      ON CONFLICT DO NOTHING`;
-
     // FIX 8: canonical JSON HMAC verification
     // The remote server signs: JSON.stringify({ connectionId, amount, currency, timestamp, nonce, senderReference })
     // We verify using the DECRYPTED secret
@@ -473,6 +460,17 @@ export class S2sEngineService {
         "S2S_AUTH_FAILED",
       );
     }
+
+    // Replay prevention happens only after successful signature verification.
+    const nonceKey = `s2s:nonce:${input.nonce}`;
+    const nonceExists = await redis.set(nonceKey, "1", "EX", NONCE_TTL_SECONDS, "NX");
+    if (!nonceExists) {
+      throw new AppError("Replay attack detected — nonce already used", 401, "REPLAY_DETECTED");
+    }
+    await this.prisma.$executeRaw`
+      INSERT INTO "S2sNonce" ("nonce", "createdAt")
+      VALUES (${input.nonce}, NOW())
+      ON CONFLICT DO NOTHING`;
 
     // Wallet validation (outside transaction — read-only)
     const wallet = await this.walletService.getWallet(input.receiverWalletAddr);
@@ -511,8 +509,26 @@ export class S2sEngineService {
     const walletCode   = wallet.account.code;
 
     // FIX 7: full atomic transaction — insert payment + ledger + mark COMPLETED
+    let duplicatePaymentId: string | null = null;
     try {
       await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+        const reservation = await tx.$queryRaw<Array<{ paymentId: string }>>`
+          INSERT INTO "S2sIdempotency"
+            ("id","connectionId","idempotencyKey","paymentId","createdAt")
+          VALUES (${idemId}, ${input.connectionId}, ${input.idempotencyKey}, ${paymentId}, NOW())
+          ON CONFLICT ("connectionId", "idempotencyKey") DO NOTHING
+          RETURNING "paymentId"`;
+
+        if (reservation.length === 0) {
+          const existing = await tx.$queryRaw<Array<{ paymentId: string }>>`
+            SELECT "paymentId" FROM "S2sIdempotency"
+            WHERE "connectionId" = ${input.connectionId}
+              AND "idempotencyKey" = ${input.idempotencyKey}
+            LIMIT 1`;
+          duplicatePaymentId = existing[0]?.paymentId ?? null;
+          return;
+        }
+
         // Insert payment record (PROCESSING)
         await tx.$executeRaw`
           INSERT INTO "S2sPayment"
@@ -529,12 +545,6 @@ export class S2sEngineService {
             ${input.metadata ? JSON.stringify(input.metadata) : null}::jsonb,
             'PROCESSING', NOW(), NOW()
           )`;
-
-        // Record idempotency key
-        await tx.$executeRaw`
-          INSERT INTO "S2sIdempotency" ("id","connectionId","idempotencyKey","paymentId","createdAt")
-          VALUES (${idemId}, ${input.connectionId}, ${input.idempotencyKey}, ${paymentId}, NOW())
-          ON CONFLICT DO NOTHING`;
 
         // Post double-entry journal lines
         const lines: Array<{ accountCode: string; debit: string; credit: string }> = [
@@ -586,6 +596,10 @@ export class S2sEngineService {
 
       logger.error({ err: error, reference, connectionId: input.connectionId }, "S2S payment failed");
       throw error;
+    }
+
+    if (duplicatePaymentId) {
+      return this.requirePayment(duplicatePaymentId);
     }
 
     // Render receipt (outside transaction — read-only)

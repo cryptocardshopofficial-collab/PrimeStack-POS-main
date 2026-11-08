@@ -128,21 +128,6 @@ export function registerWalletRoutes(
     return sendSuccess(reply, await walletService.listBeneficiaries(address));
   });
 
-  app.post("/wallets/:address/virtual-accounts", async (request: FastifyRequest, reply: FastifyReply) => {
-    const { address } = request.params as { address: string };
-    const body = request.body as { currency?: string };
-    if (!body?.currency || !/^[A-Za-z]{3}$/.test(body.currency)) {
-      throw new ValidationError("currency must be a three-letter code");
-    }
-    const account = await walletService.createVirtualAccount(address, body.currency);
-    return sendCreated(reply, account);
-  });
-
-  app.get("/wallets/:address/virtual-accounts", async (request: FastifyRequest, reply: FastifyReply) => {
-    const { address } = request.params as { address: string };
-    return sendSuccess(reply, await walletService.listVirtualAccounts(address));
-  });
-
   app.put("/wallets/:address/limits", async (request: FastifyRequest, reply: FastifyReply) => {
     const { address } = request.params as { address: string };
     const body = request.body as { dailyLimit?: string; monthlyLimit?: string; yearlyLimit?: string };

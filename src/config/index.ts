@@ -24,6 +24,25 @@ function list(key: string, fallback: string[]): string[] {
   return raw.split(",").map((s) => s.trim()).filter(Boolean);
 }
 
+function productionRequired(key: string): string {
+  const value = process.env[key]?.trim();
+  if (!value) throw new Error(`Missing required environment variable in production: ${key}`);
+  return value;
+}
+
+function productionSecret(key: string): string {
+  const value = productionRequired(key);
+  const weakValues = new Set([
+    "dev-secret-change-in-production",
+    "change-me-in-production-use-a-256-bit-key",
+    "dev-secret-change-in-production-use-a-256-bit-key-please",
+  ]);
+  if (value.length < 32 || weakValues.has(value.toLowerCase()) || weakValues.has(value)) {
+    throw new Error(`Invalid weak value for ${key} in production`);
+  }
+  return value;
+}
+
 export const config = {
   app: {
     name: required("APP_NAME", "primestack-global-server-network"),
@@ -31,6 +50,10 @@ export const config = {
     port: int("PORT", 8081),
     host: required("HOST", "0.0.0.0"),
     logLevel: required("LOG_LEVEL", "info"),
+    trustedProxies: required("TRUSTED_PROXIES", "")
+      .split(",")
+      .map((value) => value.trim())
+      .filter(Boolean),
   },
 
   database: {
@@ -45,7 +68,9 @@ export const config = {
   },
 
   jwt: {
-    secret: required("JWT_SECRET", "dev-secret-change-in-production"),
+    secret: process.env.NODE_ENV === "production"
+      ? productionSecret("JWT_SECRET")
+      : required("JWT_SECRET", "dev-secret-change-in-production"),
     expiresIn: required("JWT_EXPIRES_IN", "24h"),
   },
 
@@ -69,7 +94,23 @@ export const config = {
      * 64-hex-char (32-byte) AES-256-GCM key for encrypting connection API secrets at rest.
      * Must be set via S2S_SECRET_KEY environment variable in production.
      */
-    secretKey: required("S2S_SECRET_KEY", "0000000000000000000000000000000000000000000000000000000000000000"),
+    secretKey: process.env.NODE_ENV === "production"
+      ? productionSecret("S2S_SECRET_KEY")
+      : required("S2S_SECRET_KEY", "0000000000000000000000000000000000000000000000000000000000000000"),
+  },
+  cors: {
+    origins: list("CORS_ORIGINS", process.env.NODE_ENV === "production" ? [] : ["http://localhost:3000", "http://localhost:8081"]),
+  },
+  wise: {
+    enabled: required("WISE_VIRTUAL_ACCOUNTS_ENABLED", "false").toLowerCase() === "true",
+    provisioningEnabled: required("WISE_VIRTUAL_ACCOUNT_PROVISIONING_ENABLED", "false").toLowerCase() === "true",
+    apiKey: process.env.WISE_API_KEY?.trim() ?? "",
+    profileId: process.env.WISE_PROFILE_ID?.trim() ?? "",
+    environment: required("WISE_ENV", "sandbox").toLowerCase() === "live" ? "live" as const : "sandbox" as const,
+    liveUrl: required("WISE_LIVE_URL", "https://api.transferwise.com"),
+    sandboxUrl: required("WISE_SANDBOX_URL", "https://api.sandbox.transferwise.tech"),
+    webhookPublicKey: process.env.WISE_WEBHOOK_PUBLIC_KEY?.trim().replace(/\\n/g, "\n") ?? "",
+    defaultCreditAccount: required("WISE_DEFAULT_CREDIT_ACCOUNT", "PLATFORM:RESERVE:USD"),
   },
   banks: {
     sg: {
