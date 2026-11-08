@@ -22,6 +22,107 @@ export class SwitchCoreService {
     private ledgerService: LedgerService,
   ) {}
 
+  async createAcquirer(input: {
+    code: string;
+    name: string;
+    host: string;
+    port: number;
+    protocol?: string;
+  }) {
+    const name = input.name.trim();
+    const host = input.host.trim();
+    const port = Number(input.port);
+    const normalizedProtocol = (input.protocol ?? "TCP").toUpperCase();
+
+    if (!name || !host) throw new ValidationError("name and host are required");
+    if (!Number.isInteger(port) || port < 1 || port > 65535) {
+      throw new ValidationError("port must be an integer between 1 and 65535");
+    }
+    if (!["TCP", "TLS", "NAC", "HTTP"].includes(normalizedProtocol)) {
+      throw new ValidationError("protocol must be TCP, TLS, NAC, or HTTP");
+    }
+
+    const existing = await this.prisma.hostConnection.findFirst({
+      where: { OR: [{ name }, { host, port }] },
+    });
+    if (existing) throw new ConflictError("Acquirer with the same name or host/port already exists");
+
+    const connection = await this.prisma.hostConnection.create({
+      data: {
+        name,
+        host,
+        port,
+        protocol: normalizedProtocol as Prisma.HostConnectionProtocol,
+        status: "DISCONNECTED",
+        metadata: { acquirerCode: input.code.trim().toUpperCase() },
+      },
+    });
+    return {
+      id: connection.id,
+      code: connection.name.toUpperCase().replace(/[^A-Z0-9]+/g, "_").replace(/^_|_$/g, ""),
+      name: connection.name,
+      host: connection.host,
+      port: connection.port,
+      protocol: connection.protocol,
+      status: connection.status,
+    };
+  }
+
+  async listAcquirers() {
+    const connections = await this.prisma.hostConnection.findMany({
+      orderBy: [{ name: "asc" }],
+    });
+
+    return connections.map((connection) => {
+      const metadata = connection.metadata && typeof connection.metadata === "object" && !Array.isArray(connection.metadata)
+        ? connection.metadata as Record<string, unknown>
+        : {};
+      const code = typeof metadata.acquirerCode === "string"
+        ? metadata.acquirerCode
+        : connection.name.toUpperCase().replace(/[^A-Z0-9]+/g, "_").replace(/^_|_$/g, "");
+      return {
+        id: connection.id,
+        code,
+        name: connection.name,
+        host: connection.host,
+        port: connection.port,
+        protocol: connection.protocol,
+        status: connection.status,
+      };
+    });
+  }
+
+  async listSettlementQueue(status?: string) {
+    const normalizedStatus = status?.trim().toUpperCase();
+
+    const where: Prisma.TransactionWhereInput = normalizedStatus === "SETTLED"
+      ? { status: "SETTLED", settledAt: { not: null } }
+      : normalizedStatus === "PENDING"
+        ? { status: "CAPTURED", settledAt: null }
+        : {};
+
+    const transactions = await this.prisma.transaction.findMany({
+      where,
+      orderBy: [{ createdAt: "desc" }],
+      take: 100,
+    });
+
+    return transactions.map((transaction) => ({
+      id: transaction.id,
+      tx_ref: transaction.rrn || transaction.stan,
+      amount: transaction.amount.toString(),
+      currency: transaction.currency,
+      status: normalizedStatus === "SETTLED"
+        ? "SETTLED"
+        : normalizedStatus === "PENDING"
+          ? "PENDING"
+          : transaction.settledAt
+            ? "SETTLED"
+            : "PENDING",
+      created_at: transaction.createdAt.toISOString(),
+    }));
+  }
+
   // ── Settlement ──────────────────────────────────
 
   /**

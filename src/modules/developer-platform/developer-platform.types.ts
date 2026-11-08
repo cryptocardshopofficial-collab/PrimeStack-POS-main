@@ -99,5 +99,31 @@ export const updateActiveSchema = z.object({
   active: z.boolean(),
 });
 
+export const createTerminalRegistrationSchema = z.object({
+  agentCode: z.string().trim().min(1).max(100),
+  customerName: z.string().trim().min(1).max(255),
+  country: z.string().trim().min(1).max(100),
+  senderPublicIp: z.string().trim().min(1).max(100),
+  senderTerminalId: z.string().trim().min(1).max(100),
+  senderServerUrl: z.string().trim().url().max(2048),
+  operatingCurrency: z.string().trim().min(1).max(20),
+  businessPurpose: z.string().trim().min(1).max(2000),
+});
+
+export const createAgentRegistrationSchema = z.object({
+  code: z.string().trim().min(1).max(100),
+  name: z.string().trim().min(1).max(255),
+  email: z.string().trim().email().max(320),
+  phone: z.string().trim().min(1).max(50),
+  country: z.string().trim().min(1).max(100),
+  address: z.string().trim().min(1).max(1000),
+  documentNumber: z.string().trim().min(1).max(100),
+  commissionRate: z.number().min(0).max(100).optional(),
+});
+
+export const updateAgentRegistrationSchema = z.object({
+  status: z.enum(["PENDING", "UNDER_REVIEW", "APPROVED", "REJECTED"]),
+});
+
 export type CreateApplicationInput = z.infer<typeof createApplicationSchema>;
 export type UpdateApplicationInput = z.infer<typeof updateApplicationSchema>;

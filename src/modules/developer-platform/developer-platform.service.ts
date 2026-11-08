@@ -422,6 +422,107 @@ export class DeveloperPlatformService {
     });
   }
 
+  async createTerminalRegistration(input: {
+    agentCode: string;
+    customerName: string;
+    country: string;
+    senderPublicIp: string;
+    senderTerminalId: string;
+    senderServerUrl: string;
+    operatingCurrency: string;
+    businessPurpose: string;
+  }) {
+    const agent = await this.prisma.agent.findFirst({
+      where: { code: input.agentCode, status: "APPROVED" },
+      select: { code: true, name: true },
+    });
+    if (!agent) {
+      throw new ValidationError("Agent registration number is invalid");
+    }
+    return this.prisma.terminalRegistrationRequest.create({
+      data: {
+        agentCode: agent.code,
+        agentName: agent.name,
+        customerName: input.customerName,
+        country: input.country,
+        senderPublicIp: input.senderPublicIp,
+        senderTerminalId: input.senderTerminalId,
+        senderServerUrl: input.senderServerUrl,
+        operatingCurrency: input.operatingCurrency,
+        businessPurpose: input.businessPurpose,
+      },
+    });
+  }
+
+  async listTerminalRegistrationRequests() {
+    return this.prisma.terminalRegistrationRequest.findMany({
+      orderBy: { createdAt: "desc" },
+      take: 500,
+    });
+  }
+
+  async updateTerminalRegistrationRequest(id: string, status: string) {
+    const existing = await this.prisma.terminalRegistrationRequest.findUnique({
+      where: { id },
+      select: { id: true },
+    });
+    if (!existing)
+      throw new NotFoundError("Terminal registration request", id);
+    return this.prisma.terminalRegistrationRequest.update({
+      where: { id },
+      data: { status },
+    });
+  }
+
+  async listAgents() {
+    return this.prisma.agent.findMany({
+      orderBy: { createdAt: "desc" },
+      take: 500,
+    });
+  }
+
+  async createAgentRegistration(input: {
+    code: string;
+    name: string;
+    email: string;
+    phone: string;
+    country: string;
+    address: string;
+    documentNumber: string;
+    commissionRate?: number;
+  }) {
+    const existing = await this.prisma.agent.findUnique({
+      where: { code: input.code },
+      select: { id: true },
+    });
+    if (existing) throw new ConflictError("Agent registration number already exists");
+    return this.prisma.agent.create({
+      data: {
+        code: input.code,
+        name: input.name,
+        email: input.email,
+        phone: input.phone,
+        country: input.country,
+        address: input.address,
+        documentNumber: input.documentNumber,
+        commissionRate: input.commissionRate ?? 0,
+        status: "PENDING",
+      },
+    });
+  }
+
+  async updateAgentRegistration(id: string, status: string) {
+    const existing = await this.prisma.agent.findUnique({
+      where: { id },
+      select: { id: true },
+    });
+    if (!existing) throw new NotFoundError("Agent registration", id);
+    return this.prisma.agent.update({
+      where: { id },
+      data: { status },
+    });
+  }
+
   private async validateAssignments(
     ratePlanId?: string | null,
     productIds?: string[],

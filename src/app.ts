@@ -53,7 +53,7 @@ export async function createApp(): Promise<FastifyInstance> {
 
   const app = Fastify({
     logger: logger as FastifyBaseLogger,
-    trustProxy: true,
+    trustProxy: config.app.trustedProxies.length > 0 ? config.app.trustedProxies : false,
     bodyLimit: 1048576, // 1MB
     ajv: {
       customOptions: {
@@ -83,7 +83,11 @@ export async function createApp(): Promise<FastifyInstance> {
   });
 
   await app.register(cors, {
-    origin: true, // configure per-merchant in production
+    origin: (origin, callback) => {
+      if (!origin) return callback(null, true);
+      if (config.app.env !== "production") return callback(null, true);
+      callback(null, config.cors.origins.includes(origin));
+    },
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: [
       "Content-Type",

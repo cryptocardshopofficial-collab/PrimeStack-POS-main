@@ -10,7 +10,7 @@ services:
     region: oregon
     plan: free
     branch: main
-    buildCommand: npm install --include=dev && npx prisma generate && npx prisma db push --skip-generate && npx tsx prisma/seed.ts && npm run build
+    buildCommand: npm install --include=dev && npx prisma generate && npx prisma migrate deploy && npm run build
     startCommand: node start-platform.mjs
     healthCheckPath: /health
     envVars:
@@ -84,12 +84,12 @@ services:
       # Fill the three secrets in the Render dashboard — they are not stored
       # in this blueprint. Without them the rails service stays in simulation.
       - key: WISE_ENV
-        value: live
+        value: sandbox
       - key: WISE_API_KEY
         sync: false
       - key: WISE_PROFILE_ID
         sync: false
-      - key: WISE_WEBHOOK_SECRET
+      - key: WISE_WEBHOOK_PUBLIC_KEY
         sync: false
       - key: RAILS_PORT
         value: 8082
@@ -110,4 +110,3 @@ databases:
     user: primestack
     plan: free
     region: oregon
-

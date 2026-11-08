@@ -14,6 +14,9 @@ import {
   updateActiveSchema,
   updateApplicationSchema,
   updateCertificationSchema,
+  createTerminalRegistrationSchema,
+  createAgentRegistrationSchema,
+  updateAgentRegistrationSchema,
 } from "./developer-platform.types.js";
 
 const readRoles = ["SUPER_ADMIN", "ADMIN", "OPERATOR", "REVIEWER", "READONLY"];
@@ -24,6 +27,18 @@ export function registerDeveloperPlatformRoutes(
   app: FastifyInstance,
   service: DeveloperPlatformService,
 ): void {
+  app.get("/admin/agent-registration-dashboard", async (_request, reply) =>
+    reply.type("text/html; charset=utf-8").send(`<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Agent Registration</title><style>body{margin:0;background:#eef3f8;font-family:system-ui;color:#172338}header{padding:18px 24px;background:#fff;border-bottom:1px solid #dfe1e2}.login,.app{max-width:1100px;margin:24px auto;padding:24px}.login{max-width:420px;background:#fff;border:1px solid #dfe1e2;border-radius:10px}.app{display:none}input,select,button{font:inherit;padding:10px;border:1px solid #ccd5e2;border-radius:7px}form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.full{grid-column:1/-1}.card{background:#fff;border:1px solid #dfe1e2;border-radius:10px;padding:16px;margin-bottom:16px}.table-wrap{overflow:auto}table{width:100%;border-collapse:collapse}th,td{padding:10px;border-bottom:1px solid #e5e7eb;text-align:left;font-size:13px}button{cursor:pointer;background:#2563eb;color:#fff;border-color:#2563eb}.badge{padding:4px 8px;border-radius:5px;background:#edf2f7;font-weight:700;font-size:12px}@media(max-width:700px){form{grid-template-columns:1fr}.full{grid-column:auto}}</style></head><body><header><strong>PrimeStack</strong> Agent Registration</header><section class="login" id="login"><h2>Administrator sign-in</h2><form id="login-form" style="grid-template-columns:1fr"><input name="email" type="email" placeholder="Email" required><input name="password" type="password" placeholder="Password" required><button>Sign in</button></form><p id="login-error"></p></section><main class="app" id="app"><section class="card"><h2>Register Agent — KYC Review</h2><form id="agent-form"><input class="full" name="code" placeholder="Agent Registration Number *" required><input name="name" placeholder="Full Name / Business Name *" required><input name="email" type="email" placeholder="Email Address *" required><input name="phone" placeholder="Phone / WhatsApp *" required><input name="country" placeholder="Country *" required><input class="full" name="address" placeholder="Business Address *" required><input class="full" name="documentNumber" placeholder="Registration / Identity Document Number *" required><button class="full">Create Pending Agent</button></form></section><section class="card"><h2>Agent Registrations</h2><div class="table-wrap"><table><thead><tr><th>Agent Number</th><th>Name</th><th>Email</th><th>Phone</th><th>Country</th><th>Document</th><th>Status</th><th>Action</th></tr></thead><tbody id="agents"></tbody></table></div></section></main><script>const tokenKey="developerPlatformToken";async function api(path,opt={}){const r=await fetch("/admin/developer-platform"+path,{...opt,headers:{Accept:"application/json","Content-Type":"application/json",Authorization:"Bearer "+sessionStorage.getItem(tokenKey),...(opt.headers||{})}}),p=await r.json();if(!r.ok||p.success===false)throw Error(p.error?.message||"Request failed");return p.data}async function refresh(){const rows=await api("/agents");const body=document.getElementById("agents");body.replaceChildren();for(const a of rows){const tr=document.createElement("tr");["code","name","email","phone","country","documentNumber"].forEach(k=>{const td=document.createElement("td");td.textContent=a[k]||"—";tr.appendChild(td)});let td=document.createElement("td");td.innerHTML='<span class="badge">'+a.status+"</span>";tr.appendChild(td);td=document.createElement("td");if(a.status!=="APPROVED"){let b=document.createElement("button");b.textContent="Approve";b.onclick=()=>update(a.id,"APPROVED");td.appendChild(b)}if(a.status!=="REJECTED"){let b=document.createElement("button");b.textContent="Reject";b.onclick=()=>update(a.id,"REJECTED");td.appendChild(b)}tr.appendChild(td);body.appendChild(tr)}}async function update(id,status){await api("/agents/"+encodeURIComponent(id),{method:"PATCH",body:JSON.stringify({status})});await refresh()}    document.getElementById("login-form").onsubmit=async e=>{e.preventDefault();try{const r=await fetch("/admin/login",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(Object.fromEntries(new FormData(e.currentTarget)))}),p=await r.json();if(!r.ok||!p.success)throw Error(p.error?.message||"Sign-in failed");sessionStorage.setItem(tokenKey,p.data.token);document.getElementById("login").style.display="none";document.getElementById("app").style.display="block";await refresh()}catch(err){document.getElementById("login-error").textContent=err.message}};document.getElementById("agent-form").onsubmit=async e=>{e.preventDefault();try{const d=Object.fromEntries(new FormData(e.currentTarget));await api("/agents",{method:"POST",body:JSON.stringify(d)});e.currentTarget.reset();await refresh()}catch(err){alert(err.message)}};</script></body></html>`),
+  );
+  app.post("/public/terminal-registration", async (request, reply) => {
+    const parsed = createTerminalRegistrationSchema.safeParse(request.body);
+    if (!parsed.success)
+      throw new ValidationError("Invalid terminal registration request", {
+        errors: parsed.error.errors,
+      });
+    return sendCreated(reply, await service.createTerminalRegistration(parsed.data));
+  });
+
   app.get(
     "/admin/developer-platform-dashboard",
     async (_request: FastifyRequest, reply: FastifyReply) =>
@@ -227,6 +242,39 @@ export function registerDeveloperPlatformRoutes(
           reply,
           await service.updateCertification(id, parsed.data.status),
         );
+      });
+      platformApp.get("/terminal-registration-requests", async (_request, reply) =>
+        sendSuccess(reply, await service.listTerminalRegistrationRequests()),
+      );
+      platformApp.patch("/terminal-registration-requests/:id", async (request, reply) => {
+        const { id } = request.params as { id: string };
+        const body = request.body as { status?: string };
+        if (!body.status || !["PENDING", "APPROVED", "REJECTED"].includes(body.status))
+          throw new ValidationError("Invalid terminal registration status");
+        return sendSuccess(
+          reply,
+          await service.updateTerminalRegistrationRequest(id, body.status),
+        );
+      });
+      platformApp.get("/agents", async (_request, reply) =>
+        sendSuccess(reply, await service.listAgents()),
+      );
+      platformApp.post("/agents", async (request, reply) => {
+        const parsed = createAgentRegistrationSchema.safeParse(request.body);
+        if (!parsed.success)
+          throw new ValidationError("Invalid agent registration", {
+            errors: parsed.error.errors,
+          });
+        return sendCreated(reply, await service.createAgentRegistration(parsed.data));
+      });
+      platformApp.patch("/agents/:id", async (request, reply) => {
+        const { id } = request.params as { id: string };
+        const parsed = updateAgentRegistrationSchema.safeParse(request.body);
+        if (!parsed.success)
+          throw new ValidationError("Invalid agent registration status", {
+            errors: parsed.error.errors,
+          });
+        return sendSuccess(reply, await service.updateAgentRegistration(id, parsed.data.status));
       });
     },
     { prefix: "/admin/developer-platform" },

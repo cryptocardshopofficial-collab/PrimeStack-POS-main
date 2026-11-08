@@ -248,8 +248,8 @@ export function registerS2sEngineRoutes(
    *
    * IP enforcement:
    *   If the connection has a non-empty allowedIps list, the caller's IP must
-   *   be in that list. Configure Fastify with trustProxy: true so request.ip
-   *   reflects the real upstream IP.
+   *  be in that list. TRUSTED_PROXIES controls which proxy addresses may
+   *  supply the forwarded address used by request.ip.
    */
   app.post("/s2s/connections/:id/receive", async (request: FastifyRequest, reply: FastifyReply) => {
     const { id: connectionId } = request.params as { id: string };
@@ -272,7 +272,7 @@ export function registerS2sEngineRoutes(
     }
 
     const ts = parseInt(timestamp, 10);
-    if (isNaN(ts) || Date.now() - ts > 5 * 60 * 1000) {
+    if (isNaN(ts) || Math.abs(Date.now() - ts) > 5 * 60 * 1000) {
       throw new ValidationError("x-s2s-timestamp is expired or invalid");
     }
 
@@ -423,12 +423,18 @@ export function registerS2sEngineRoutes(
   });
 
   /**
-   * PATCH /s2s/withdrawals/:id/status  (admin — use admin JWT)
+   * PATCH /admin/s2s/withdrawals/:id/status
    * Update the status of a withdrawal after bank confirmation.
    * Body: { "status": "COMPLETED" | "FAILED" | "PROCESSING", "failureReason": "..." }
    */
-  app.patch("/s2s/withdrawals/:id/status", async (request: FastifyRequest, reply: FastifyReply) => {
+  app.patch("/admin/s2s/withdrawals/:id/status", {
+    preHandler: app.authenticate,
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { id } = request.params as { id: string };
+    const user = request.user as { id?: string; role?: string } | undefined;
+    if (!user?.id || !user.role || !["SUPER_ADMIN", "ADMIN"].includes(user.role)) {
+      throw new ForbiddenError("Your admin role cannot update withdrawal status");
+    }
     const body = request.body as {
       status?: "PROCESSING" | "COMPLETED" | "FAILED" | "CANCELLED";
       failureReason?: string;

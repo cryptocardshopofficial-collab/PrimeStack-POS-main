@@ -36,7 +36,6 @@ export function registerWalletModule(
     });
     registerWalletRoutes(adminApp, walletService);
   }, { prefix: "/admin" });
-  registerWalletRoutes(app, walletService);
   logger.info("Wallet module registered");
 }
 

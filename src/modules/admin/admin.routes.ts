@@ -2,7 +2,7 @@ import { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 import { AdminService } from "./admin.service.js";
 import { loginSchema, createUserSchema, updateUserSchema, updateKycSchema } from "./types.js";
 import { sendSuccess, sendCreated, sendPaginated, parsePagination } from "../../shared/utils/response.js";
-import { ValidationError } from "../../core/errors.js";
+import { ForbiddenError, ValidationError } from "../../core/errors.js";
 
 /**
  * Admin REST routes — JWT protected.
@@ -16,6 +16,16 @@ export function registerAdminRoutes(
   app: FastifyInstance,
   adminService: AdminService,
 ): void {
+  const assertSuperAdmin = (request: FastifyRequest) => {
+    const role = (request.user as { role?: string } | undefined)?.role;
+    if (role !== "SUPER_ADMIN") throw new ForbiddenError("Only SUPER_ADMIN can manage admin users");
+  };
+  const assertKycReviewer = (request: FastifyRequest) => {
+    const role = (request.user as { role?: string } | undefined)?.role;
+    if (!role || !["SUPER_ADMIN", "ADMIN", "REVIEWER"].includes(role)) {
+      throw new ForbiddenError("Your admin role cannot manage KYC");
+    }
+  };
   // ── Login (public, no auth required) ────────────
   app.post("/admin/login", async (request: FastifyRequest, reply: FastifyReply) => {
     const parsed = loginSchema.safeParse(request.body);
@@ -32,6 +42,7 @@ export function registerAdminRoutes(
   app.post("/admin/users", {
     preHandler: app.authenticate,
   }, async (request: FastifyRequest, reply: FastifyReply) => {
+    assertSuperAdmin(request);
     const parsed = createUserSchema.safeParse(request.body);
     if (!parsed.success) {
       throw new ValidationError("Invalid user data", { errors: parsed.error.errors });
@@ -69,6 +80,7 @@ export function registerAdminRoutes(
   app.patch("/admin/users/:id", {
     preHandler: app.authenticate,
   }, async (request: FastifyRequest, reply: FastifyReply) => {
+    assertSuperAdmin(request);
     const { id } = request.params as { id: string };
     const parsed = updateUserSchema.safeParse(request.body);
     if (!parsed.success) {
@@ -83,6 +95,7 @@ export function registerAdminRoutes(
   app.delete("/admin/users/:id", {
     preHandler: app.authenticate,
   }, async (request: FastifyRequest, reply: FastifyReply) => {
+    assertSuperAdmin(request);
     const { id } = request.params as { id: string };
     const authUser = request.user as { id: string };
     await adminService.deleteUser(id, authUser.id);
@@ -113,6 +126,7 @@ export function registerAdminRoutes(
   app.get("/admin/kyc/pending", {
     preHandler: app.authenticate,
   }, async (request: FastifyRequest, reply: FastifyReply) => {
+    assertKycReviewer(request);
     const { page, pageSize } = parsePagination(request.query as Record<string, unknown>);
     const result = await adminService.listPendingKyc(page, pageSize);
     return sendPaginated(reply, result.data, result.meta);
@@ -121,6 +135,7 @@ export function registerAdminRoutes(
   app.get("/admin/kyc/:merchantId", {
     preHandler: app.authenticate,
   }, async (request: FastifyRequest, reply: FastifyReply) => {
+    assertKycReviewer(request);
     const { merchantId } = request.params as { merchantId: string };
     const kyc = await adminService.getKyc(merchantId);
     return sendSuccess(reply, kyc);
@@ -129,6 +144,7 @@ export function registerAdminRoutes(
   app.patch("/admin/kyc/:merchantId", {
     preHandler: app.authenticate,
   }, async (request: FastifyRequest, reply: FastifyReply) => {
+    assertKycReviewer(request);
     const { merchantId } = request.params as { merchantId: string };
     const parsed = updateKycSchema.safeParse(request.body);
     if (!parsed.success) {
