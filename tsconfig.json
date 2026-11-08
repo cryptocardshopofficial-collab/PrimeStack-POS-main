@@ -22,14 +22,13 @@
     "noFallthroughCasesInSwitch": true,
     "noImplicitReturns": true,
     "exactOptionalPropertyTypes": false,
-    "baseUrl": "./src",
     "paths": {
       "@/*": ["./*"],
-      "@core/*": ["core/*"],
-      "@config/*": ["config/*"],
-      "@modules/*": ["modules/*"],
-      "@shared/*": ["shared/*"],
-      "@plugins/*": ["plugins/*"]
+      "@core/*": ["./core/*"],
+      "@config/*": ["./config/*"],
+      "@modules/*": ["./modules/*"],
+      "@shared/*": ["./shared/*"],
+      "@plugins/*": ["./plugins/*"]
     }
   },
   "include": ["src/**/*.ts"],
