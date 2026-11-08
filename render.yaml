@@ -10,7 +10,8 @@ services:
     region: oregon
     plan: free
     branch: main
-    buildCommand: npm install --include=dev && npx prisma generate && npx prisma migrate deploy && npm run build
+    buildCommand: npm install --include=dev && npx prisma generate && npm run build
+    preDeployCommand: npx prisma migrate deploy
     startCommand: node start-platform.mjs
     healthCheckPath: /health
     envVars:
@@ -21,6 +22,10 @@ services:
         value: 8081
       - key: HOST
         value: 0.0.0.0
+      # Configure this in Render with the trusted proxy CIDRs for the deployment.
+      # Never use an unrestricted range: T2T IP allowlists depend on request.ip.
+      - key: TRUSTED_PROXIES
+        sync: false
       - key: LOG_LEVEL
         value: info
       - key: APP_NAME
