@@ -52,7 +52,7 @@ export class SwitchCoreService {
         name,
         host,
         port,
-        protocol: normalizedProtocol as Prisma.HostConnectionProtocol,
+        protocol: normalizedProtocol as "TCP" | "TLS" | "NAC" | "HTTP",
         status: "DISCONNECTED",
         metadata: { acquirerCode: input.code.trim().toUpperCase() },
       },
