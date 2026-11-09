@@ -1,305 +1,684 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 import { createHash, randomUUID } from "crypto";
 import { isIP } from "net";
+import { z } from "zod";
 import { Decimal } from "../../core/decimal.js";
 import { prisma } from "../../core/database.js";
-import { ForbiddenError, ValidationError, NotFoundError } from "../../core/errors.js";
+import {
+  ConflictError,
+  ForbiddenError,
+  ValidationError,
+  NotFoundError,
+} from "../../core/errors.js";
 import { logger } from "../../core/logger.js";
+import { redis } from "../../core/redis.js";
 import { sendSuccess, sendCreated } from "../../shared/utils/response.js";
 
-function ref(p: string): string {
-  return p + "-" + Date.now().toString(36).toUpperCase() + randomUUID().replace(/-/g,"").slice(0,6).toUpperCase();
+const t2tTransferSchema = z.object({
+  amount: z
+    .union([z.string(), z.number().finite()])
+    .transform(String)
+    .refine(
+      (value) => /^\d+(?:\.\d{1,4})?$/.test(value),
+      "amount must have no more than 4 decimal places",
+    ),
+  currency: z
+    .string()
+    .regex(/^[A-Za-z]{3}$/)
+    .transform((value) => value.toUpperCase()),
+  sourceId: z.string().trim().min(1).max(128),
+  destId: z.string().trim().min(1).max(128),
+  description: z.string().max(500).optional(),
+});
+
+const t2tWhitelistSchema = z.object({
+  ip: z.string().trim().min(1).max(45),
+  action: z.enum(["add", "remove"]).default("add"),
+  note: z.string().trim().max(500).optional(),
+});
+
+function normalizeIp(ip: string): string {
+  const normalized = ip.trim().toLowerCase();
+  return normalized.startsWith("::ffff:") ? normalized.slice(7) : normalized;
 }
 
-async function init(): Promise<void> {
-  await prisma.$executeRawUnsafe(
-    `CREATE TABLE IF NOT EXISTS "T2tIpWhitelist" (
-      ip TEXT NOT NULL PRIMARY KEY,
-      note TEXT,
-      added_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-    )`
-  );
-}
+type T2tTransferRecord = {
+  reference: string;
+  status: string;
+  amount: string;
+  currency: string;
+  sourceId: string;
+  destId: string;
+  journalEntryRef: string | null;
+  completedAt: Date | null;
+  metadata: Record<string, unknown> | null;
+};
+
+type T2tTransferResult =
+  | { duplicate: true; transfer: T2tTransferRecord }
+  | {
+      duplicate: false;
+      transfer: null;
+      sourceBalance: string;
+      destBalance: string;
+      jeRef: string;
+    };
 
 async function isAllowed(ip: string): Promise<boolean> {
-  const rows: { cnt: string }[] = await prisma.$queryRawUnsafe(
-    `SELECT COUNT(*)::text as cnt FROM "T2tIpWhitelist" WHERE ip = $1`,
-    ip
+  const rows: { allowed: boolean }[] = await prisma.$queryRawUnsafe(
+    `SELECT EXISTS (SELECT 1 FROM "T2tIpWhitelist" WHERE ip = $1) AS allowed`,
+    ip,
   );
-  return parseInt(rows[0].cnt, 10) > 0;
+  return rows[0]?.allowed === true;
 }
 
 export function registerT2tRoutes(app: FastifyInstance): void {
+  app.post(
+    "/t2t/whitelist",
+    {
+      preHandler: app.authenticate,
+    },
+    async (req: FastifyRequest, reply: FastifyReply) => {
+      const user = req.user as { id?: string; role?: string } | undefined;
+      const userId = user?.id;
+      const role = user?.role;
+      if (!userId || !role || !["SUPER_ADMIN", "ADMIN"].includes(role)) {
+        throw new ForbiddenError(
+          "Only administrators can manage T2T IP whitelists",
+        );
+      }
+      const parsedBody = t2tWhitelistSchema.safeParse(req.body);
+      if (!parsedBody.success) {
+        throw new ValidationError("Invalid T2T IP whitelist data", {
+          errors: parsedBody.error.errors,
+        });
+      }
+      const b = parsedBody.data;
+      const ip = normalizeIp(b.ip);
+      if (!isIP(ip) || ip === "0.0.0.0" || ip === "::") {
+        throw new ValidationError(
+          "A specific IPv4 or IPv6 address is required; wildcard addresses are forbidden",
+        );
+      }
+      await prisma.$transaction(async (tx) => {
+        if (b.action === "remove") {
+          await tx.$executeRaw`DELETE FROM "T2tIpWhitelist" WHERE ip = ${ip}`;
+        } else {
+          await tx.$executeRaw`
+          INSERT INTO "T2tIpWhitelist" (ip, note)
+          VALUES (${ip}, ${b.note || null})
+          ON CONFLICT (ip) DO UPDATE SET note = EXCLUDED.note`;
+        }
+        await tx.auditLog.create({
+          data: {
+            userId,
+            action:
+              b.action === "remove"
+                ? "T2T_IP_WHITELIST_REMOVED"
+                : "T2T_IP_WHITELIST_ADDED",
+            entity: "T2tIpWhitelist",
+            entityId: ip,
+            ipAddress: req.ip,
+            after: { ip, note: b.action === "add" ? (b.note ?? null) : null },
+          },
+        });
+      });
+      logger.info({ ip, action: b.action, userId }, "T2T IP whitelist updated");
+      return sendSuccess(reply, {
+        ip,
+        action: b.action === "remove" ? "removed" : "added",
+        message:
+          b.action === "remove"
+            ? "IP removed from whitelist"
+            : "IP whitelisted successfully",
+      });
+    },
+  );
 
-  app.post("/t2t/whitelist", {
-    preHandler: app.authenticate,
-  }, async (req: FastifyRequest, reply: FastifyReply) => {
-    const role = (req.user as { role?: string } | undefined)?.role;
-    if (!role || !["SUPER_ADMIN", "ADMIN"].includes(role)) {
-      throw new ForbiddenError("Only administrators can manage T2T IP whitelists");
-    }
-    const b = req.body as { ip?: string; action?: string; note?: string };
-    if (!b?.ip) throw new ValidationError("ip is required");
-    if (!isIP(b.ip) || b.ip === "0.0.0.0" || b.ip === "::") {
-      throw new ValidationError("A specific IPv4 or IPv6 address is required; wildcard addresses are forbidden");
-    }
-    await init();
-    if (b.action === "remove") {
-      await prisma.$executeRawUnsafe(`DELETE FROM "T2tIpWhitelist" WHERE ip = $1`, b.ip);
-      return sendSuccess(reply, { ip: b.ip, action: "removed", message: "IP removed from whitelist" });
-    }
-    await prisma.$executeRawUnsafe(
-      `INSERT INTO "T2tIpWhitelist" (ip, note) VALUES ($1, $2) ON CONFLICT (ip) DO UPDATE SET note = $2`,
-      b.ip, b.note || null
-    );
-    logger.info({ ip: b.ip }, "T2T IP whitelisted");
-    return sendSuccess(reply, { ip: b.ip, action: "added", message: "IP whitelisted successfully" });
-  });
-
-  app.get("/t2t/whitelist", {
-    preHandler: app.authenticate,
-  }, async (req: FastifyRequest, reply: FastifyReply) => {
-    const role = (req.user as { role?: string } | undefined)?.role;
-    if (!role || !["SUPER_ADMIN", "ADMIN", "OPERATOR"].includes(role)) {
-      throw new ForbiddenError("Your role cannot view T2T IP whitelists");
-    }
-    await init();
-    const rows: { ip: string; note: string | null; added_at: Date }[] =
-      await prisma.$queryRawUnsafe(`SELECT ip, note, added_at FROM "T2tIpWhitelist" ORDER BY added_at DESC`);
-    return sendSuccess(reply, { whitelistedIps: rows, count: rows.length });
-  });
+  app.get(
+    "/t2t/whitelist",
+    {
+      preHandler: app.authenticate,
+    },
+    async (req: FastifyRequest, reply: FastifyReply) => {
+      const role = (req.user as { role?: string } | undefined)?.role;
+      if (!role || !["SUPER_ADMIN", "ADMIN", "OPERATOR"].includes(role)) {
+        throw new ForbiddenError("Your role cannot view T2T IP whitelists");
+      }
+      const rows: { ip: string; note: string | null; added_at: Date }[] =
+        await prisma.$queryRawUnsafe(
+          `SELECT ip, note, added_at FROM "T2tIpWhitelist" ORDER BY added_at DESC`,
+        );
+      return sendSuccess(reply, { whitelistedIps: rows, count: rows.length });
+    },
+  );
 
   app.post("/t2t/ping", async (req: FastifyRequest, reply: FastifyReply) => {
-    await init();
-    const b   = req.body as { terminalId?: string };
-    const ip  = req.ip;
-    const ok  = await isAllowed(ip);
+    const b = req.body as { terminalId?: string };
+    const ip = normalizeIp(req.ip);
+    const ok = await isAllowed(ip);
     if (!ok) {
       return sendSuccess(reply, {
-        reachable: false, whitelisted: false, callerIp: ip,
+        reachable: false,
+        whitelisted: false,
+        callerIp: ip,
         message: `Your IP (${ip}) is not whitelisted. Ask the receiver to add it via POST /t2t/whitelist`,
       });
     }
     return sendSuccess(reply, {
-      reachable: true, whitelisted: true, callerIp: ip,
+      reachable: true,
+      whitelisted: true,
+      callerIp: ip,
       terminalId: b?.terminalId || null,
       serverTime: new Date().toISOString(),
       message: "Connected. Your IP is whitelisted. You can send T2T transfers.",
     });
   });
 
-  app.post("/t2t/transfer", async (req: FastifyRequest, reply: FastifyReply) => {
-    await init();
-    const b = req.body as { amount?: string; currency?: string; sourceId?: string; destId?: string; description?: string };
-    const ip = req.ip;
-    const ok = await isAllowed(ip);
-    if (!ok) throw new ForbiddenError(`IP ${ip} not whitelisted. Call POST /t2t/whitelist first.`);
-    if (!b.amount || !b.currency || !b.sourceId || !b.destId) {
-      throw new ValidationError("Required: amount, currency, sourceId, destId");
-    }
-    const amount = new Decimal(b.amount);
-    if (!amount.isFinite() || amount.lte(0)) throw new ValidationError("amount must be positive");
-    const cur = b.currency.toUpperCase();
-    if (cur.length !== 3) throw new ValidationError("currency must be 3 letters (USD, EUR, INR...)");
-    const srcTid = b.sourceId;
-    const dstTid = b.destId;
-    const idempotencyKey = String(req.headers["x-primestack-idempotency-key"] || "").trim();
-    if (!idempotencyKey || idempotencyKey.length < 16 || idempotencyKey.length > 128) {
-      throw new ValidationError("x-primestack-idempotency-key is required and must be 16-128 characters");
-    }
-    const reference = "TRF-" + createHash("sha256").update(`${req.merchant?.id || "unknown"}:${idempotencyKey}`).digest("hex").slice(0, 32).toUpperCase();
-    const srcAcct = `TERMINAL-${srcTid}-${cur}`;
-    const dstAcct = `TERMINAL-${dstTid}-${cur}`;
-    const merchantId = req.merchant?.id;
-    if (!merchantId) throw new ForbiddenError("Authenticated merchant context is required");
-    const result = await prisma.$transaction(async (tx) => {
-      const existing: { reference: string; amount: string; currency: string; sourceId: string; destId: string; journalEntryRef: string | null }[] =
-        await tx.$queryRawUnsafe(
-          `SELECT reference, amount::text, currency, "sourceId", "destId", "journalEntryRef"
-           FROM "Transfer" WHERE reference = $1 LIMIT 1`,
-          reference,
+  app.post(
+    "/t2t/transfer",
+    {
+      config: { rateLimit: { max: 100, timeWindow: "1 minute" } },
+    },
+    async (req: FastifyRequest, reply: FastifyReply) => {
+      const parsedBody = t2tTransferSchema.safeParse(req.body);
+      if (!parsedBody.success) {
+        throw new ValidationError("Invalid T2T transfer data", {
+          errors: parsedBody.error.errors,
+        });
+      }
+      const b = parsedBody.data;
+      const ip = normalizeIp(req.ip);
+      const userAgent =
+        typeof req.headers["user-agent"] === "string"
+          ? req.headers["user-agent"]
+          : undefined;
+      const ok = await isAllowed(ip);
+      if (!ok)
+        throw new ForbiddenError(
+          `IP ${ip} not whitelisted. Call POST /t2t/whitelist first.`,
         );
-      if (existing.length) {
-        return { duplicate: true, transfer: existing[0] };
-      }
-      const terminals: { tid: string; merchantId: string; status: string }[] =
-        await tx.$queryRawUnsafe(
-          `SELECT tid, "merchantId", status::text FROM "Terminal"
-           WHERE tid IN ($1, $2) FOR UPDATE`,
-          srcTid,
-          dstTid,
-        );
-      const sourceTerminal = terminals.find((terminal) => terminal.tid === srcTid);
-      const destinationTerminal = terminals.find((terminal) => terminal.tid === dstTid);
-      if (!sourceTerminal || sourceTerminal.merchantId !== merchantId) {
-        throw new ForbiddenError("Source terminal does not belong to the authenticated merchant");
-      }
-      if (sourceTerminal.status !== "ACTIVE") {
-        throw new ValidationError("Source terminal is not active");
-      }
-      if (!destinationTerminal || destinationTerminal.merchantId !== merchantId) {
-        throw new ForbiddenError("Destination terminal does not belong to the authenticated merchant");
-      }
-      if (destinationTerminal.status !== "ACTIVE") {
-        throw new ValidationError("Destination terminal is not active");
-      }
-      for (const code of [srcAcct, dstAcct]) {
-        await tx.$executeRawUnsafe(
-          `INSERT INTO "Account" (id, code, name, type, subtype, currency, balance, "heldBalance", status, "createdAt", "updatedAt")
-           VALUES ($1,$2,$3,'ASSET','TERMINAL',$4,0,0,'ACTIVE',NOW(),NOW())
-           ON CONFLICT (code) DO NOTHING`,
-          randomUUID(), code, "Terminal " + code, cur
+      const amount = new Decimal(b.amount);
+      if (!amount.isFinite() || amount.lte(0))
+        throw new ValidationError("amount must be positive");
+      const normalizedAmount = amount.toFixed(4);
+      if (amount.gt("10000000"))
+        throw new ValidationError("amount exceeds the maximum transfer limit");
+      const cur = b.currency;
+      const srcTid = b.sourceId;
+      const dstTid = b.destId;
+      if (srcTid === dstTid) {
+        throw new ValidationError(
+          "sourceId and destId must identify different terminals",
         );
       }
-      const srcBal: { id: string; balance: string }[] =
-        await tx.$queryRawUnsafe(
-          `SELECT id, balance::text FROM "Account"
-           WHERE code = $1 AND status = 'ACTIVE' FOR UPDATE`,
-          srcAcct,
+      const idempotencyHeader = req.headers["x-primestack-idempotency-key"];
+      const idempotencyKey =
+        typeof idempotencyHeader === "string" ? idempotencyHeader.trim() : "";
+      if (
+        idempotencyKey.length < 16 ||
+        idempotencyKey.length > 128 ||
+        !/^[A-Za-z0-9._:-]+$/.test(idempotencyKey)
+      ) {
+        throw new ValidationError(
+          "x-primestack-idempotency-key must be 16-128 URL-safe characters",
         );
-      if (!srcBal.length || new Decimal(srcBal[0].balance).lt(amount)) {
-        throw new ValidationError("Insufficient terminal funds");
       }
-      const dstAccount: { id: string }[] =
-        await tx.$queryRawUnsafe(
-          `SELECT id FROM "Account"
-           WHERE code = $1 AND status = 'ACTIVE' FOR UPDATE`,
-          dstAcct,
-        );
-      if (!dstAccount.length) {
-        throw new ValidationError("Destination terminal account is not active");
-      }
+      const reference =
+        "TRF-" +
+        createHash("sha256")
+          .update(`${req.merchant?.id || "unknown"}:${idempotencyKey}`)
+          .digest("hex")
+          .slice(0, 32)
+          .toUpperCase();
+      const srcAcct = `TERMINAL-${srcTid}-${cur}`;
+      const dstAcct = `TERMINAL-${dstTid}-${cur}`;
+      const merchantId = req.merchant?.id;
+      if (!merchantId)
+        throw new ForbiddenError("Authenticated merchant context is required");
+      const nonceHeader = req.headers["x-primestack-nonce"];
+      const keyIdHeader = req.headers["x-primestack-key-id"];
+      const nonce = typeof nonceHeader === "string" ? nonceHeader : "";
+      const keyId = typeof keyIdHeader === "string" ? keyIdHeader : "";
+      if (!nonce || !keyId)
+        throw new ValidationError("x-primestack nonce and key ID are required");
+      const nonceRedisKey = `t2t:hmac-nonce:${keyId}:${nonce}`;
+      const nonceReserved = await redis.set(
+        nonceRedisKey,
+        "1",
+        "EX",
+        600,
+        "NX",
+      );
+      if (!nonceReserved)
+        throw new ConflictError("Nonce has already been used");
 
-      const transferId = randomUUID();
-      const jeRef = "JE-" + reference;
-      const entryId = randomUUID();
-      await tx.$executeRawUnsafe(
-        `INSERT INTO "JournalEntry" (id, reference, "entryType", description, source, status, "postedAt", "postedBy", metadata, "createdAt", "updatedAt")
+      const requestFingerprint = createHash("sha256")
+        .update(
+          JSON.stringify({
+            merchantId,
+            amount: normalizedAmount,
+            currency: cur,
+            sourceId: srcTid,
+            destId: dstTid,
+          }),
+        )
+        .digest("hex");
+
+      let result: T2tTransferResult;
+      try {
+        result = await prisma.$transaction(async (tx) => {
+          await tx.$queryRawUnsafe(
+            `WITH transfer_lock AS MATERIALIZED (
+             SELECT pg_advisory_xact_lock(hashtext($1))
+           )
+           SELECT TRUE AS acquired FROM transfer_lock`,
+            reference,
+          );
+          const existing: T2tTransferRecord[] = await tx.$queryRawUnsafe(
+            `SELECT reference, status::text, amount::text, currency, "sourceId", "destId", "journalEntryRef", "completedAt", metadata
+           FROM "Transfer" WHERE reference = $1 LIMIT 1`,
+            reference,
+          );
+          if (existing.length) {
+            const previous = existing[0];
+            const storedFingerprint = previous.metadata?.requestFingerprint;
+            const matchesLegacyRecord =
+              storedFingerprint === undefined &&
+              previous.amount === normalizedAmount &&
+              previous.currency === cur &&
+              previous.sourceId === srcTid &&
+              previous.destId === dstTid;
+            if (
+              storedFingerprint !== requestFingerprint &&
+              !matchesLegacyRecord
+            ) {
+              throw new ConflictError(
+                "Idempotency key was already used with different transfer parameters",
+              );
+            }
+            return { duplicate: true, transfer: previous };
+          }
+          const terminals: {
+            tid: string;
+            merchantId: string;
+            status: string;
+          }[] = await tx.$queryRawUnsafe(
+            `SELECT tid, "merchantId", status::text FROM "Terminal"
+           WHERE tid IN ($1, $2) ORDER BY tid FOR UPDATE`,
+            srcTid,
+            dstTid,
+          );
+          const sourceTerminal = terminals.find(
+            (terminal) => terminal.tid === srcTid,
+          );
+          const destinationTerminal = terminals.find(
+            (terminal) => terminal.tid === dstTid,
+          );
+          if (!sourceTerminal || sourceTerminal.merchantId !== merchantId) {
+            throw new ForbiddenError(
+              "Source terminal does not belong to the authenticated merchant",
+            );
+          }
+          if (sourceTerminal.status !== "ACTIVE") {
+            throw new ValidationError("Source terminal is not active");
+          }
+          if (
+            !destinationTerminal ||
+            destinationTerminal.merchantId !== merchantId
+          ) {
+            throw new ForbiddenError(
+              "Destination terminal does not belong to the authenticated merchant",
+            );
+          }
+          if (destinationTerminal.status !== "ACTIVE") {
+            throw new ValidationError("Destination terminal is not active");
+          }
+          const accounts: {
+            id: string;
+            code: string;
+            balance: string;
+            heldBalance: string;
+            currency: string;
+            status: string;
+          }[] = await tx.$queryRawUnsafe(
+            `SELECT id, code, balance::text, "heldBalance"::text, currency, status::text
+         FROM "Account" WHERE code IN ($1, $2) ORDER BY code FOR UPDATE`,
+            srcAcct,
+            dstAcct,
+          );
+          const sourceAccount = accounts.find(
+            (account) => account.code === srcAcct,
+          );
+          const destinationAccount = accounts.find(
+            (account) => account.code === dstAcct,
+          );
+          if (
+            !sourceAccount ||
+            sourceAccount.status !== "ACTIVE" ||
+            sourceAccount.currency !== cur
+          ) {
+            throw new ValidationError(
+              "Source terminal is not enabled for this currency",
+            );
+          }
+          if (
+            !destinationAccount ||
+            destinationAccount.status !== "ACTIVE" ||
+            destinationAccount.currency !== cur
+          ) {
+            throw new ValidationError(
+              "Destination terminal is not enabled for this currency",
+            );
+          }
+          const availableBalance = new Decimal(sourceAccount.balance).minus(
+            sourceAccount.heldBalance,
+          );
+          if (availableBalance.lt(amount)) {
+            throw new ValidationError("Insufficient terminal funds");
+          }
+
+          const transferId = randomUUID();
+          const jeRef = "JE-" + reference;
+          const entryId = randomUUID();
+          await tx.$executeRawUnsafe(
+            `INSERT INTO "JournalEntry" (id, reference, "entryType", description, source, status, "postedAt", "postedBy", metadata, "createdAt", "updatedAt")
          VALUES ($1,$2,'TRANSFER',$3,'T2T','POSTED',NOW(),$4,$5::jsonb,NOW(),NOW())`,
-        entryId,
-        jeRef,
-        `T2T transfer from ${srcTid} to ${dstTid}`,
-        merchantId,
-        JSON.stringify({ sourceTerminalId: srcTid, destinationTerminalId: dstTid, idempotencyKey }),
-      );
-      await tx.$executeRawUnsafe(
-        `INSERT INTO "JournalLine" (id, "entryId", "accountId", debit, credit, currency, "createdAt")
+            entryId,
+            jeRef,
+            `T2T transfer from ${srcTid} to ${dstTid}`,
+            merchantId,
+            JSON.stringify({
+              sourceTerminalId: srcTid,
+              destinationTerminalId: dstTid,
+              idempotencyKeyHash: createHash("sha256")
+                .update(idempotencyKey)
+                .digest("hex"),
+            }),
+          );
+          await tx.$executeRawUnsafe(
+            `INSERT INTO "JournalLine" (id, "entryId", "accountId", debit, credit, currency, "createdAt")
          VALUES ($1,$2,$3,0,$4,$5,NOW()), ($6,$2,$7,$4,0,$5,NOW())`,
-        randomUUID(),
-        entryId,
-        srcBal[0].id,
-        amount.toFixed(4),
-        cur,
-        randomUUID(),
-        dstAccount[0].id,
-      );
-      await tx.$executeRawUnsafe(
-        `INSERT INTO "Transfer" (id, reference, type, status, amount, currency, "feeAmount", "netAmount",
+            randomUUID(),
+            entryId,
+            sourceAccount.id,
+            amount.toFixed(4),
+            cur,
+            randomUUID(),
+            destinationAccount.id,
+          );
+          await tx.$executeRawUnsafe(
+            `INSERT INTO "Transfer" (id, reference, type, status, amount, currency, "feeAmount", "netAmount",
            "sourceType", "sourceId", "destType", "destId", "sourceAccountId", "destAccountId",
            "merchantId", description, metadata, "journalEntryRef", "initiatedAt", "processedAt", "completedAt", "createdAt", "updatedAt")
            VALUES ($1,$2,'T2T','COMPLETED',$3,$4,0,$3,'TERMINAL',$5,'TERMINAL',$6,$7,$8,$9,$10,$11::jsonb,$12,NOW(),NOW(),NOW(),NOW(),NOW())`,
-        transferId, reference, amount.toFixed(4), cur, srcTid, dstTid, srcAcct, dstAcct,
-        merchantId, b.description || "T2T transfer",
-        JSON.stringify({ idempotencyKeyHash: createHash("sha256").update(idempotencyKey).digest("hex") }),
-        jeRef,
-      );
-      const debitResult = await tx.$executeRawUnsafe(
-        `UPDATE "Account" SET balance = balance - $1, "updatedAt" = NOW()
+            transferId,
+            reference,
+            amount.toFixed(4),
+            cur,
+            srcTid,
+            dstTid,
+            sourceAccount.id,
+            destinationAccount.id,
+            merchantId,
+            b.description || "T2T transfer",
+            JSON.stringify({
+              idempotencyKeyHash: createHash("sha256")
+                .update(idempotencyKey)
+                .digest("hex"),
+              requestFingerprint,
+            }),
+            jeRef,
+          );
+          const debitResult = await tx.$executeRawUnsafe(
+            `UPDATE "Account" SET balance = balance - $1, "updatedAt" = NOW()
          WHERE id = $2 AND status = 'ACTIVE' AND balance - "heldBalance" >= $1`,
-        amount.toFixed(4),
-        srcBal[0].id,
-      );
-      if (debitResult !== 1) {
-        throw new ValidationError("Insufficient terminal funds");
-      }
-      await tx.$executeRawUnsafe(
-        `UPDATE "Account" SET balance = balance + $1, "updatedAt" = NOW()
+            amount.toFixed(4),
+            sourceAccount.id,
+          );
+          if (debitResult !== 1) {
+            throw new ValidationError("Insufficient terminal funds");
+          }
+          const creditResult = await tx.$executeRawUnsafe(
+            `UPDATE "Account" SET balance = balance + $1, "updatedAt" = NOW()
          WHERE id = $2 AND status = 'ACTIVE'`,
-        amount.toFixed(4),
-        dstAccount[0].id,
+            amount.toFixed(4),
+            destinationAccount.id,
+          );
+          if (creditResult !== 1) {
+            throw new ValidationError(
+              "Destination terminal account is not active",
+            );
+          }
+          const srcNew: { balance: string }[] = await tx.$queryRawUnsafe(
+            `SELECT balance::text FROM "Account" WHERE code = $1`,
+            srcAcct,
+          );
+          const dstNew: { balance: string }[] = await tx.$queryRawUnsafe(
+            `SELECT balance::text FROM "Account" WHERE code = $1`,
+            dstAcct,
+          );
+          await tx.auditLog.create({
+            data: {
+              merchantId,
+              action: "T2T_TRANSFER_COMPLETED",
+              entity: "Transfer",
+              entityId: transferId,
+              ipAddress: ip,
+              userAgent,
+              after: {
+                reference,
+                amount: normalizedAmount,
+                currency: cur,
+                sourceId: srcTid,
+                destId: dstTid,
+                idempotencyKeyHash: createHash("sha256")
+                  .update(idempotencyKey)
+                  .digest("hex"),
+              },
+            },
+          });
+          return {
+            duplicate: false,
+            transfer: null,
+            sourceBalance: srcNew[0]?.balance || "0",
+            destBalance: dstNew[0]?.balance || "0",
+            jeRef,
+          };
+        });
+      } catch (error) {
+        try {
+          await redis.del(nonceRedisKey);
+        } catch (releaseError) {
+          logger.warn(
+            { err: releaseError, reference },
+            "Failed to release T2T nonce reservation",
+          );
+        }
+        try {
+          await prisma.auditLog.create({
+            data: {
+              merchantId,
+              action: "T2T_TRANSFER_FAILED",
+              entity: "Transfer",
+              entityId: reference,
+              ipAddress: ip,
+              userAgent,
+              before: {
+                amount: normalizedAmount,
+                currency: cur,
+                sourceId: srcTid,
+                destId: dstTid,
+              },
+              after: {
+                errorType: error instanceof Error ? error.name : "UnknownError",
+              },
+            },
+          });
+        } catch (auditError) {
+          logger.error(
+            { err: auditError, reference },
+            "Failed to write T2T failure audit log",
+          );
+        }
+        logger.error(
+          { err: error, reference, merchantId },
+          "T2T transfer failed",
+        );
+        throw error;
+      }
+      const completedAt = new Date().toISOString();
+      if (result.duplicate) {
+        return reply.status(200).send({
+          success: true,
+          data: {
+            reference: result.transfer.reference,
+            status: result.transfer.status,
+            duplicate: true,
+            amount: result.transfer.amount,
+            currency: result.transfer.currency,
+            sourceId: result.transfer.sourceId,
+            destId: result.transfer.destId,
+            journalEntryRef: result.transfer.journalEntryRef,
+            completedAt: result.transfer.completedAt,
+          },
+        });
+      }
+      logger.info(
+        {
+          reference,
+          merchantId,
+          srcTid,
+          dstTid,
+          amount: normalizedAmount,
+          cur,
+        },
+        "T2T transfer completed atomically",
       );
-      const srcNew: { balance: string }[] = await tx.$queryRawUnsafe(`SELECT balance::text FROM "Account" WHERE code = $1`, srcAcct);
-      const dstNew: { balance: string }[] = await tx.$queryRawUnsafe(`SELECT balance::text FROM "Account" WHERE code = $1`, dstAcct);
-      return { duplicate: false, transfer: null, sourceBalance: srcNew[0]?.balance || "0", destBalance: dstNew[0]?.balance || "0", jeRef };
-    });
-    const completedAt = new Date().toISOString();
-    if (result.duplicate) {
-      return reply.status(200).send({ success: true, data: { reference, status: "COMPLETED", duplicate: true, ...result.transfer } });
-    }
-    logger.info({ reference, srcTid, dstTid, amount: amount.toString(), cur }, "T2T transfer completed atomically");
-    return sendCreated(reply, {
-      reference,
-      type: "T2T",
-      status: "COMPLETED",
-      amount: amount.toString(),
-      currency: cur,
-      sourceType: "TERMINAL",
-      sourceId: srcTid,
-      destType: "TERMINAL",
-      destId: dstTid,
-      journalEntryRef: result.jeRef,
-      sourceBalance: result.sourceBalance,
-      destBalance: result.destBalance,
-      completedAt,
-      message: `Transfer of ${amount.toString()} ${cur} from ${srcTid} to ${dstTid} completed`,
-    });
-  });
+      return sendCreated(reply, {
+        reference,
+        type: "T2T",
+        status: "COMPLETED",
+        amount: amount.toString(),
+        currency: cur,
+        sourceType: "TERMINAL",
+        sourceId: srcTid,
+        destType: "TERMINAL",
+        destId: dstTid,
+        journalEntryRef: result.jeRef,
+        sourceBalance: result.sourceBalance,
+        destBalance: result.destBalance,
+        completedAt,
+        message: `Transfer of ${amount.toString()} ${cur} from ${srcTid} to ${dstTid} completed`,
+      });
+    },
+  );
 
-  app.get("/t2t/balance/:tid", async (req: FastifyRequest, reply: FastifyReply) => {
-    const { tid } = req.params as { tid: string };
-    const merchantId = req.merchant?.id;
-    if (!merchantId) throw new ForbiddenError("Authenticated merchant context is required");
-    const terminals: { tid: string }[] = await prisma.$queryRawUnsafe(
-      `SELECT tid FROM "Terminal" WHERE tid = $1 AND "merchantId" = $2 LIMIT 1`,
-      tid,
-      merchantId,
-    );
-    if (!terminals.length) throw new NotFoundError("Terminal not found");
-    const rows: { balance: string; currency: string }[] = await prisma.$queryRawUnsafe(
-      `SELECT balance::text, currency FROM "Account"
-       WHERE strpos(code, $1) = 1
-       ORDER BY "createdAt" DESC LIMIT 1`,
-      `TERMINAL-${tid}-`,
-    );
-    if (!rows.length) return sendSuccess(reply, { terminalId: tid, balance: "0.00", currency: "USD", message: "No transactions yet" });
-    return sendSuccess(reply, { terminalId: tid, balance: rows[0].balance, currency: rows[0].currency });
-  });
+  app.get(
+    "/t2t/balance/:tid",
+    async (req: FastifyRequest, reply: FastifyReply) => {
+      const { tid } = req.params as { tid: string };
+      const parsedQuery = z
+        .object({
+          currency: z
+            .string()
+            .regex(/^[A-Za-z]{3}$/)
+            .transform((value) => value.toUpperCase())
+            .default("USD"),
+        })
+        .safeParse(req.query);
+      if (!parsedQuery.success) {
+        throw new ValidationError("Invalid balance query", {
+          errors: parsedQuery.error.errors,
+        });
+      }
+      const merchantId = req.merchant?.id;
+      if (!merchantId)
+        throw new ForbiddenError("Authenticated merchant context is required");
+      const terminals: { tid: string }[] = await prisma.$queryRawUnsafe(
+        `SELECT tid FROM "Terminal" WHERE tid = $1 AND "merchantId" = $2 LIMIT 1`,
+        tid,
+        merchantId,
+      );
+      if (!terminals.length) throw new NotFoundError("Terminal not found");
+      const currency = parsedQuery.data.currency;
+      const rows: { balance: string; currency: string }[] =
+        await prisma.$queryRawUnsafe(
+          `SELECT balance::text, currency FROM "Account"
+       WHERE code = $1 AND currency = $2 AND status = 'ACTIVE' LIMIT 1`,
+          `TERMINAL-${tid}-${currency}`,
+          currency,
+        );
+      if (!rows.length)
+        throw new NotFoundError(
+          "Terminal currency account",
+          `${tid}/${currency}`,
+        );
+      return sendSuccess(reply, {
+        terminalId: tid,
+        balance: rows[0].balance,
+        currency: rows[0].currency,
+      });
+    },
+  );
 
-  app.get("/t2t/terminals", async (req: FastifyRequest, reply: FastifyReply) => {
-    const merchantId = req.merchant?.id;
-    if (!merchantId) throw new ForbiddenError("Authenticated merchant context is required");
-    const rows: { tid: string; model: string | null; location: string | null; country: string }[] =
-      await prisma.$queryRawUnsafe(
+  app.get(
+    "/t2t/terminals",
+    async (req: FastifyRequest, reply: FastifyReply) => {
+      const merchantId = req.merchant?.id;
+      if (!merchantId)
+        throw new ForbiddenError("Authenticated merchant context is required");
+      const rows: {
+        tid: string;
+        model: string | null;
+        location: string | null;
+        country: string;
+      }[] = await prisma.$queryRawUnsafe(
         `SELECT tid, model, location, country FROM "Terminal"
          WHERE "merchantId" = $1 ORDER BY "createdAt" DESC`,
         merchantId,
       );
-    return sendSuccess(reply, rows);
-  });
+      return sendSuccess(reply, rows);
+    },
+  );
 
-  app.get("/t2t/transfers", async (req: FastifyRequest, reply: FastifyReply) => {
-    const merchantId = req.merchant?.id;
-    if (!merchantId) throw new ForbiddenError("Authenticated merchant context is required");
-    const q = req.query as { tid?: string; limit?: string };
-    const limit = Math.min(parseInt(q.limit || "20", 10), 100);
-    const rows = q.tid
-      ? await prisma.$queryRawUnsafe(
-          `SELECT reference, type, status::text, amount::text, currency, "sourceId", "destId", "completedAt"
+  app.get(
+    "/t2t/transfers",
+    async (req: FastifyRequest, reply: FastifyReply) => {
+      const merchantId = req.merchant?.id;
+      if (!merchantId)
+        throw new ForbiddenError("Authenticated merchant context is required");
+      const parsedQuery = z
+        .object({
+          tid: z.string().trim().min(1).max(128).optional(),
+          limit: z.coerce.number().int().min(1).max(100).default(20),
+        })
+        .safeParse(req.query);
+      if (!parsedQuery.success) {
+        throw new ValidationError("Invalid transfer query", {
+          errors: parsedQuery.error.errors,
+        });
+      }
+      const { tid, limit } = parsedQuery.data;
+      const rows = tid
+        ? await prisma.$queryRawUnsafe(
+            `SELECT reference, type, status::text, amount::text, currency, "sourceId", "destId", "completedAt"
            FROM "Transfer"
            WHERE "merchantId" = $1 AND ("sourceId" = $2 OR "destId" = $2) AND type = 'T2T'
            ORDER BY "createdAt" DESC LIMIT $3`,
-          merchantId,
-          q.tid,
-          limit,
-        )
-      : await prisma.$queryRawUnsafe(
-          `SELECT reference, type, status::text, amount::text, currency, "sourceId", "destId", "completedAt"
+            merchantId,
+            tid,
+            limit,
+          )
+        : await prisma.$queryRawUnsafe(
+            `SELECT reference, type, status::text, amount::text, currency, "sourceId", "destId", "completedAt"
            FROM "Transfer"
            WHERE "merchantId" = $1 AND type = 'T2T'
            ORDER BY "createdAt" DESC LIMIT $2`,
-          merchantId,
-          limit
-        );
-    return sendSuccess(reply, rows);
-  });
+            merchantId,
+            limit,
+          );
+      return sendSuccess(reply, rows);
+    },
+  );
 }

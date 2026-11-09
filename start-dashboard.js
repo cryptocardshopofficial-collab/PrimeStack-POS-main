@@ -7919,6 +7919,18 @@ const server = createServer((req, res) => {
     '/resources', '/support',
     '/terms', '/privacy', '/cookies', '/acceptable-use'
   ]);
+  const canonicalPublicPath = path.length > 1 ? path.replace(/\/+$/, '') : path;
+  if (
+    req.method === 'GET' &&
+    canonicalPublicPath !== path &&
+    (publicPages.has(canonicalPublicPath) || canonicalPublicPath === '/developer')
+  ) {
+    const queryIndex = url.indexOf('?');
+    const query = queryIndex === -1 ? '' : url.slice(queryIndex);
+    res.writeHead(308, { Location: canonicalPublicPath + query });
+    res.end();
+    return;
+  }
   if (req.method === 'GET' && publicPages.has(path)) {
     res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
     res.end(PUBLIC_SITE_HTML);

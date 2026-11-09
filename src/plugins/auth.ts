@@ -32,7 +32,10 @@ declare module "fastify" {
     };
   }
   interface FastifyInstance {
-    authenticate: (request: FastifyRequest, reply: FastifyReply) => Promise<void>;
+    authenticate: (
+      request: FastifyRequest,
+      reply: FastifyReply,
+    ) => Promise<void>;
   }
 }
 
@@ -43,82 +46,116 @@ function computeSignature(secret: string, data: string): string {
 }
 
 export async function hmacAuthPlugin(app: FastifyInstance): Promise<void> {
-  app.addHook("onRequest", async (request: FastifyRequest, _reply: FastifyReply) => {
-    // Skip auth for health, docs, and admin login routes
-    if (
-      request.url.startsWith("/health") ||
-      request.url.startsWith("/docs") ||
-      request.url.startsWith("/admin/login")
-    ) {
-      return;
-    }
+  app.addHook(
+    "preValidation",
+    async (request: FastifyRequest, _reply: FastifyReply) => {
+      // Skip auth for health, docs, and admin login routes
+      if (
+        request.url.startsWith("/health") ||
+        request.url.startsWith("/docs") ||
+        request.url.startsWith("/admin/login") ||
+        request.url.split("?")[0] === "/t2t/whitelist"
+      ) {
+        return;
+      }
 
-    // Admin routes use JWT (handled by @fastify/jwt decorators)
-    if (request.url.startsWith("/admin")) {
-      return;
-    }
+      // Admin routes use JWT (handled by @fastify/jwt decorators)
+      if (request.url.startsWith("/admin")) {
+        return;
+      }
 
-    const prefix = config.hmac.headerPrefix;
-    const keyId = request.headers[`${prefix}-key-id`] as string | undefined;
-    const timestamp = request.headers[`${prefix}-timestamp`] as string | undefined;
-    const nonce = request.headers[`${prefix}-nonce`] as string | undefined;
-    const signature = request.headers[`${prefix}-signature`] as string | undefined;
+      const prefix = config.hmac.headerPrefix;
+      const keyId = request.headers[`${prefix}-key-id`];
+      const timestamp = request.headers[`${prefix}-timestamp`];
+      const nonce = request.headers[`${prefix}-nonce`];
+      const signature = request.headers[`${prefix}-signature`];
 
-    if (!keyId || !timestamp || !nonce || !signature) {
-      throw new UnauthorizedError("Missing HMAC authentication headers");
-    }
-    if (nonce.length < 16 || nonce.length > 128 || !/^[A-Za-z0-9_-]+$/.test(nonce)) {
-      throw new HmacSignatureError("Invalid nonce");
-    }
+      if (
+        typeof keyId !== "string" ||
+        typeof timestamp !== "string" ||
+        typeof nonce !== "string" ||
+        typeof signature !== "string"
+      ) {
+        throw new UnauthorizedError("Missing HMAC authentication headers");
+      }
+      if (!/^\d{13}$/.test(timestamp) || !/^[0-9a-f]{64}$/i.test(signature)) {
+        throw new HmacSignatureError("Invalid timestamp or signature format");
+      }
+      if (
+        nonce.length < 16 ||
+        nonce.length > 128 ||
+        !/^[A-Za-z0-9_-]+$/.test(nonce)
+      ) {
+        throw new HmacSignatureError("Invalid nonce");
+      }
 
-    // Validate timestamp freshness
-    const ts = parseInt(timestamp, 10);
-    const drift = Date.now() - ts;
-    if (isNaN(ts) || drift > MAX_TIMESTAMP_DRIFT_MS || drift < -MAX_TIMESTAMP_DRIFT_MS) {
-      throw new HmacSignatureError("Timestamp expired or invalid");
-    }
+      // Validate timestamp freshness
+      const ts = Number(timestamp);
+      const drift = Date.now() - ts;
+      if (
+        !Number.isSafeInteger(ts) ||
+        drift > MAX_TIMESTAMP_DRIFT_MS ||
+        drift < -MAX_TIMESTAMP_DRIFT_MS
+      ) {
+        throw new HmacSignatureError("Timestamp expired or invalid");
+      }
 
-    // Look up the HMAC key — try cache first, fall back to DB
-    const hmacKey = await prisma.hmacKey.findFirst({
-      where: { keyId, status: "ACTIVE" },
-      include: { merchant: { select: { id: true, code: true, preferredLang: true } } },
-    });
+      // Look up the HMAC key — try cache first, fall back to DB
+      const hmacKey = await prisma.hmacKey.findFirst({
+        where: { keyId, status: "ACTIVE" },
+        include: {
+          merchant: { select: { id: true, code: true, preferredLang: true } },
+        },
+      });
 
-    if (!hmacKey) {
-      throw new HmacSignatureError("Unknown key ID");
-    }
-    if (!hmacKey.merchant) {
-      throw new HmacSignatureError("Key is not associated with a merchant");
-    }
+      if (!hmacKey) {
+        throw new HmacSignatureError("Unknown key ID");
+      }
+      if (!hmacKey.merchant) {
+        throw new HmacSignatureError("Key is not associated with a merchant");
+      }
 
-    // Compute expected signature
-    const body = request.body ? JSON.stringify(request.body) : "";
-    const data = `${keyId}${timestamp}${nonce}${body}`;
-    const expected = computeSignature(hmacKey.secret, data);
+      // Compute expected signature
+      const body = request.body ? JSON.stringify(request.body) : "";
+      const data = `${keyId}${timestamp}${nonce}${body}`;
+      const expected = computeSignature(hmacKey.secret, data);
 
-    // Constant-time comparison to prevent timing attacks
-    const sigBuffer = Buffer.from(signature, "hex");
-    const expBuffer = Buffer.from(expected, "hex");
+      // Constant-time comparison to prevent timing attacks
+      const sigBuffer = Buffer.from(signature, "hex");
+      const expBuffer = Buffer.from(expected, "hex");
 
-    if (sigBuffer.length !== expBuffer.length || !timingSafeEqual(sigBuffer, expBuffer)) {
-      logger.warn({ keyId, ip: request.ip }, "HMAC signature mismatch");
-      throw new HmacSignatureError("Signature does not match");
-    }
+      if (
+        sigBuffer.length !== expBuffer.length ||
+        !timingSafeEqual(sigBuffer, expBuffer)
+      ) {
+        logger.warn({ keyId, ip: request.ip }, "HMAC signature mismatch");
+        throw new HmacSignatureError("Signature does not match");
+      }
 
-    const expiresAt = new Date(ts + MAX_TIMESTAMP_DRIFT_MS);
-    try {
-      await prisma.hmacNonce.create({ data: { keyId, nonce, expiresAt } });
-    } catch {
-      throw new HmacSignatureError("Nonce has already been used");
-    }
+      const expiresAt = new Date(ts + MAX_TIMESTAMP_DRIFT_MS);
+      if (request.url.split("?")[0] !== "/t2t/transfer") {
+        try {
+          await prisma.hmacNonce.create({ data: { keyId, nonce, expiresAt } });
+        } catch (error) {
+          const code =
+            error && typeof error === "object" && "code" in error
+              ? error.code
+              : undefined;
+          if (code === "P2002") {
+            throw new HmacSignatureError("Nonce has already been used");
+          }
+          throw error;
+        }
+      }
 
-    // Attach merchant context
-    request.merchant = {
-      id: hmacKey.merchant.id,
-      code: hmacKey.merchant.code,
-      preferredLang: hmacKey.merchant.preferredLang,
-    };
-  });
+      // Attach merchant context
+      request.merchant = {
+        id: hmacKey.merchant.id,
+        code: hmacKey.merchant.code,
+        preferredLang: hmacKey.merchant.preferredLang,
+      };
+    },
+  );
 }
 
 /**
@@ -126,25 +163,36 @@ export async function hmacAuthPlugin(app: FastifyInstance): Promise<void> {
  * Used with @fastify/jwt — verify the token and attach user.
  */
 export async function jwtAuthHook(app: FastifyInstance): Promise<void> {
-  app.decorate("authenticate", async (request: FastifyRequest, _reply: FastifyReply) => {
-    try {
-      await request.jwtVerify();
-    } catch {
-      throw new UnauthorizedError();
-    }
-    const payload = request.user as { id?: string; role?: string } | undefined;
-    if (!payload?.id) throw new UnauthorizedError();
-    const user = await prisma.user.findUnique({
-      where: { id: payload.id },
-      select: { id: true, email: true, role: true, preferredLang: true, isActive: true },
-    });
-    if (!user?.isActive) throw new UnauthorizedError("Administrator account is inactive");
-    request.user = {
-      ...payload,
-      id: user.id,
-      email: user.email,
-      role: user.role,
-      lang: user.preferredLang,
-    } as never;
-  });
+  app.decorate(
+    "authenticate",
+    async (request: FastifyRequest, _reply: FastifyReply) => {
+      try {
+        await request.jwtVerify();
+      } catch {
+        throw new UnauthorizedError();
+      }
+      const payload = request.user as
+        { id?: string; role?: string } | undefined;
+      if (!payload?.id) throw new UnauthorizedError();
+      const user = await prisma.user.findUnique({
+        where: { id: payload.id },
+        select: {
+          id: true,
+          email: true,
+          role: true,
+          preferredLang: true,
+          isActive: true,
+        },
+      });
+      if (!user?.isActive)
+        throw new UnauthorizedError("Administrator account is inactive");
+      request.user = {
+        ...payload,
+        id: user.id,
+        email: user.email,
+        role: user.role,
+        lang: user.preferredLang,
+      } as never;
+    },
+  );
 }

@@ -790,6 +790,7 @@ model TerminalRegistrationRequest {
   senderServerUrl   String
   operatingCurrency String
   businessPurpose   String
+  customerMessage   String
   status            String   @default("PENDING")
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
@@ -989,6 +990,14 @@ model HmacNonce {
 
   @@unique([keyId, nonce])
   @@index([expiresAt])
+}
+
+model T2tIpWhitelist {
+  ip      String   @id
+  note    String?
+  addedAt DateTime @default(now()) @map("added_at") @db.Timestamptz(6)
+
+  @@index([addedAt(sort: Desc)], map: "T2tIpWhitelist_added_at_idx")
 }
 
 model ApiKey {
