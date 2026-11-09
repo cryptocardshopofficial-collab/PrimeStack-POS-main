@@ -9,6 +9,7 @@ import fp from "fastify-plugin";
 
 import { config } from "./config/index.js";
 import { logger } from "./core/logger.js";
+import { redis } from "./core/redis.js";
 import { enhanceAdminHtml } from "./shared/admin-ui.js";
 
 import { initI18n } from "./core/i18n.js";
@@ -102,6 +103,8 @@ export async function createApp(): Promise<FastifyInstance> {
   await app.register(rateLimit, {
     max: config.rateLimit.max,
     timeWindow: `${config.rateLimit.window} seconds`,
+    redis,
+    nameSpace: "primestack:rate-limit:",
     allowList: (request) =>
       request.url.startsWith("/health") || request.url.startsWith("/docs"),
   });

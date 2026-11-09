@@ -108,6 +108,7 @@ export const createTerminalRegistrationSchema = z.object({
   senderServerUrl: z.string().trim().url().max(2048),
   operatingCurrency: z.string().trim().min(1).max(20),
   businessPurpose: z.string().trim().min(1).max(2000),
+  customerMessage: z.string().trim().max(2000).optional().default(""),
 });
 
 export const createAgentRegistrationSchema = z.object({

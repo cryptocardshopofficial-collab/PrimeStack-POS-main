@@ -431,13 +431,16 @@ export class DeveloperPlatformService {
     senderServerUrl: string;
     operatingCurrency: string;
     businessPurpose: string;
+    customerMessage: string;
   }) {
     const agent = await this.prisma.agent.findFirst({
       where: { code: input.agentCode, status: "APPROVED" },
       select: { code: true, name: true },
     });
     if (!agent) {
-      throw new ValidationError("Agent registration number is invalid");
+      throw new ValidationError(
+        "Agent registration number is invalid or has not been approved",
+      );
     }
     return this.prisma.terminalRegistrationRequest.create({
       data: {
@@ -450,6 +453,7 @@ export class DeveloperPlatformService {
         senderServerUrl: input.senderServerUrl,
         operatingCurrency: input.operatingCurrency,
         businessPurpose: input.businessPurpose,
+        customerMessage: input.customerMessage,
       },
     });
   }

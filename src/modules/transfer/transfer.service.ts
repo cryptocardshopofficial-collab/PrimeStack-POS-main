@@ -40,6 +40,16 @@ export class TransferService {
   ) {}
 
   async createTransfer(input: CreateTransferInput) {
+    if (
+      input.type === "T2T" ||
+      input.sourceType === "TERMINAL" ||
+      input.destType === "TERMINAL"
+    ) {
+      throw new ValidationError(
+        "Terminal transfers must use POST /t2t/transfer",
+      );
+    }
+
     const amount = new Decimal(input.amount);
     const fee = new Decimal(input.feeAmount || "0");
 
@@ -105,7 +115,11 @@ export class TransferService {
 
     try {
       // Build journal lines — double entry with optional fee
-      const lines: Array<{ accountCode: string; debit: string; credit: string }> = [
+      const lines: Array<{
+        accountCode: string;
+        debit: string;
+        credit: string;
+      }> = [
         {
           accountCode: sourceAccountCode,
           debit: amount.plus(fee).toString(),
@@ -168,7 +182,8 @@ export class TransferService {
         where: { id: transfer.id },
         data: {
           status: "FAILED",
-          failureReason: error instanceof Error ? error.message : "Unknown error",
+          failureReason:
+            error instanceof Error ? error.message : "Unknown error",
           processedAt: new Date(),
         },
       });
@@ -185,7 +200,12 @@ export class TransferService {
    */
   async createBulkTransfer(input: BulkTransferInput) {
     const reference = generateReference("BLK");
-    const results: Array<{ index: number; status: string; reference?: string; error?: string }> = [];
+    const results: Array<{
+      index: number;
+      status: string;
+      reference?: string;
+      error?: string;
+    }> = [];
 
     let totalSuccess = 0;
     let totalFailed = 0;
@@ -205,21 +225,35 @@ export class TransferService {
           destId: item.destId,
           merchantId: input.merchantId,
           description: item.description ?? `Bulk transfer item ${i + 1}`,
-          metadata: { bulkReference: reference, itemIndex: i, ...(input.metadata ?? {}) },
+          metadata: {
+            bulkReference: reference,
+            itemIndex: i,
+            ...(input.metadata ?? {}),
+          },
         });
 
-        results.push({ index: i, status: "COMPLETED", reference: transfer.reference });
+        results.push({
+          index: i,
+          status: "COMPLETED",
+          reference: transfer.reference,
+        });
         totalSuccess++;
         totalAmount = totalAmount.plus(new Decimal(item.amount));
       } catch (error) {
-        const message = error instanceof Error ? error.message : "Unknown error";
+        const message =
+          error instanceof Error ? error.message : "Unknown error";
         results.push({ index: i, status: "FAILED", error: message });
         totalFailed++;
       }
     }
 
     logger.info(
-      { reference, totalSuccess, totalFailed, totalAmount: totalAmount.toString() },
+      {
+        reference,
+        totalSuccess,
+        totalFailed,
+        totalAmount: totalAmount.toString(),
+      },
       "Bulk transfer completed",
     );
 
@@ -282,7 +316,11 @@ export class TransferService {
   /**
    * Reverse a completed transfer by reversing its journal entry.
    */
-  async reverseTransfer(reference: string, reason: string, reversedBy?: string) {
+  async reverseTransfer(
+    reference: string,
+    reason: string,
+    reversedBy?: string,
+  ) {
     const transfer = await this.prisma.transfer.findUnique({
       where: { reference },
     });
@@ -292,11 +330,17 @@ export class TransferService {
     }
 
     if (transfer.status !== "COMPLETED") {
-      throw new ConflictError(`Cannot reverse transfer with status: ${transfer.status}`);
+      throw new ConflictError(
+        `Cannot reverse transfer with status: ${transfer.status}`,
+      );
     }
 
     if (!transfer.journalEntryRef) {
-      throw new AppError("Transfer has no linked journal entry", 500, "TRANSFER_NO_JOURNAL");
+      throw new AppError(
+        "Transfer has no linked journal entry",
+        500,
+        "TRANSFER_NO_JOURNAL",
+      );
     }
 
     const reversal = await this.ledgerService.reverseEntry({
@@ -314,7 +358,10 @@ export class TransferService {
       },
     });
 
-    logger.info({ reference, reversalRef: reversal.reference }, "Transfer reversed");
+    logger.info(
+      { reference, reversalRef: reversal.reference },
+      "Transfer reversed",
+    );
     return updated;
   }
 
@@ -352,46 +399,9 @@ export class TransferService {
       }
 
       case "TERMINAL": {
-        // Look up by TID (terminal identifier like "PST-001-PRIME") OR by UUID
-        let terminal = await this.prisma.terminal.findUnique({
-          where: { tid: entityId },
-        }) ?? await this.prisma.terminal.findUnique({
-          where: { id: entityId },
-        });
-        if (!terminal) {
-          // EXTERNAL TERMINAL: auto-create if not found in database
-          // This allows any terminal worldwide to send T2T transfers to our platform
-          logger.info({ tid: entityId, currency }, "External terminal not found - auto-creating");
-          const merchant = await this.prisma.merchant.findFirst({ where: { status: "ACTIVE" } });
-          if (!merchant) throw new NotFoundError("Merchant", "active merchant");
-          terminal = await this.prisma.terminal.create({
-            data: {
-              tid: entityId,
-              serialNumber: "EXT-" + entityId + "-" + Date.now(),
-              merchantId: merchant.id,
-              model: "External Terminal",
-              location: "External / International",
-              country: "XX",
-              status: "ACTIVE",
-            },
-          });
-          logger.info({ tid: entityId, id: terminal.id }, "External terminal auto-created");
-        }
-        // Ensure the terminal has a linked ledger account ? create if missing
-        const accountCode = `TERMINAL-${terminal.tid}-${currency}`;
-        const existingAcct = await this.ledgerService.getAccount(accountCode);
-        if (!existingAcct) {
-          await this.ledgerService.createAccount({
-            code: accountCode,
-            name: `Terminal: ${terminal.tid} (${currency})`,
-            type: "ASSET",
-            subtype: "TERMINAL",
-            currency,
-            metadata: { terminalId: terminal.tid, merchantId: terminal.merchantId },
-          });
-          logger.info({ accountCode, tid: terminal.tid }, "Created terminal ledger account");
-        }
-        return accountCode;
+        throw new ValidationError(
+          "Terminal transfers must use POST /t2t/transfer",
+        );
       }
 
       case "BANK": {
@@ -402,5 +412,4 @@ export class TransferService {
         throw new ValidationError(`Unknown entity type: ${entityType}`);
     }
   }
-
 }
