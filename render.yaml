@@ -8,7 +8,7 @@ services:
     name: primestack-platform
     runtime: node
     region: oregon
-    plan: free
+    plan: 0.5c-512mb
     branch: main
     buildCommand: npm install --include=dev && npx prisma generate && npm run build
     preDeployCommand: npx prisma migrate deploy
@@ -37,7 +37,10 @@ services:
           name: primestack-postgres
           property: connectionString
       - key: REDIS_URL
-        value: redis://red-dbm99e2jnfac738q7rm0:6379
+        sync: false
+      # Set the exact browser origins allowed by the API in production.
+      - key: CORS_ORIGINS
+        sync: false
 
       # ── Auth / signing ────────────────────────────
       - key: JWT_SECRET
@@ -68,10 +71,12 @@ services:
         value: en,fr,es,ar,pt
 
       # ── Secrets / integrations ────────────────────
+      # Supply exactly 64 hexadecimal characters; S2S crypto validates this format.
       - key: S2S_SECRET_KEY
-        generateValue: true
+        sync: false
+      # Supply a Base64-encoded 32-byte key; the vault validates this format.
       - key: BANK_DETAILS_ENCRYPTION_KEY
-        generateValue: true
+        sync: false
       - key: BANK_IN2_ACCOUNT_HOLDER
         value: M/S.UNITED SOLAR AND WIND POWER TECHNOLOGIES
       - key: BANK_IN2_BANK_NAME
@@ -102,8 +107,9 @@ services:
         value: 0
 
   # Static documentation site — unchanged, served from ./docs.
-  - type: static
+  - type: web
     name: primestack-website
+    runtime: static
     branch: main
     staticPublishPath: ./docs
     buildCommand: echo done
@@ -113,5 +119,5 @@ databases:
   - name: primestack-postgres
     databaseName: primestack
     user: primestack
-    plan: free
+    plan: 0.5c-1g
     region: oregon
