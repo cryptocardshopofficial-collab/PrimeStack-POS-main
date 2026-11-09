@@ -30,7 +30,10 @@
     footer{background:#06101e;color:white;padding:66px 0 24px}.footer-grid{display:grid;grid-template-columns:2fr repeat(4,1fr);gap:34px}.footer-brand p{color:#8294aa;font-size:13px;max-width:280px}.footer-column strong{display:block;font-size:12px;margin-bottom:14px}.footer-column a{display:block;color:#8294aa;font-size:12px;margin:8px 0}.footer-column a:hover{color:white}.footer-bottom{margin-top:46px;padding-top:20px;border-top:1px solid rgba(255,255,255,.08);display:flex;justify-content:space-between;color:#71849b;font-size:11px}
     .legal-copy{max-width:860px}.legal-copy h3{font-family:Manrope;font-size:22px;margin-top:38px}.legal-copy p,.legal-copy li{color:var(--muted);line-height:1.8}.contact-grid{display:grid;grid-template-columns:.75fr 1.25fr;gap:18px}.contact-card,.contact-form{border:1px solid var(--line);border-radius:12px;padding:28px}.contact-card a{display:block;margin-top:18px;color:#3578f6;font-weight:700}.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.form-grid label{font-size:11px;font-weight:800;color:#40516a}    .form-grid input,.form-grid select,.form-grid textarea{width:100%;margin-top:7px;border:1px solid var(--line);border-radius:7px;padding:12px;color:var(--ink);background:white}.full{grid-column:1/-1}.contact-form textarea{min-height:120px;resize:vertical}
     .reveal{opacity:0;transform:translateY(54px) scale(.975);filter:blur(5px);transition:opacity .95s cubic-bezier(.16,1,.3,1),transform .95s cubic-bezier(.16,1,.3,1),filter .95s cubic-bezier(.16,1,.3,1)}.reveal.visible{opacity:1;transform:translateY(0) scale(1);filter:blur(0)}.delay1{transition-delay:.09s}.delay2{transition-delay:.18s}.delay3{transition-delay:.27s}
+    .network-architecture{position:relative;isolation:isolate;overflow:hidden;padding:88px 0;background:#f7f9fc}.network-map{position:absolute;inset:0;z-index:-1;background:url("https://upload.wikimedia.org/wikipedia/commons/8/80/World_map_-_low_resolution.svg") center/80% no-repeat;opacity:.045;filter:grayscale(1);pointer-events:none}.network-architecture[hidden]{display:none}.network-architecture .network-heading{text-align:center;margin:0 auto 48px}.network-architecture .network-heading h2{max-width:none;color:#003b70;font-size:clamp(34px,4.5vw,52px)}.network-architecture .network-heading p{max-width:none;margin-top:12px;color:var(--muted);font-size:17px}.network-architecture .network-heading::after{content:"";display:block;width:120px;height:4px;margin:24px auto 0;border-radius:20px;background:#e2b93b}.network-architecture-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}.network-architecture-card{min-width:0;padding:27px 25px;border:1px solid var(--line);border-top:4px solid #3578f6;border-radius:12px;background:rgba(255,255,255,.96);box-shadow:0 12px 34px rgba(20,50,90,.05);transition:transform .25s,border-color .25s,box-shadow .25s}.network-architecture-card:hover{transform:translateY(-4px);box-shadow:0 18px 42px rgba(20,50,90,.1)}.network-architecture-card.switch{border-top-color:#003b70}.network-architecture-card.bank{border-top-color:#e2b93b}.network-architecture-card h3{margin:0 0 7px;color:#003b70;font:800 21px/1.2 Manrope,sans-serif;letter-spacing:-.03em}.network-architecture-card .card-subtitle{min-height:34px;margin:0 0 20px;color:var(--muted);font-size:10px;font-weight:800;letter-spacing:.12em;text-transform:uppercase}.network-architecture-card ul{margin:0;padding:0;list-style:none}.network-architecture-card li{padding:9px 0;border-bottom:1px solid #edf1f5;color:#344256;font-size:13px;line-height:1.45}.network-architecture-card li:last-child{border-bottom:0}.network-architecture-card .card-layer{margin-top:20px;padding-top:15px;border-top:2px solid #edf2f7;color:#003b70;font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase}.network-flow{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:12px;margin:36px 0 0;color:#003b70;font-size:16px;font-weight:800}.network-flow .flow-arrow{color:#64748b;font-size:20px}.network-architecture-footer{margin-top:42px;padding-top:23px;border-top:1px solid #d8e0ea;text-align:center}.network-architecture-footer strong{color:#003b70;font:800 20px/1.3 Manrope,sans-serif}.network-architecture-footer p{margin:8px 0 0;color:var(--muted);font-size:13px}
     @media(max-width:1050px){.container{width:min(100% - 40px,1180px)}.nav-menu{position:fixed;top:68px;left:20px;right:20px;display:none;max-height:calc(100vh - 88px);overflow:auto;padding:12px;background:#091525;border:1px solid rgba(255,255,255,.12);border-radius:12px}.nav-menu.open{display:block}.nav-item{border-bottom:1px solid rgba(255,255,255,.08)}.nav-link{height:48px;width:100%}.mega{position:static;width:100%;display:none;opacity:1;transform:none;pointer-events:auto;box-shadow:none;margin-bottom:8px}.nav-item:hover .mega{display:block}.nav-actions .nav-button:first-child{display:none}.menu-button{display:grid;place-items:center}.nav.scrolled .nav-menu{top:68px}.hero{height:680px}.metric-grid{grid-template-columns:1fr 1fr}.metric:nth-child(2){border-right:0}.grid{grid-template-columns:1fr 1fr}.rail-grid{grid-template-columns:repeat(3,1fr)}.rail{border-bottom:1px solid var(--line)}.footer-grid{grid-template-columns:2fr 1fr 1fr}.footer-column:nth-child(n+4){margin-top:20px}}
+    @media(max-width:1050px){.network-architecture-grid{grid-template-columns:1fr}.network-architecture-card .card-subtitle{min-height:0}}
+    @media(max-width:700px){.network-architecture{padding:68px 0}.network-architecture .network-heading{margin-bottom:32px}.network-architecture-card{padding:23px 20px}.network-flow{gap:7px;font-size:13px}.network-flow .flow-arrow{font-size:17px}.network-architecture-footer strong{font-size:17px}}
     @media(max-width:700px){.container{width:calc(100% - 32px)}.nav{height:68px}.nav-actions .nav-button.primary{display:none}.hero{height:660px}.hero-copy{margin-top:20px}.hero h1{font-size:49px}.hero p{font-size:15px}.hero-actions{flex-direction:column}.hero-actions .button{width:100%}.orbit{opacity:.5}.metric-grid{grid-template-columns:1fr}.metric{border-right:0;border-bottom:1px solid var(--line);padding-left:0}.section-heading{grid-template-columns:1fr;gap:14px}.section-heading h2{font-size:39px}.grid{grid-template-columns:1fr}.platform-grid,.band-grid,.contact-grid{grid-template-columns:1fr}.rail-grid{grid-template-columns:1fr 1fr}.stack-card{height:auto}.steps{grid-template-columns:1fr}.cta-box{align-items:flex-start;flex-direction:column;padding:28px}.cta-box h2{font-size:36px}.cta-actions{width:100%;flex-direction:column}.cta-actions .button{width:100%}.footer-grid{grid-template-columns:1fr 1fr}.footer-brand{grid-column:1/-1}.footer-bottom{flex-direction:column;gap:8px}.form-grid{grid-template-columns:1fr}.full{grid-column:auto}}
     @media(prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;animation-iteration-count:1!important;scroll-behavior:auto!important}.reveal{opacity:1;transform:none}}
   </style>
@@ -63,6 +66,72 @@
       <div class="section-heading reveal"><div><div class="eyebrow" id="sectionEyebrow">Payment infrastructure</div></div><div><h2 id="sectionTitle">Move value across systems, without losing control.</h2><p id="sectionText">A connected platform for collection, transfer, routing, reconciliation, and account operations across modern and traditional financial systems.</p></div></div>
       <div class="grid" id="cardGrid"></div>
     </div></section>
+
+    <section class="network-architecture" id="networkArchitecture" hidden aria-labelledby="networkArchitectureTitle">
+      <div class="network-map" aria-hidden="true"></div>
+      <div class="container">
+        <div class="network-heading">
+          <div class="eyebrow">Connected infrastructure</div>
+          <h2 id="networkArchitectureTitle">PrimeStack Global Fintech Network</h2>
+          <p>Unified payments, switching, and banking infrastructure</p>
+        </div>
+        <div class="network-architecture-grid">
+          <article class="network-architecture-card pos reveal">
+            <h3>PrimeStack POS</h3>
+            <p class="card-subtitle">Merchant Operations Platform</p>
+            <ul>
+              <li>POS 101.1 Core Engine</li>
+              <li>POS 101.6 Communication Protocol</li>
+              <li>POS 201.3 Enterprise Platform</li>
+              <li>Online / Offline Transactions</li>
+              <li>Inventory &amp; Reporting</li>
+              <li>Multi-Store Management</li>
+            </ul>
+            <div class="card-layer">Merchant Acceptance Layer</div>
+          </article>
+          <article class="network-architecture-card switch reveal delay1">
+            <h3>PrimeStack Switch</h3>
+            <p class="card-subtitle">Transaction Switching Infrastructure</p>
+            <ul>
+              <li>Server-to-Server (S2S)</li>
+              <li>Terminal-to-Terminal (T2T)</li>
+              <li>IP-to-IP Connectivity</li>
+              <li>API-to-API Integration</li>
+              <li>Authorization Engine</li>
+              <li>Smart Routing</li>
+              <li>Settlement Processing</li>
+              <li>Ledger &amp; Treasury Services</li>
+            </ul>
+            <div class="card-layer">Transaction Transport Layer</div>
+          </article>
+          <article class="network-architecture-card bank reveal delay2">
+            <h3>Bank Sample Templates</h3>
+            <p class="card-subtitle">ISO 20022 Message Library</p>
+            <ul>
+              <li>PAIN.001 - PAIN.108</li>
+              <li>PACS Financial Messages</li>
+              <li>CAMT Account Reports</li>
+              <li>Treasury Formats</li>
+              <li>Cross-Border Templates</li>
+              <li>Interbank Settlement Templates</li>
+              <li>Corporate Banking Messages</li>
+            </ul>
+            <div class="card-layer">Bank Integration Layer</div>
+          </article>
+        </div>
+        <div class="network-flow" aria-label="Payment flow">
+          <span>Merchant</span><span class="flow-arrow" aria-hidden="true">→</span>
+          <span>Processing</span><span class="flow-arrow" aria-hidden="true">→</span>
+          <span>Routing</span><span class="flow-arrow" aria-hidden="true">→</span>
+          <span>Banking</span><span class="flow-arrow" aria-hidden="true">→</span>
+          <span>Settlement</span>
+        </div>
+        <div class="network-architecture-footer">
+          <strong>One Platform &bull; One Network &bull; Global Connectivity</strong>
+          <p>Merchants &bull; Fintechs &bull; Acquirers &bull; Banks &bull; Enterprises</p>
+        </div>
+      </div>
+    </section>
 
     <section class="dark"><div class="container"><div class="section-heading reveal"><div><div class="eyebrow">PrimeStack platform</div></div><div><h2>Designed as infrastructure, not a feature.</h2><p>Modular services coordinate the payment lifecycle while preserving clear operational boundaries.</p></div></div><div class="platform-grid"><article class="terminal reveal"><div class="eyebrow">Network operating view</div><div class="terminal-visual"><div class="terminal-top"><span class="terminal-dot"></span><span class="terminal-dot" style="background:#55d6e8"></span><span class="terminal-dot" style="background:#2fc49a"></span></div><div class="terminal-body"><div class="terminal-cell"></div><div class="terminal-cell"></div><div class="terminal-cell"></div></div></div></article><div class="stack"><article class="stack-card reveal delay1"><code>01 / AUTHENTICATION</code><h3>Identity and access</h3><p>Operator roles, signed requests, HMAC credentials, IP controls, and nonce-based replay protection.</p></article><article class="stack-card reveal delay2"><code>02 / TRANSACTION LIFECYCLE</code><h3>Authorize through settlement</h3><p>Track payment state, routing decisions, ledger postings, reversals, and reconciliation from one system.</p></article></div></div></div></section>
 
@@ -115,6 +184,7 @@
     document.getElementById("tickerTrack").innerHTML=[...ticker,...ticker].map(x=>`<span class="ticker-item">${x}</span>`).join("");
     const path=window.location.pathname.replace(/\/+$/,"")||"/";
     const page=pages[path]||pages["/"];
+    document.getElementById("networkArchitecture").hidden=path!=="/";
     document.title=`PrimeStack — ${page.eyebrow}`;
     document.getElementById("heroEyebrow").textContent=page.eyebrow;
     document.getElementById("heroTitle").innerHTML=page.title;

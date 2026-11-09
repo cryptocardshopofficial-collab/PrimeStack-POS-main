@@ -1,4 +1,4 @@
-﻿// start-dashboard.js — PrimeStack Global Server Network Admin Dashboard
+﻿﻿// start-dashboard.js — PrimeStack Global Server Network Admin Dashboard
 // Node.js HTTP server, no framework, no external deps
 import { createServer } from 'http';
 import { request as httpRequest } from 'http';
@@ -21,6 +21,8 @@ const PUBLIC_SITE_HTML = readOptional('./public-site.html', 'utf8');
 const DEVELOPER_PORTAL_HTML = readOptional('./developer-portal.html', 'utf8');
 const DEVELOPER_SERVICE_HTML = readOptional('./developer-service.html', 'utf8');
 const PUBLIC_BRAND_IMAGE = readOptional('./Designer (1).jpg');
+const CINEMATIC_THEME_CSS = readOptional('./cinematic-theme.css', 'utf8');
+const CINEMATIC_THEME_JS = readOptional('./cinematic-theme.js', 'utf8');
 
 // Base URL the browser-side pages call for API requests.
 // Set API_URL on Render to the deployed API service origin.
@@ -7913,7 +7915,8 @@ const server = createServer((req, res) => {
     '/', '/payments', '/collect', '/send', '/payouts', '/wallets',
     '/banking', '/settlement', '/network', '/technology', '/iso20022', '/iso8583',
     '/security', '/compliance', '/solutions', '/merchants', '/enterprises', '/partners',
-    '/company', '/about', '/careers', '/contact',
+    '/company', '/about', '/careers', '/contact', '/fintech-cloud', '/industries',
+    '/resources', '/support',
     '/terms', '/privacy', '/cookies', '/acceptable-use'
   ]);
   if (req.method === 'GET' && publicPages.has(path)) {
@@ -7943,6 +7946,16 @@ const server = createServer((req, res) => {
   if (req.method === 'GET' && decodedPublicPath === '/Designer (1).jpg') {
     res.writeHead(200, { 'Content-Type': 'image/jpeg', 'Cache-Control': 'public, max-age=86400' });
     res.end(PUBLIC_BRAND_IMAGE);
+    return;
+  }
+  if (req.method === 'GET' && path === '/cinematic-theme.css') {
+    res.writeHead(200, { 'Content-Type': 'text/css; charset=utf-8', 'Cache-Control': 'no-cache' });
+    res.end(CINEMATIC_THEME_CSS);
+    return;
+  }
+  if (req.method === 'GET' && path === '/cinematic-theme.js') {
+    res.writeHead(200, { 'Content-Type': 'text/javascript; charset=utf-8', 'Cache-Control': 'no-cache' });
+    res.end(CINEMATIC_THEME_JS);
     return;
   }
   if (req.method === 'POST' && path.startsWith('/api/public/')) {
