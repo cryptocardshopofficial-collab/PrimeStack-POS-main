@@ -1,4 +1,4 @@
-{
+﻿{
   "name": "primestack-global-server-network",
   "version": "1.0.0",
   "description": "PrimeStack Global Server Network — Production-grade global server network with double-entry ledger, ISO8583 engine, and multi-currency transfer processing",
@@ -40,7 +40,10 @@
     "zod": "^3.23.8",
     "@types/node": "^20.14.0",
     "@types/uuid": "^9.0.8",
-    "@types/bcryptjs": "^2.4.6"
+    "@types/bcryptjs": "^2.4.6",
+    "typescript": "5.4.5",
+    "prisma": "^5.14.0",
+    "tsx": "^4.15.7"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
