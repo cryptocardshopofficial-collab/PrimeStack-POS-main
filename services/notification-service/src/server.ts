@@ -31,6 +31,23 @@ const workerInterval = setInterval(async () => {
 // ── HTTP Routes ──────────────────────────────────────────────
 const routes = [
   {
+    method: "GET", pattern: "/",
+    handler: async (_r: unknown, res: Parameters<typeof send>[0]) =>
+      send(res, 200, {
+        success: true,
+        data: {
+          service: "notification-service",
+          status: "ok",
+          endpoints: {
+            health: "/health",
+            notifications: "/notifications",
+            events: "/events",
+            webhooks: "/webhooks",
+          },
+        },
+      }),
+  },
+  {
     method: "GET", pattern: "/health",
     handler: async (_r: unknown, res: Parameters<typeof send>[0]) =>
       send(res, 200, { success: true, data: { status: "ok", service: "notification-service" } }),

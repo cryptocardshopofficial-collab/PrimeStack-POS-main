@@ -33,7 +33,7 @@
  *   POST /rails/manual-payout         — manual payout trigger (admin)
  */
 
-import { createHmac, timingSafeEqual } from "crypto";
+import { createHmac, createPublicKey, verify } from "crypto";
 import { createServer } from "http";
 import { PrismaClient } from "@prisma/client";
 
@@ -41,7 +41,8 @@ import { PrismaClient } from "@prisma/client";
 const WISE_API_KEY        = process.env.WISE_API_KEY        || "";
 const WISE_PROFILE_ID     = process.env.WISE_PROFILE_ID     || "";
 const WISE_ENV            = process.env.WISE_ENV            || "sandbox";
-const WISE_WEBHOOK_SECRET = process.env.WISE_WEBHOOK_SECRET || "";
+const WISE_WEBHOOK_PUBLIC_KEY = (process.env.WISE_WEBHOOK_PUBLIC_KEY || "")
+  .replace(/\\n/g, "\n");
 const PORT                = parseInt(process.env.RAILS_PORT || process.env.WISE_PORT || "8082", 10);
 const PAYOUT_DELAY_MS     = parseInt(process.env.RAILS_PAYOUT_DELAY_MS || "0", 10);
 
@@ -181,13 +182,15 @@ async function postAudit(eventType, description, actorId, metadata) {
 
 // ── Webhook signature verification (fail-closed) ───────────────
 function verifySignature(rawBody, sigHeader) {
-  if (!WISE_WEBHOOK_SECRET) return false; // no secret configured — never accept
+  if (!WISE_WEBHOOK_PUBLIC_KEY) return false; // no key configured — never accept
   if (!sigHeader) return false;
-  const expected = createHmac("sha256", WISE_WEBHOOK_SECRET)
-    .update(rawBody).digest("base64");
-  const provided = Buffer.from(String(sigHeader));
-  const computed = Buffer.from(expected);
-  return provided.length === computed.length && timingSafeEqual(provided, computed);
+  try {
+    const publicKey = createPublicKey(WISE_WEBHOOK_PUBLIC_KEY);
+    const provided = Buffer.from(String(Array.isArray(sigHeader) ? sigHeader[0] : sigHeader), "base64");
+    return verify("RSA-SHA256", rawBody, publicKey, provided);
+  } catch {
+    return false;
+  }
 }
 
 // ── Find customer by incoming account identifier ───────────────

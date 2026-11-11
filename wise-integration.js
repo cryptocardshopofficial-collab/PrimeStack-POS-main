@@ -23,24 +23,24 @@
  *   2. Register webhook URL in Wise dashboard:
  *      https://your-server.com/wise/webhook
  *      Event: incoming-transfer#credited
- *   3. Copy the webhook secret into WISE_WEBHOOK_SECRET
+ *   3. Copy Wise's RSA public key into WISE_WEBHOOK_PUBLIC_KEY
  *   4. Set WISE_ENV=live when you're ready for real money
  *
  * Security:
- *   - Every webhook is verified with HMAC-SHA256 using WISE_WEBHOOK_SECRET
+ *   - Every webhook is verified with RSA-SHA256 using WISE_WEBHOOK_PUBLIC_KEY
  *   - Replay-attack protection: reject events older than 5 minutes
  *   - Idempotency: duplicate event IDs are ignored
  */
 
-import { createHmac }    from "crypto";
+import { createPublicKey, verify } from "crypto";
 import { createServer }  from "http";
-import { readFileSync }  from "fs";
 
 // ── Config ─────────────────────────────────────────────────────
 const WISE_API_KEY        = process.env.WISE_API_KEY        || "";
 const WISE_PROFILE_ID     = process.env.WISE_PROFILE_ID     || "";
 const WISE_ENV            = process.env.WISE_ENV            || "sandbox";
-const WISE_WEBHOOK_SECRET = process.env.WISE_WEBHOOK_SECRET || "";
+const WISE_WEBHOOK_PUBLIC_KEY = (process.env.WISE_WEBHOOK_PUBLIC_KEY || "")
+  .replace(/\\n/g, "\n");
 const CREDIT_ACCOUNT      = process.env.WISE_DEFAULT_CREDIT_ACCOUNT || "PLATFORM:RESERVE:USD";
 const DASHBOARD_URL       = process.env.DASHBOARD_URL       || "http://localhost:8081";
 
@@ -92,16 +92,15 @@ async function readBody(req) {
 
 // ── Webhook signature verification ─────────────────────────────
 function verifyWiseSignature(rawBody, signatureHeader) {
-  if (!WISE_WEBHOOK_SECRET) {
-    console.warn("[wise] WISE_WEBHOOK_SECRET not set — skipping signature verification");
-    return true; // allow in development without secret
-  }
+  if (!WISE_WEBHOOK_PUBLIC_KEY) return false;
   if (!signatureHeader) return false;
-  const expected = createHmac("sha256", WISE_WEBHOOK_SECRET)
-    .update(rawBody)
-    .digest("base64");
-  // Wise sends: X-Signature-SHA256: <base64>
-  return signatureHeader === expected;
+  try {
+    const publicKey = createPublicKey(WISE_WEBHOOK_PUBLIC_KEY);
+    const signature = Buffer.from(String(signatureHeader), "base64");
+    return verify("RSA-SHA256", rawBody, publicKey, signature);
+  } catch {
+    return false;
+  }
 }
 
 // ── Process incoming transfer from Wise ─────────────────────────

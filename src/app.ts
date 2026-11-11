@@ -95,6 +95,7 @@ export async function createApp(): Promise<FastifyInstance> {
       "Accept-Language",
       `${config.hmac.headerPrefix}-key-id`,
       `${config.hmac.headerPrefix}-timestamp`,
+      `${config.hmac.headerPrefix}-nonce`,
       `${config.hmac.headerPrefix}-signature`,
       "Authorization",
     ],

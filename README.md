@@ -4,8 +4,14 @@ PrimeStack is a payment-switch and asset-gateway codebase containing a TypeScrip
 
 **This repository is not certified or verified as production-ready.** Some interfaces are demos or operational previews, and the runtimes described below are separate implementations, not one unified deployment. Read [Runtime choices](#runtime-choices) and [Known limits and production readiness](#known-limits-and-production-readiness) before deploying or entering financial data.
 
+## Latest update
+
+**2026-11-09:** Added a practical guide to what the platform does, how to start the local API, where the admin and merchant views live, and how the supported internal transfer and signed S2S receive flows work. See the [PrimeStack operations and dashboard user guide](./README-USER-GUIDE.md). It distinguishes real API behavior from demo UI screens and calls out features that do not move funds externally.
+
 ## Table of contents
 
+- [Latest update](#latest-update)
+- [Operations and dashboard user guide](./README-USER-GUIDE.md)
 - [Start here](#start-here)
 - [Runtime choices](#runtime-choices)
 - [Architecture and data flow](#architecture-and-data-flow)

@@ -111,6 +111,9 @@ export const createTerminalRegistrationSchema = z.object({
   customerMessage: z.string().trim().max(2000).optional().default(""),
 });
 
+export const createAgentTerminalRegistrationSchema =
+  createTerminalRegistrationSchema.omit({ agentCode: true });
+
 export const createAgentRegistrationSchema = z.object({
   code: z.string().trim().min(1).max(100),
   name: z.string().trim().min(1).max(255),

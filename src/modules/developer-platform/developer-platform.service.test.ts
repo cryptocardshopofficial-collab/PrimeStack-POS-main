@@ -2,6 +2,7 @@ import { createHash } from "crypto";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { PrismaClient } from "@prisma/client";
 import { ConflictError, ValidationError } from "../../core/errors.js";
+import { createTerminalRegistrationSchema } from "./developer-platform.types.js";
 import { DeveloperPlatformService } from "./developer-platform.service.js";
 
 function createPrismaMock(status = "ACTIVE") {
@@ -143,5 +144,69 @@ describe("DeveloperPlatformService application credentials", () => {
     expect(prisma.keys[0].active).toBe(false);
     expect(prisma.keys[0].revokedAt).toBeInstanceOf(Date);
     expect(key.keyId).toBe(prisma.keys[0].keyId);
+  });
+});
+
+describe("DeveloperPlatformService terminal registration", () => {
+  const registrationInput = {
+    agentCode: "AGENT-100",
+    customerName: "Example Merchant",
+    country: "South Africa",
+    senderPublicIp: "203.0.113.10",
+    senderTerminalId: "TERM-100",
+    senderServerUrl: "https://sender.example.com",
+    operatingCurrency: "USD",
+    businessPurpose: "Merchant settlement",
+    customerMessage: "Please review this sender IP for onboarding.",
+  };
+
+  it("stores customer messages only when the agent code is approved", async () => {
+    const create = vi.fn(async ({ data }: { data: Record<string, unknown> }) => data);
+    const prisma = {
+      agent: {
+        findFirst: vi.fn(async () => ({ code: "AGENT-100", name: "Approved Agent" })),
+      },
+      terminalRegistrationRequest: { create },
+    } as unknown as PrismaClient;
+    const service = new DeveloperPlatformService(prisma);
+
+    await service.createTerminalRegistration(registrationInput);
+
+    expect(prisma.agent.findFirst).toHaveBeenCalledWith({
+      where: { code: "AGENT-100", status: "APPROVED" },
+      select: { code: true, name: true },
+    });
+    expect(create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        agentCode: "AGENT-100",
+        agentName: "Approved Agent",
+        customerMessage: registrationInput.customerMessage,
+      }),
+    });
+  });
+
+  it("rejects invalid or unapproved agent codes without saving a request", async () => {
+    const create = vi.fn();
+    const prisma = {
+      agent: { findFirst: vi.fn(async () => null) },
+      terminalRegistrationRequest: { create },
+    } as unknown as PrismaClient;
+    const service = new DeveloperPlatformService(prisma);
+
+    await expect(
+      service.createTerminalRegistration(registrationInput),
+    ).rejects.toThrow("Agent registration number is invalid or has not been approved");
+    expect(create).not.toHaveBeenCalled();
+  });
+
+  it("allows older registration clients to omit the optional message", () => {
+    const legacyInput = Object.fromEntries(
+      Object.entries(registrationInput).filter(
+        ([key]) => key !== "customerMessage",
+      ),
+    );
+    expect(
+      createTerminalRegistrationSchema.safeParse(legacyInput),
+    ).toMatchObject({ success: true, data: { customerMessage: "" } });
   });
 });

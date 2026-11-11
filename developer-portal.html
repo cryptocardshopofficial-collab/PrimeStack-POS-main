@@ -338,11 +338,12 @@ pre.code-body{
 .form-field{display:flex;flex-direction:column;gap:7px}
 .form-field.full{grid-column:1/-1}
 .form-field label{font-size:11px;color:#a9b7c8;font-weight:600;text-transform:uppercase;letter-spacing:.06em}
-.form-field input,.form-field select{
+.form-field input,.form-field select,.form-field textarea{
   width:100%;min-height:42px;border-radius:6px;border:1px solid #263448;background:#091523;color:#e8edf5;
   padding:10px 12px;font:13px 'Inter',sans-serif;outline:none
 }
-.form-field input:focus,.form-field select:focus{border-color:#3b82f6;box-shadow:0 0 0 3px rgba(59,130,246,.12)}
+.form-field textarea{resize:vertical;min-height:110px}
+.form-field input:focus,.form-field select:focus,.form-field textarea:focus{border-color:#3b82f6;box-shadow:0 0 0 3px rgba(59,130,246,.12)}
 .form-actions{grid-column:1/-1;display:flex;align-items:center;gap:12px;margin-top:4px}
 .form-actions button{min-height:42px}
 .form-status{font-size:12px;color:#7ee1c5}
@@ -434,6 +435,8 @@ nav{
   color:#8bb1fa;
   -webkit-text-fill-color:currentColor;
 }
+.nav-logo-attribution{display:grid;gap:2px;color:#aab8ca;font:700 8px/1.1 'Inter',sans-serif;letter-spacing:.1em;text-transform:uppercase;background:none!important;-webkit-text-fill-color:currentColor!important}
+.nav-logo-attribution strong{color:#fff;font:700 11px/1.2 'Inter',sans-serif;letter-spacing:0;text-transform:none}
 .nav-links{gap:26px}
 .nav-links a{font-size:13px;color:#a5b1c2;transition:color .15s}
 .nav-links a:hover{color:#fff}
@@ -498,7 +501,7 @@ nav{
   max-width:none;
   margin:0 auto;
   margin-left:calc(50% - 50vw);
-  padding:68px max(5%,calc((100vw - 900px)/2)) 40px;
+  padding:68px max(5%,calc((100vw - 1800px)/2)) 40px;
   background:#07111f;
 }
 .hero-pill{
@@ -706,6 +709,7 @@ footer p{font-size:12px}
   .cred-value{overflow-wrap:anywhere;font-size:12px;padding-right:48px}
   section#t2t > div:nth-of-type(2),
   section#ping > div:nth-of-type(2){grid-template-columns:1fr!important;gap:20px!important}
+  section#ping > div:nth-of-type(2) > div{min-width:0;max-width:100%}
   .sender-box,.receiver-box{padding:20px 16px}
   .box-row{gap:12px}
   .box-key{flex:0 0 105px}
@@ -714,6 +718,7 @@ footer p{font-size:12px}
   .flow-step{padding:16px;gap:12px}
   .fee-row{flex-direction:column}
   .ping-card{padding:18px 14px;margin-top:24px}
+  .ping-card,.code-block{min-width:0;max-width:100%}
   .ping-title{flex-wrap:wrap;gap:8px}
   .ping-row{grid-template-columns:repeat(2,minmax(0,1fr))}
   .ping-stat{padding:10px 6px}
@@ -721,6 +726,7 @@ footer p{font-size:12px}
   .banks-grid{grid-template-columns:1fr 1fr;gap:10px}
   .bank-card{padding:14px}
   .code-block{max-width:100%}
+  .code-body{overflow-wrap:anywhere}
   .code-header{padding:10px 12px}
   .code-filename{font-size:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   pre.code-body{font-size:12px;padding:16px 14px;margin:0}
@@ -730,6 +736,9 @@ footer p{font-size:12px}
 }
 
 @media(max-width:480px){
+  .developer-language-picker{margin-left:0}
+  .developer-language-picker select{max-width:92px}
+  section#legal > div:nth-of-type(2){grid-template-columns:1fr!important;gap:12px!important}
   .nav-logo{font-size:14px}
   .nav-logo-dot{width:6px;height:6px}
   .nav-ping{height:32px;padding:0 9px;font-size:11px}
@@ -778,7 +787,7 @@ footer p{font-size:12px}
 <nav>
   <div class="nav-logo">
     <div class="nav-logo-dot"></div>
-    Prime<span>Stack</span>&nbsp;GSN
+    <span class="nav-logo-attribution"><span>Powered by</span><strong>PrimeStack Technologies LLC</strong></span>
   </div>
   <a class="nav-home" href="/" aria-label="Return to PrimeStack main website">&#8592; Home</a>
   <div class="nav-links">
@@ -822,14 +831,14 @@ footer p{font-size:12px}
   <div class="hero-content">
     <div class="hero-pill"><span class="hero-pill-dot"></span>Global Payment Infrastructure</div>
     <h1>PrimeStack<br>Global Server Network</h1>
-    <p class="hero-sub">ACCEPT FUNDS FROM ANY TERMINAL, ANY COUNTRY, ANY BANK — INSTANTLY. T2T TRANSFERS, S2S PAYMENTS, MULTI-RAIL BANKING.</p>
+    <p class="hero-sub">REGISTER AN APPROVED SENDER TERMINAL, VERIFY ITS CONNECTION, AND USE SIGNED, IDEMPOTENT REQUESTS FOR SUPPORTED INTERNAL TRANSFERS.</p>
     <div class="hero-tags">
-      <span class="hero-tag">Terminal-to-Terminal</span>
-      <span class="hero-tag">External Terminals</span>
-      <span class="hero-tag">IP Whitelist</span>
+      <span class="hero-tag">Approved Agent Onboarding</span>
+      <span class="hero-tag">Merchant-Owned Terminals</span>
+      <span class="hero-tag">Administrator IP Allowlist</span>
       <span class="hero-tag">HMAC-SHA256</span>
-      <span class="hero-tag">Any Country</span>
-      <span class="hero-tag">Instant Settlement</span>
+      <span class="hero-tag">Nonce Replay Protection</span>
+      <span class="hero-tag">Idempotent Transfers</span>
     </div>
     <div class="hero-btns">
       <button class="btn-primary" onclick="startSmoothScroll(document.getElementById('onboarding').offsetTop - 84)">Register as a Sender</button>
@@ -843,42 +852,31 @@ footer p{font-size:12px}
 <div class="marquee-section">
   <div class="marquee-track">
     <span class="marquee-item"><span>◆</span> Terminal-to-Terminal</span>
-    <span class="marquee-item"><span>◆</span> Any Country</span>
-    <span class="marquee-item"><span>◆</span> AES-256-GCM Encryption</span>
-    <span class="marquee-item"><span>◆</span> HMAC-SHA256 Auth</span>
-    <span class="marquee-item"><span>◆</span> IP Whitelist</span>
-    <span class="marquee-item"><span>◆</span> Instant Ledger Entry</span>
-    <span class="marquee-item"><span>◆</span> South Africa</span>
-    <span class="marquee-item"><span>◆</span> UAE</span>
-    <span class="marquee-item"><span>◆</span> United Kingdom</span>
-    <span class="marquee-item"><span>◆</span> Singapore</span>
-    <span class="marquee-item"><span>◆</span> India</span>
-    <span class="marquee-item"><span>◆</span> Germany</span>
-    <span class="marquee-item"><span>◆</span> United States</span>
-    <span class="marquee-item"><span>◆</span> SWIFT / SEPA / ACH / UPI</span>
-    <span class="marquee-item"><span>◆</span> 130+ API Endpoints</span>
-    <span class="marquee-item"><span>◆</span> Double-Entry Ledger</span>
-    <span class="marquee-item"><span>◆</span> Nonce Replay Protection</span>
-    <span class="marquee-item"><span>◆</span> Auto-Create External Terminals</span>
+    <span class="marquee-item"><span>◆</span> Terminal-to-Terminal</span>
+    <span class="marquee-item"><span>◆</span> HMAC-SHA256 Request Signing</span>
+    <span class="marquee-item"><span>◆</span> Administrator-Managed IP Allowlist</span>
+    <span class="marquee-item"><span>◆</span> Unique Nonce Protection</span>
+    <span class="marquee-item"><span>◆</span> Idempotency Checks</span>
+    <span class="marquee-item"><span>◆</span> Merchant-Owned Active Terminals</span>
+    <span class="marquee-item"><span>◆</span> Currency and Balance Validation</span>
+    <span class="marquee-item"><span>◆</span> Internal Ledger Transfers</span>
+    <span class="marquee-item"><span>◆</span> Deployment-Specific Provider Connections</span>
+    <span class="marquee-item"><span>◆</span> Auditable Transfer References</span>
+    <span class="marquee-item"><span>◆</span> Terminal Registration Review</span>
+    <span class="marquee-item"><span>◆</span> API Health Check</span>
     <!-- duplicate for seamless loop -->
     <span class="marquee-item"><span>◆</span> Terminal-to-Terminal</span>
-    <span class="marquee-item"><span>◆</span> Any Country</span>
-    <span class="marquee-item"><span>◆</span> AES-256-GCM Encryption</span>
-    <span class="marquee-item"><span>◆</span> HMAC-SHA256 Auth</span>
-    <span class="marquee-item"><span>◆</span> IP Whitelist</span>
-    <span class="marquee-item"><span>◆</span> Instant Ledger Entry</span>
-    <span class="marquee-item"><span>◆</span> South Africa</span>
-    <span class="marquee-item"><span>◆</span> UAE</span>
-    <span class="marquee-item"><span>◆</span> United Kingdom</span>
-    <span class="marquee-item"><span>◆</span> Singapore</span>
-    <span class="marquee-item"><span>◆</span> India</span>
-    <span class="marquee-item"><span>◆</span> Germany</span>
-    <span class="marquee-item"><span>◆</span> United States</span>
-    <span class="marquee-item"><span>◆</span> SWIFT / SEPA / ACH / UPI</span>
-    <span class="marquee-item"><span>◆</span> 130+ API Endpoints</span>
-    <span class="marquee-item"><span>◆</span> Double-Entry Ledger</span>
-    <span class="marquee-item"><span>◆</span> Nonce Replay Protection</span>
-    <span class="marquee-item"><span>◆</span> Auto-Create External Terminals</span>
+    <span class="marquee-item"><span>◆</span> HMAC-SHA256 Request Signing</span>
+    <span class="marquee-item"><span>◆</span> Administrator-Managed IP Allowlist</span>
+    <span class="marquee-item"><span>◆</span> Unique Nonce Protection</span>
+    <span class="marquee-item"><span>◆</span> Idempotency Checks</span>
+    <span class="marquee-item"><span>◆</span> Merchant-Owned Active Terminals</span>
+    <span class="marquee-item"><span>◆</span> Currency and Balance Validation</span>
+    <span class="marquee-item"><span>◆</span> Internal Ledger Transfers</span>
+    <span class="marquee-item"><span>◆</span> Deployment-Specific Provider Connections</span>
+    <span class="marquee-item"><span>◆</span> Auditable Transfer References</span>
+    <span class="marquee-item"><span>◆</span> Terminal Registration Review</span>
+    <span class="marquee-item"><span>◆</span> API Health Check</span>
   </div>
 </div>
 
@@ -889,7 +887,7 @@ footer p{font-size:12px}
   <div class="reveal">
     <div class="section-badge">Sender Registration</div>
     <h2 class="section-title">Register Your Sending Terminal</h2>
-    <p class="section-sub">Provide your business and terminal connection details. PrimeStack Technologies LLC will review them and configure the IP whitelist and terminal access.</p>
+    <p class="section-sub">Submit your business and terminal connection details for review. Requests are accepted only from approved agents; submission does not activate a terminal, create credentials, or enable transfers.</p>
   </div>
 
   <div class="onboarding-grid">
@@ -911,7 +909,7 @@ footer p{font-size:12px}
         </div>
         <div class="form-field">
           <label for="customer-ip">Sender Public IP *</label>
-          <input id="customer-ip" name="publicIp" required inputmode="decimal" placeholder="e.g. 216.24.57.16">
+          <input id="customer-ip" name="publicIp" required inputmode="url" autocomplete="off" placeholder="Your fixed public IPv4 or IPv6 egress address">
         </div>
         <div class="form-field">
           <label for="customer-terminal">Sender Terminal ID *</label>
@@ -926,12 +924,20 @@ footer p{font-size:12px}
           <select id="customer-currency" name="currency" required>
             <option value="">Select currency</option>
             <option>USD</option><option>EUR</option><option>GBP</option><option>INR</option>
-            <option>SGD</option><option>ZAR</option><option>AED</option><option>Other</option>
+            <option>SGD</option><option>ZAR</option><option>AED</option><option value="OTHER">Other (specify)</option>
           </select>
+        </div>
+        <div class="form-field full" id="customer-currency-other-field" hidden>
+          <label for="customer-currency-other">Other operating currency *</label>
+          <input id="customer-currency-other" name="customCurrency" maxlength="20" autocomplete="off" placeholder="Enter the currency or code">
         </div>
         <div class="form-field full">
           <label for="terminal-purpose">Terminal or Business Purpose *</label>
           <input id="terminal-purpose" name="purpose" required placeholder="e.g. Payment gateway, merchant settlement, international transfer">
+        </div>
+        <div class="form-field full">
+          <label for="customer-message">Message to PrimeStack operations (optional)</label>
+          <textarea id="customer-message" name="customerMessage" maxlength="2000" rows="4" placeholder="Add any details or questions about your sender IP and terminal registration. Do not include passwords, API secrets, or bank credentials."></textarea>
         </div>
 
         <div class="form-actions">
@@ -944,13 +950,13 @@ footer p{font-size:12px}
     <div class="onboarding-summary reveal d2">
       <div class="section-badge">PrimeStack Details</div>
       <h3>Details for the Sender</h3>
-      <p>PrimeStack provides these values after the terminal registration is reviewed.</p>
+      <p>Environment-specific connection details are provided after onboarding and access checks are complete.</p>
       <div class="summary-list">
-        <div class="summary-row"><span>Server URL</span><span>primestack-global-server-network.onrender.com</span></div>
-        <div class="summary-row"><span>Receiver Terminal</span><span>PST-001-PRIME</span></div>
-        <div class="summary-row"><span>Public Key ID</span><span>psk_8c404d74...</span></div>
-        <div class="summary-row"><span>Transfer Types</span><span>T2T, S2S</span></div>
-        <div class="summary-row"><span>Required Before Send</span><span>IP whitelist + ping</span></div>
+        <div class="summary-row"><span>API URL</span><span>Provided for your environment</span></div>
+        <div class="summary-row"><span>Merchant key</span><span>Issued through onboarding</span></div>
+        <div class="summary-row"><span>Terminal IDs</span><span>Provisioned and activated per merchant</span></div>
+        <div class="summary-row"><span>Transfer access</span><span>Enabled routes depend on deployment</span></div>
+        <div class="summary-row"><span>Before sending</span><span>Active accounts, funds, IP approval, and API key</span></div>
       </div>
     </div>
   </div>
@@ -962,53 +968,45 @@ footer p{font-size:12px}
 <section id="credentials">
   <div class="reveal">
     <div class="section-badge">Platform Credentials</div>
-    <h2 class="section-title">PrimeStack Receiving Details</h2>
-    <p class="section-sub">Use these details to configure a terminal and send funds to PrimeStack. Copy and verify each value before starting a transfer.</p>
+    <h2 class="section-title">Connect to Your Environment</h2>
+    <p class="section-sub">API URLs, merchant key IDs, terminal IDs, and enabled currencies are environment-specific. Obtain them through the approved onboarding channel; do not use shared credentials copied from a public page.</p>
   </div>
   <div class="cred-grid">
     <div class="cred-card reveal d1">
-      <button class="copy-btn" onclick="cp(this,'https://primestack-global-server-network.onrender.com')">copy</button>
-      <div class="cred-label">Server URL (API Endpoint)</div>
-      <div class="cred-value">https://primestack-global-server-network.onrender.com</div>
+      <div class="cred-label">API Base URL</div>
+      <div class="cred-value">Issued for your deployment</div>
     </div>
     <div class="cred-card reveal d2">
-      <button class="copy-btn" onclick="cp(this,'217.165.16.186')">copy</button>
-      <div class="cred-label">Server IP Address</div>
-      <div class="cred-value">217.165.16.186</div>
-    </div>
-    <div class="cred-card reveal d3" style="border-color:rgba(14,165,233,.3)">
-      <button class="copy-btn" onclick="cp(this,'psk_8c404d74df8344f6f3c27d767bc64694c7571fdf00d6e4da')">copy</button>
-      <div class="cred-label">HMAC Key ID (Public — Safe to Share)</div>
-      <div class="cred-value">psk_8c404d74df8344f6f3c27d767bc64694c7571fdf00d6e4da</div>
-    </div>
-    <div class="cred-card reveal d4" style="border-color:rgba(16,185,129,.3)">
-      <button class="copy-btn" onclick="cp(this,'PST-001-PRIME')">copy</button>
-      <div class="cred-label">PrimeStack Receiver Terminal ID</div>
-      <div class="cred-value highlight" style="color:var(--emerald)">PST-001-PRIME</div>
-    </div>
-    <div class="cred-card reveal d1">
-      <button class="copy-btn" onclick="cp(this,'POST /t2t/whitelist')">copy</button>
-      <div class="cred-label">Step 1 — Whitelist Sender IP</div>
-      <div class="cred-value">POST /t2t/whitelist<br><span style="color:var(--muted);font-size:.72rem">Body: {"ip":"sender-ip","action":"add"}</span></div>
-    </div>
-    <div class="cred-card reveal d2">
-      <button class="copy-btn" onclick="cp(this,'POST /t2t/ping')">copy</button>
-      <div class="cred-label">Step 2 — Ping to Verify</div>
-      <div class="cred-value">POST /t2t/ping<br><span style="color:var(--muted);font-size:.72rem">Body: {"terminalId":"SA-TERM-001"}</span></div>
+      <div class="cred-label">Merchant Key ID</div>
+      <div class="cred-value">Issued to an approved merchant</div>
     </div>
     <div class="cred-card reveal d3">
-      <button class="copy-btn" onclick="cp(this,'POST /t2t/transfer')">copy</button>
-      <div class="cred-label">Step 3 — Send Transfer</div>
-      <div class="cred-value">POST /t2t/transfer<br><span style="color:var(--muted);font-size:.72rem">Body: {amount, currency, sourceId, destId}</span></div>
+      <div class="cred-label">HMAC Secret</div>
+      <div class="cred-value">Keep private; store in a server-side secret manager</div>
     </div>
     <div class="cred-card reveal d4">
-      <button class="copy-btn" onclick="cp(this,'GET /health')">copy</button>
+      <div class="cred-label">Terminal IDs</div>
+      <div class="cred-value">Must be provisioned and active for your merchant</div>
+    </div>
+    <div class="cred-card reveal d1">
+      <div class="cred-label">Step 1 — Request Access</div>
+      <div class="cred-value">An administrator reviews the sender and allowlists its specific egress IP</div>
+    </div>
+    <div class="cred-card reveal d2">
+      <div class="cred-label">Step 2 — Verify Connection</div>
+      <div class="cred-value">POST /t2t/ping with valid HMAC headers and a fresh nonce</div>
+    </div>
+    <div class="cred-card reveal d3">
+      <div class="cred-label">Step 3 — Submit Transfer</div>
+      <div class="cred-value">POST /t2t/transfer with active merchant-owned terminals and an idempotency key</div>
+    </div>
+    <div class="cred-card reveal d4">
       <div class="cred-label">Health Check</div>
-      <div class="cred-value">GET /health<br><span style="color:var(--muted);font-size:.72rem">Returns: {"status":"ok"}</span></div>
+      <div class="cred-value">GET /health checks service health; it does not authorize or settle a transfer</div>
     </div>
   </div>
   <div style="margin-top:16px;padding:16px 20px;background:rgba(245,158,11,.06);border:1px solid rgba(245,158,11,.2);border-radius:10px;font-size:.82rem;color:var(--muted)" class="reveal">
-    <strong style="color:var(--gold)">HMAC Secret</strong> — This is private. Never share it publicly. It is provided at onboarding and used to sign every API request. Keep it secure.
+    <strong style="color:var(--gold)">Credential safety</strong> — Keep merchant secrets on your server, never in browser code. Do not share administrator credentials or use another merchant's key.
   </div>
 </section>
 
@@ -1019,7 +1017,7 @@ footer p{font-size:12px}
   <div class="reveal">
     <div class="section-badge">Integration Guide</div>
     <h2 class="section-title">Terminal-to-Terminal Transfer</h2>
-    <p class="section-sub">Customers can send funds from an external terminal in any supported country to a PrimeStack receiving terminal. The sender terminal is created automatically on its first transfer, so advance registration is not required.</p>
+    <p class="section-sub">T2T moves value between active terminal accounts owned by the authenticated merchant in the same deployment. It is an internal ledger transfer, not a bank or external-rail payment.</p>
   </div>
 
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:32px;margin-top:48px;align-items:start">
@@ -1029,36 +1027,36 @@ footer p{font-size:12px}
         <div class="flow-step reveal d1">
           <div class="flow-num" style="background:var(--blue)">1</div>
           <div>
-            <h4>Register the Sender IP</h4>
-            <p>The customer submits their public server IP. PrimeStack adds it to the approved sender list before transfers are enabled.</p>
+            <h4>Submit an Onboarding Request</h4>
+            <p>Provide an approved agent registration number, business details, sender egress IP, server URL, terminal ID, and operating currency. Submission requests review; it does not activate access.</p>
           </div>
         </div>
         <div class="flow-step reveal d2">
           <div class="flow-num" style="background:var(--violet)">2</div>
           <div>
-            <h4>Customer Confirms Connectivity</h4>
-            <p>The sender calls <code>POST /t2t/ping</code> from their server to confirm that the connection is live and their IP is approved.</p>
+            <h4>Complete Administrator Setup</h4>
+            <p>An administrator reviews the request, manages the sender IP allowlist, and issues merchant credentials through the approved channel. The whitelist route requires administrator authentication.</p>
           </div>
         </div>
         <div class="flow-step reveal d3">
           <div class="flow-num" style="background:var(--gold)">3</div>
           <div>
-            <h4>External Terminal Auto-Created</h4>
-            <p>When the sender calls <code>POST /t2t/transfer</code>, if their terminal ID doesn't exist, it's automatically registered. No pre-setup needed.</p>
+            <h4>Provision Active Terminals</h4>
+            <p>Both source and destination terminals and their currency accounts must already exist, be active, and belong to the authenticated merchant. The transfer endpoint does not auto-create terminals.</p>
           </div>
         </div>
         <div class="flow-step reveal d4">
           <div class="flow-num" style="background:var(--emerald)">4</div>
           <div>
-            <h4>Ledger Entry Posted</h4>
-            <p>Funds are debited from the sender's terminal account and credited to <code>PST-001-PRIME</code> via an immutable double-entry journal entry.</p>
+            <h4>Verify the Connection</h4>
+            <p>Call <code>POST /t2t/ping</code> from the approved egress IP with a fresh timestamp, nonce, and valid merchant HMAC signature.</p>
           </div>
         </div>
         <div class="flow-step reveal d5">
           <div class="flow-num" style="background:var(--rose)">5</div>
           <div>
-            <h4>Transfer Completed</h4>
-            <p>Reference, journal entry, new balance returned. Instant. No admin approval. Works from South Africa, UAE, UK, anywhere in the world.</p>
+            <h4>Submit an Idempotent Transfer</h4>
+            <p>Sign <code>POST /t2t/transfer</code> with a unique nonce and an idempotency key. The source must have sufficient available funds; a successful response records an internal ledger transfer.</p>
           </div>
         </div>
       </div>
@@ -1069,25 +1067,24 @@ footer p{font-size:12px}
       <div class="sender-box reveal d1" style="margin-bottom:16px">
         <div class="box-title" style="color:var(--violet)">
           <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M17.25 8.25L21 12m0 0l-3.75 3.75M21 12H3"/></svg>
-          Information the Customer Provides
+          Transfer Request and Required Headers
         </div>
-        <div class="box-row"><span class="box-key">type</span><span class="box-val em">"T2T"</span></div>
-        <div class="box-row"><span class="box-key">amount</span><span class="box-val">"1000.00"</span></div>
-        <div class="box-row"><span class="box-key">currency</span><span class="box-val">"USD" / "EUR" / "INR" / any</span></div>
-        <div class="box-row"><span class="box-key">sourceId</span><span class="box-val">"SA-TERM-001" <span style="color:var(--muted);font-size:.72rem">(their terminal ID)</span></span></div>
-        <div class="box-row"><span class="box-key">destId</span><span class="box-val em">PST-001-PRIME <span style="color:var(--muted);font-size:.72rem">(PrimeStack receiving terminal)</span></span></div>
-        <div class="box-row"><span class="box-key">x-primestack-key-id</span><span class="box-val" style="font-size:.7rem">psk_8c404d74...</span></div>
-        <div class="box-row"><span class="box-key">x-primestack-signature</span><span class="box-val" style="font-size:.7rem">HMAC-SHA256(secret, keyId+ts+body)</span></div>
+        <div class="box-row"><span class="box-key">amount / currency</span><span class="box-val">Positive amount; enabled 3-letter currency</span></div>
+        <div class="box-row"><span class="box-key">sourceId</span><span class="box-val">Active source terminal owned by your merchant</span></div>
+        <div class="box-row"><span class="box-key">destId</span><span class="box-val">Active destination terminal owned by your merchant</span></div>
+        <div class="box-row"><span class="box-key">key-id / timestamp</span><span class="box-val">Issued merchant key ID and current Unix milliseconds</span></div>
+        <div class="box-row"><span class="box-key">nonce / signature</span><span class="box-val">Unique 16-128 character nonce and HMAC-SHA256 signature</span></div>
+        <div class="box-row"><span class="box-key">idempotency-key</span><span class="box-val">Unique per operation; reuse it for retries of that operation</span></div>
       </div>
       <div class="receiver-box reveal d2">
         <div class="box-title" style="color:var(--emerald)">
           <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5l3.75-3.75M21 12H3m0 0l3.75 3.75M3 12l3.75-3.75"/></svg>
-          PrimeStack Provides to the Customer
+          Environment Setup
         </div>
-        <div class="box-row"><span class="box-key">Server URL</span><span class="box-val" style="font-size:.72rem">https://primestack-global-server-network.onrender.com</span></div>
-        <div class="box-row"><span class="box-key">HMAC Key ID</span><span class="box-val" style="font-size:.72rem">psk_8c404d74df8344f6f3c27d767bc64694c7571fdf00d6e4da</span></div>
-        <div class="box-row"><span class="box-key">HMAC Secret</span><span class="box-val" style="color:var(--rose)">Private — shared at onboarding</span></div>
-        <div class="box-row"><span class="box-key">Receiving Terminal ID</span><span class="box-val em" style="color:var(--emerald)">PST-001-PRIME</span></div>
+        <div class="box-row"><span class="box-key">API URL</span><span class="box-val">Provided for your deployment</span></div>
+        <div class="box-row"><span class="box-key">Merchant key ID</span><span class="box-val">Issued for an approved merchant</span></div>
+        <div class="box-row"><span class="box-key">HMAC secret</span><span class="box-val" style="color:var(--rose)">Keep server-side; never publish it</span></div>
+        <div class="box-row"><span class="box-key">Terminals / accounts</span><span class="box-val em">Must be provisioned and active before transfer</span></div>
       </div>
     </div>
   </div>
@@ -1110,46 +1107,52 @@ footer p{font-size:12px}
       </div>
       <span class="code-filename">t2t-transfer.js — sender runs this</span>
     </div>
-    <pre class="code-body"><span class="kw">const</span> crypto = <span class="fn">require</span>(<span class="str">'crypto'</span>);
+    <pre class="code-body">const crypto = require('node:crypto');
 
-<span class="cm">// Credentials you received from PrimeStack GSN</span>
-<span class="kw">const</span> SERVER  = <span class="str">'https://primestack-global-server-network.onrender.com'</span>;
-<span class="kw">const</span> KEY_ID  = <span class="str">'psk_8c404d74df8344f6f3c27d767bc64694c7571fdf00d6e4da'</span>;
-<span class="kw">const</span> SECRET  = <span class="str">'YOUR_HMAC_SECRET'</span>; <span class="cm">// keep this private</span>
+const SERVER = process.env.PRIMESTACK_API_URL;
+const KEY_ID = process.env.PRIMESTACK_KEY_ID;
+const SECRET = process.env.PRIMESTACK_HMAC_SECRET;
+if (!SERVER || !KEY_ID || !SECRET) {
+  throw new Error('Configure the API URL and issued merchant credentials');
+}
 
-<span class="cm">// Step 1 — Build the transfer body</span>
-<span class="kw">const</span> body = {
-  sourceId:    <span class="str">'SA-TERM-001'</span>,     <span class="cm">// sender terminal ID</span>
-  destId:      <span class="str">'PST-001-PRIME'</span>,   <span class="cm">// receiver terminal</span>
-  amount:      <span class="str">'1000.00'</span>,
-  currency:    <span class="str">'USD'</span>,
-  description: <span class="str">'Payment from South Africa'</span>,
+function signedHeaders(body) {
+  const timestamp = Date.now().toString();
+  const nonce = crypto.randomBytes(16).toString('base64url');
+  const bodyText = JSON.stringify(body);
+  const signature = crypto.createHmac('sha256', SECRET)
+    .update(KEY_ID + timestamp + nonce + bodyText)
+    .digest('hex');
+  return {
+    'x-primestack-key-id': KEY_ID,
+    'x-primestack-timestamp': timestamp,
+    'x-primestack-nonce': nonce,
+    'x-primestack-signature': signature,
+  };
+}
+
+const body = {
+  sourceId: process.env.PRIMESTACK_SOURCE_TERMINAL,
+  destId: process.env.PRIMESTACK_DEST_TERMINAL,
+  amount: '10.00',
+  currency: 'USD',
+  description: 'Internal terminal transfer',
 };
+const idempotencyKey = crypto.randomUUID();
 
-<span class="cm">// Step 2 — Sign with HMAC-SHA256</span>
-<span class="kw">const</span> bodyStr = <span class="fn">JSON.stringify</span>(body);
-<span class="kw">const</span> ts      = Date.now().toString();
-<span class="kw">const</span> sig     = crypto
-  .<span class="fn">createHmac</span>(<span class="str">'sha256'</span>, SECRET)
-  .<span class="fn">update</span>(KEY_ID + ts + bodyStr)
-  .<span class="fn">digest</span>(<span class="str">'hex'</span>);
-
-<span class="cm">// Step 3 — Send the transfer</span>
-<span class="kw">const</span> res = <span class="kw">await</span> <span class="fn">fetch</span>(SERVER + <span class="str">'/t2t/transfer'</span>, {
-  method: <span class="str">'POST'</span>,
+const response = await fetch(new URL('/t2t/transfer', SERVER), {
+  method: 'POST',
   headers: {
-    <span class="str">'Content-Type'</span>:             <span class="str">'application/json'</span>,
-    <span class="str">'x-primestack-key-id'</span>:      KEY_ID,
-    <span class="str">'x-primestack-timestamp'</span>:   ts,
-    <span class="str">'x-primestack-signature'</span>:    sig,
+    ...signedHeaders(body),
+    'Content-Type': 'application/json',
+    'x-primestack-idempotency-key': idempotencyKey,
   },
-  body: bodyStr,
+  body: JSON.stringify(body),
 });
-
-<span class="kw">const</span> result = <span class="kw">await</span> res.<span class="fn">json</span>();
-console.<span class="fn">log</span>(result.data.reference);  <span class="cm">// TRF-XXXXX</span>
-console.<span class="fn">log</span>(result.data.status);     <span class="cm">// COMPLETED</span>
-console.<span class="fn">log</span>(result.data.destBalance); <span class="cm">// receiver new balance</span></pre>
+const result = await response.json();
+if (!response.ok) throw new Error(JSON.stringify(result));
+console.log(result.data.reference, result.data.status);
+// Persist and reuse idempotencyKey if retrying this same operation.</pre>
   </div>
 
   <!-- Response -->
@@ -1159,15 +1162,15 @@ console.<span class="fn">log</span>(result.data.destBalance); <span class="cm">/
       <pre style="font-size:.78rem;line-height:1.8;color:#94a3b8;background:transparent;border:none;border-radius:0;padding:0">{
   <span class="str">"success"</span>: <span class="num">true</span>,
   <span class="str">"data"</span>: {
-    <span class="str">"reference"</span>:      <span class="str">"TRF-KJ4N8F2B3C"</span>,
+    <span class="str">"reference"</span>:      <span class="str">"TRF-GENERATED-REFERENCE"</span>,
     <span class="str">"type"</span>:           <span class="str">"T2T"</span>,
     <span class="str">"status"</span>:         <span class="str">"COMPLETED"</span>,
     <span class="str">"amount"</span>:         <span class="num">1000</span>,
     <span class="str">"currency"</span>:       <span class="str">"USD"</span>,
-    <span class="str">"sourceId"</span>:       <span class="str">"SA-TERM-001"</span>,
-    <span class="str">"destId"</span>:         <span class="str">"PST-001-PRIME"</span>,
+    <span class="str">"sourceId"</span>:       <span class="str">"TERM-SOURCE-001"</span>,
+    <span class="str">"destId"</span>:         <span class="str">"TERM-DEST-002"</span>,
     <span class="str">"destBalance"</span>:    <span class="str">"1000.00"</span>,
-    <span class="str">"journalEntryRef"</span>: <span class="str">"JE-TRF-KJ4N8F2B3C"</span>,
+    <span class="str">"journalEntryRef"</span>: <span class="str">"JE-TRF-GENERATED-REFERENCE"</span>,
     <span class="str">"completedAt"</span>:     <span class="str">"2026-11-06T10:00:00Z"</span>
   }
 }</pre>
@@ -1182,14 +1185,14 @@ console.<span class="fn">log</span>(result.data.destBalance); <span class="cm">/
   <div class="reveal" style="text-align:center">
     <div class="section-badge">Connectivity</div>
     <h2 class="section-title">Ping Before You Transfer</h2>
-    <p class="section-sub" style="margin:0 auto">Customers should ping the network before transferring. This confirms the sender IP is approved, PrimeStack is reachable, and the connection is ready.</p>
+    <p class="section-sub" style="margin:0 auto">The page health check below reports API availability. Separately, call the authenticated T2T ping from your approved server IP to confirm the IP allowlist check.</p>
   </div>
 
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:32px;margin-top:48px;align-items:start">
     <div>
       <div class="ping-card reveal d1">
         <div class="ping-title">
-          Live Server Status
+          API Health
           <span class="ping-live" id="ping-badge">CHECKING</span>
           <button class="copy-btn" id="ping-now" type="button" style="position:static;opacity:1;margin-left:auto" onclick="pingServer()">Ping now</button>
         </div>
@@ -1216,21 +1219,21 @@ console.<span class="fn">log</span>(result.data.destBalance); <span class="cm">/
       <div class="code-block reveal d2" style="margin-top:16px">
         <div class="code-header">
           <div class="code-dots"><span style="background:#f43f5e"></span><span style="background:#f59e0b"></span><span style="background:#10b981"></span></div>
-          <span class="code-filename">Sender pings from their server</span>
+          <span class="code-filename">Authenticated T2T ping from your server</span>
         </div>
-        <pre class="code-body"><span class="cm">// Sender calls this before sending funds:</span>
-<span class="kw">const</span> res = <span class="kw">await</span> <span class="fn">fetch</span>(SERVER + <span class="str">'/t2t/ping'</span>, {
-  method:  <span class="str">'POST'</span>,
-  headers: { ...hmacHeaders },
-  body:    <span class="fn">JSON.stringify</span>({ terminalId: <span class="str">'SA-TERM-001'</span> }),
+        <pre class="code-body">const body = { terminalId: process.env.PRIMESTACK_SOURCE_TERMINAL };
+const response = await fetch(new URL('/t2t/ping', SERVER), {
+  method: 'POST',
+  headers: {
+    ...signedHeaders(body),
+    'Content-Type': 'application/json',
+  },
+  body: JSON.stringify(body),
 });
-
-<span class="cm">// If whitelisted:</span>
-<span class="cm">// { reachable: true, whitelisted: true }</span>
-
-<span class="cm">// If NOT whitelisted:</span>
-<span class="cm">// { reachable: false, whitelisted: false,</span>
-<span class="cm">//   message: "Your IP x.x.x.x not whitelisted" }</span></pre>
+const result = await response.json();
+if (!response.ok || !result.data?.whitelisted) {
+  throw new Error(result.data?.message || 'Connection check failed');
+}</pre>
       </div>
     </div>
 
@@ -1238,27 +1241,14 @@ console.<span class="fn">log</span>(result.data.destBalance); <span class="cm">/
       <div class="code-block reveal d1">
         <div class="code-header">
           <div class="code-dots"><span style="background:#f43f5e"></span><span style="background:#f59e0b"></span><span style="background:#10b981"></span></div>
-          <span class="code-filename">Whitelist sender IP first</span>
+          <span class="code-filename">IP allowlisting is administrator-managed</span>
         </div>
-        <pre class="code-body">        <span class="cm">// PrimeStack setup approves the sender IP:</span>
-<span class="kw">const</span> res = <span class="kw">await</span> <span class="fn">fetch</span>(SERVER + <span class="str">'/t2t/whitelist'</span>, {
-  method:  <span class="str">'POST'</span>,
-  headers: { ...yourHmacHeaders, <span class="str">'Content-Type'</span>: <span class="str">'application/json'</span> },
-  body:    <span class="fn">JSON.stringify</span>({
-    ip:     <span class="str">'216.24.57.16'</span>,  <span class="cm">// sender IP</span>
-    note:   <span class="str">'South Africa customer'</span>,
-    action: <span class="str">'add'</span>
-  }),
-});
-
-<span class="cm">// Response:</span>
-<span class="cm">// { ip: "216.24.57.16", action: "added" }</span></pre>
+        <div class="code-body">Send your fixed public egress IP to an authorized administrator during onboarding. The administrator manages the allowlist through an authenticated admin route. Merchant integrations must not call that route or receive administrator credentials.</div>
       </div>
 
       <div style="margin-top:16px;padding:18px;background:rgba(245,158,11,.05);border:1px solid rgba(245,158,11,.2);border-radius:12px;font-size:.82rem" class="reveal d2">
-        <strong style="color:var(--gold);display:block;margin-bottom:8px">Render IP Addresses</strong>
-        <p style="color:var(--muted)">If the sender is hosted on Render.com, whitelist these IPs:</p>
-        <div style="margin-top:8px;font-family:'JetBrains Mono',monospace;font-size:.82rem;color:var(--blue)">216.24.57.16<br>216.24.57.18</div>
+        <strong style="color:var(--gold);display:block;margin-bottom:8px">Use the actual egress IP</strong>
+        <p style="color:var(--muted)">Cloud-hosted outbound addresses vary by provider and plan. Configure a stable egress IP for your environment and confirm the observed caller IP with your administrator; do not rely on example addresses.</p>
       </div>
     </div>
   </div>
@@ -1270,45 +1260,45 @@ console.<span class="fn">log</span>(result.data.destBalance); <span class="cm">/
 <section id="banks">
   <div class="reveal" style="text-align:center">
     <div class="section-badge">Banking</div>
-    <h2 class="section-title">6 Banking Jurisdictions</h2>
-    <p class="section-sub" style="margin:0 auto">Customers can register an eligible bank account and receive transferred funds through a supported banking route in their selected jurisdiction.</p>
+    <h2 class="section-title">Banking Connections</h2>
+    <p class="section-sub" style="margin:0 auto">Bank access, eligible jurisdictions, currencies, and settlement timing depend on separately approved providers and the deployed environment. A local ledger transfer does not itself send or settle a bank payment.</p>
   </div>
   <div class="banks-grid">
     <div class="bank-card reveal d1">
-      <span class="bank-flag">SG</span>
-      <div class="bank-name">DBS Bank Limited</div>
-      <div class="bank-sub">DBSSSGSG · Account ***256581</div>
-      <div class="bank-tags"><span class="bank-tag">SGD</span><span class="bank-tag">SWIFT</span></div>
+      <span class="bank-flag">01</span>
+      <div class="bank-name">Institution onboarding</div>
+      <div class="bank-sub">Agreements, authorization, connectivity, and certification must be confirmed for each institution.</div>
+      <div class="bank-tags"><span class="bank-tag">Provider-specific</span></div>
     </div>
     <div class="bank-card reveal d2">
-      <span class="bank-flag">IN</span>
-      <div class="bank-name">Axis Bank Ltd</div>
-      <div class="bank-sub">AXISINBBA89 · Account ***84179</div>
-      <div class="bank-tags"><span class="bank-tag">INR</span><span class="bank-tag">SWIFT</span></div>
-    </div>
-    <div class="bank-card reveal d3" style="border-color:rgba(16,185,129,.3)">
-      <span class="bank-flag">IN</span>
-      <div class="bank-name">ICICI Bank — EazyPay</div>
-      <div class="bank-sub">ICICINBBCTS · Account ***3783</div>
-      <div class="bank-tags"><span class="bank-tag">INR</span><span class="bank-tag green">UPI</span><span class="bank-tag green">★ Live</span></div>
-    </div>
-    <div class="bank-card reveal d1">
-      <span class="bank-flag">DE</span>
-      <div class="bank-name">Banking Circle</div>
-      <div class="bank-sub">SXPYDEHH · IBAN DE96...4495</div>
-      <div class="bank-tags"><span class="bank-tag">EUR</span><span class="bank-tag">SEPA</span><span class="bank-tag">Instant</span></div>
-    </div>
-    <div class="bank-card reveal d2">
-      <span class="bank-flag">US</span>
-      <div class="bank-name">Community Federal Savings</div>
-      <div class="bank-sub">Routing 026073008 · Account ***3337</div>
-      <div class="bank-tags"><span class="bank-tag">USD</span><span class="bank-tag">FedWire</span><span class="bank-tag">ACH</span></div>
+      <span class="bank-flag">02</span>
+      <div class="bank-name">Supported rails</div>
+      <div class="bank-sub">Countries, currencies, message formats, cutoffs, and limits are configured per approved provider.</div>
+      <div class="bank-tags"><span class="bank-tag">Environment-specific</span></div>
     </div>
     <div class="bank-card reveal d3">
-      <span class="bank-flag">GB</span>
-      <div class="bank-name">Community Federal Savings</div>
-      <div class="bank-sub">SWIFT Correspondent · Account ***3337</div>
-      <div class="bank-tags"><span class="bank-tag">USD</span><span class="bank-tag">SWIFT</span></div>
+      <span class="bank-flag">03</span>
+      <div class="bank-name">Account instructions</div>
+      <div class="bank-sub">Use institution-verified receiving and beneficiary details shared through an authorized secure channel.</div>
+      <div class="bank-tags"><span class="bank-tag">Verify independently</span></div>
+    </div>
+    <div class="bank-card reveal d1">
+      <span class="bank-flag">04</span>
+      <div class="bank-name">Credentials and access</div>
+      <div class="bank-sub">Provider credentials belong in managed server-side secrets, with access limited to authorized operators.</div>
+      <div class="bank-tags"><span class="bank-tag">Secret-managed</span></div>
+    </div>
+    <div class="bank-card reveal d2">
+      <span class="bank-flag">05</span>
+      <div class="bank-name">Payment status</div>
+      <div class="bank-sub">Track submitted, accepted, completed, rejected, returned, and unknown outcomes separately.</div>
+      <div class="bank-tags"><span class="bank-tag">Evidence-based</span></div>
+    </div>
+    <div class="bank-card reveal d3">
+      <span class="bank-flag">06</span>
+      <div class="bank-name">Reconciliation</div>
+      <div class="bank-sub">Match final provider or bank evidence to transaction references and internal ledger records.</div>
+      <div class="bank-tags"><span class="bank-tag">Operational control</span></div>
     </div>
   </div>
 </section>
@@ -1318,31 +1308,31 @@ console.<span class="fn">log</span>(result.data.destBalance); <span class="cm">/
 <!-- SECURITY TICKER -->
 <div class="sec-ticker">
   <div class="sec-track">
-    <span class="sec-item"><span>✓</span> AES-256-GCM at rest</span>
-    <span class="sec-item"><span>✓</span> HMAC-SHA256 per request</span>
-    <span class="sec-item"><span>✓</span> IP allowlist enforcement</span>
-    <span class="sec-item"><span>✓</span> Nonce replay prevention</span>
-    <span class="sec-item"><span>✓</span> SSRF protection</span>
-    <span class="sec-item"><span>✓</span> Idempotency keys</span>
-    <span class="sec-item"><span>✓</span> Timing-safe comparison</span>
-    <span class="sec-item"><span>✓</span> Auto-create external terminals</span>
-    <span class="sec-item"><span>✓</span> Double-entry immutable ledger</span>
-    <span class="sec-item"><span>✓</span> Rate limiting 1000 req/min</span>
-    <span class="sec-item"><span>✓</span> SQL injection detection</span>
-    <span class="sec-item"><span>✓</span> Bot/scanner blocking</span>
+    <span class="sec-item"><span>✓</span> HMAC-SHA256 request signatures</span>
+    <span class="sec-item"><span>✓</span> Administrator-managed IP allowlists</span>
+    <span class="sec-item"><span>✓</span> Nonce replay checks</span>
+    <span class="sec-item"><span>✓</span> Idempotency-key validation</span>
+    <span class="sec-item"><span>✓</span> Timing-safe signature comparison</span>
+    <span class="sec-item"><span>✓</span> Merchant terminal ownership checks</span>
+    <span class="sec-item"><span>✓</span> Active account and currency checks</span>
+    <span class="sec-item"><span>✓</span> Available-balance validation</span>
+    <span class="sec-item"><span>✓</span> Transfer rate limiting</span>
+    <span class="sec-item"><span>✓</span> Transfer audit records</span>
+    <span class="sec-item"><span>✓</span> Environment-specific provider setup</span>
+    <span class="sec-item"><span>✓</span> Ledger-backed internal transfers</span>
     <!-- duplicate -->
-    <span class="sec-item"><span>✓</span> AES-256-GCM at rest</span>
-    <span class="sec-item"><span>✓</span> HMAC-SHA256 per request</span>
-    <span class="sec-item"><span>✓</span> IP allowlist enforcement</span>
-    <span class="sec-item"><span>✓</span> Nonce replay prevention</span>
-    <span class="sec-item"><span>✓</span> SSRF protection</span>
-    <span class="sec-item"><span>✓</span> Idempotency keys</span>
-    <span class="sec-item"><span>✓</span> Timing-safe comparison</span>
-    <span class="sec-item"><span>✓</span> Auto-create external terminals</span>
-    <span class="sec-item"><span>✓</span> Double-entry immutable ledger</span>
-    <span class="sec-item"><span>✓</span> Rate limiting 1000 req/min</span>
-    <span class="sec-item"><span>✓</span> SQL injection detection</span>
-    <span class="sec-item"><span>✓</span> Bot/scanner blocking</span>
+    <span class="sec-item"><span>✓</span> HMAC-SHA256 request signatures</span>
+    <span class="sec-item"><span>✓</span> Administrator-managed IP allowlists</span>
+    <span class="sec-item"><span>✓</span> Nonce replay checks</span>
+    <span class="sec-item"><span>✓</span> Idempotency-key validation</span>
+    <span class="sec-item"><span>✓</span> Timing-safe signature comparison</span>
+    <span class="sec-item"><span>✓</span> Merchant terminal ownership checks</span>
+    <span class="sec-item"><span>✓</span> Active account and currency checks</span>
+    <span class="sec-item"><span>✓</span> Available-balance validation</span>
+    <span class="sec-item"><span>✓</span> Transfer rate limiting</span>
+    <span class="sec-item"><span>✓</span> Transfer audit records</span>
+    <span class="sec-item"><span>✓</span> Environment-specific provider setup</span>
+    <span class="sec-item"><span>✓</span> Ledger-backed internal transfers</span>
   </div>
 </div>
 
@@ -1357,16 +1347,16 @@ console.<span class="fn">log</span>(result.data.destBalance); <span class="cm">/
   </div>
   <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-top:40px">
     <div style="padding:20px;border-left:3px solid var(--blue);background:var(--card);border-radius:0 10px 10px 0" class="reveal d1">
-      <strong style="display:block;margin-bottom:8px;color:#fff">No Custody</strong>
-      <p style="font-size:.82rem;color:var(--muted)">PrimeStack does not hold your funds. We are a switch and routing engine. Funds are immediately withdrawable.</p>
+      <strong style="display:block;margin-bottom:8px;color:#fff">Ledger Scope</strong>
+      <p style="font-size:.82rem;color:var(--muted)">A PrimeStack ledger entry records an internal platform event. It is not by itself evidence that external funds are held, received, or settled.</p>
     </div>
     <div style="padding:20px;border-left:3px solid var(--emerald);background:var(--card);border-radius:0 10px 10px 0" class="reveal d2">
-      <strong style="display:block;margin-bottom:8px;color:#fff">Instant Withdrawal</strong>
-      <p style="font-size:.82rem;color:var(--muted)">Customers can route their available balance to any eligible registered bank account.</p>
+      <strong style="display:block;margin-bottom:8px;color:#fff">External Payouts</strong>
+      <p style="font-size:.82rem;color:var(--muted)">External payouts require an enabled provider integration, valid beneficiary details, required approvals, and provider confirmation. Timing and availability vary.</p>
     </div>
     <div style="padding:20px;border-left:3px solid var(--violet);background:var(--card);border-radius:0 10px 10px 0" class="reveal d3">
-      <strong style="display:block;margin-bottom:8px;color:#fff">KYC & Compliance</strong>
-      <p style="font-size:.82rem;color:var(--muted)">Merchants complete KYC before receiving. All data encrypted AES-256-GCM. Immutable audit trail.</p>
+      <strong style="display:block;margin-bottom:8px;color:#fff">Compliance Responsibilities</strong>
+      <p style="font-size:.82rem;color:var(--muted)">Onboarding, KYC, licensing, privacy, and transaction obligations depend on the participants, providers, contracts, and jurisdictions involved. Obtain qualified review before launch.</p>
     </div>
   </div>
 </section>
@@ -1375,9 +1365,8 @@ console.<span class="fn">log</span>(result.data.destBalance); <span class="cm">/
 
 <!-- FOOTER -->
 <footer>
-  <div class="footer-logo">Prime<span>Stack</span> GSN</div>
+  <div class="footer-logo">Powered by PrimeStack <span>Technologies LLC</span></div>
   <p>PrimeStack Global Server Network</p>
-  <p style="margin-top:6px">https://primestack-global-server-network.onrender.com · admin@primestack.io</p>
 </footer>
 
 <script>
@@ -1450,8 +1439,28 @@ const senderRegistration = document.getElementById('sender-registration');
 const registrationStatus = document.getElementById('registration-status');
 const registrationSubmit = document.getElementById('registration-submit');
 const agentNumber = document.getElementById('agent-number');
+const currencySelect = document.getElementById('customer-currency');
+const otherCurrencyField = document.getElementById('customer-currency-other-field');
+const otherCurrencyInput = document.getElementById('customer-currency-other');
+
+function updateOtherCurrencyField() {
+  if (!currencySelect || !otherCurrencyField || !otherCurrencyInput) return;
+  const isOther = currencySelect.value === 'OTHER';
+  otherCurrencyField.hidden = !isOther;
+  otherCurrencyInput.required = isOther;
+  if (!isOther) otherCurrencyInput.value = '';
+}
+
+if (currencySelect) {
+  currencySelect.addEventListener('change', updateOtherCurrencyField);
+  updateOtherCurrencyField();
+}
 
 if (senderRegistration && registrationSubmit && agentNumber) {
+  const agentCodeNote = document.createElement('p');
+  agentCodeNote.className = 'form-note';
+  agentCodeNote.textContent = 'Only registration numbers for approved agents are accepted. Pending or invalid codes cannot submit a request.';
+  agentNumber.insertAdjacentElement('afterend', agentCodeNote);
   const updateRegistrationButton = () => {
     registrationSubmit.disabled = !agentNumber.value.trim();
   };
@@ -1481,8 +1490,11 @@ if (senderRegistration) {
           senderPublicIp: String(data.publicIp),
           senderTerminalId: String(data.terminalId),
           senderServerUrl: String(data.serverUrl),
-          operatingCurrency: String(data.currency),
+          operatingCurrency: data.currency === 'OTHER'
+            ? String(data.customCurrency).trim()
+            : String(data.currency),
           businessPurpose: String(data.purpose),
+          customerMessage: String(data.customerMessage).trim(),
         }),
       });
       const payload = await response.json();
@@ -1490,6 +1502,7 @@ if (senderRegistration) {
         throw new Error(payload.error?.message || 'Registration request could not be submitted.');
       }
       senderRegistration.reset();
+      updateOtherCurrencyField();
       registrationStatus.textContent = 'Your request was submitted successfully.';
       registrationSubmit.disabled = true;
     } catch (error) {
@@ -1561,7 +1574,8 @@ async function pingServer() {
   }
   if (button) button.textContent = 'Checking...';
   try {
-    const r = await fetch('https://primestack-global-server-network.onrender.com/health', { signal: AbortSignal.timeout(5000) });
+    const r = await fetch('/api/health', { signal: AbortSignal.timeout(5000) });
+    if (!r.ok) throw new Error(`Health check failed with HTTP ${r.status}`);
     const latency = Date.now() - start;
     const d = await r.json();
     document.getElementById('ping-status').textContent = d.status || 'ok';

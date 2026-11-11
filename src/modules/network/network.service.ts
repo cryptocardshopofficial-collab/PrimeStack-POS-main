@@ -127,6 +127,9 @@ export class NetworkService {
   async rotateHmacKey(keyId: string) {
     const existing = await this.prisma.hmacKey.findUnique({ where: { keyId } });
     if (!existing) throw new NotFoundError("HMAC key", keyId);
+    if (existing.agentId) {
+      throw new ValidationError("Agent HMAC keys must be managed from the Agent HMAC keys section");
+    }
 
     if (existing.status !== "ACTIVE") {
       throw new ConflictError(`Cannot rotate key with status: ${existing.status}`);
@@ -160,6 +163,9 @@ export class NetworkService {
   async revokeHmacKey(keyId: string) {
     const key = await this.prisma.hmacKey.findUnique({ where: { keyId } });
     if (!key) throw new NotFoundError("HMAC key", keyId);
+    if (key.agentId) {
+      throw new ValidationError("Agent HMAC keys must be managed from the Agent HMAC keys section");
+    }
 
     await this.prisma.hmacKey.update({
       where: { keyId },
@@ -171,7 +177,7 @@ export class NetworkService {
   }
 
   async listHmacKeys(merchantId?: string) {
-    const where: Prisma.HmacKeyWhereInput = {};
+    const where: Prisma.HmacKeyWhereInput = { agentId: null };
     if (merchantId) where.merchantId = merchantId;
 
     return this.prisma.hmacKey.findMany({
