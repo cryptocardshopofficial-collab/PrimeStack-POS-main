@@ -5,6 +5,7 @@ import {
   NotFoundError,
   ValidationError,
 } from "../../core/errors.js";
+import { encryptSecret } from "../s2s-engine/s2s-crypto.js";
 import type {
   CreateApplicationInput,
   UpdateApplicationInput,
@@ -480,8 +481,202 @@ export class DeveloperPlatformService {
 
   async listAgents() {
     return this.prisma.agent.findMany({
+      include: {
+        hmacKeys: {
+          select: {
+            keyId: true,
+            algorithm: true,
+            status: true,
+            rotatedFrom: true,
+            expiresAt: true,
+            createdAt: true,
+          },
+          orderBy: { createdAt: "desc" },
+        },
+      },
       orderBy: { createdAt: "desc" },
       take: 500,
+    });
+  }
+
+  async listAgentKeys(agentId: string) {
+    if (!(await this.prisma.agent.findUnique({ where: { id: agentId }, select: { id: true } }))) {
+      throw new NotFoundError("Agent registration", agentId);
+    }
+    return this.prisma.hmacKey.findMany({
+      where: { agentId },
+      select: {
+        keyId: true,
+        algorithm: true,
+        status: true,
+        rotatedFrom: true,
+        expiresAt: true,
+        createdAt: true,
+      },
+      orderBy: { createdAt: "desc" },
+    });
+  }
+
+  async createAgentKey(agentId: string) {
+    const agent = await this.prisma.agent.findUnique({
+      where: { id: agentId },
+      select: { id: true, code: true, status: true },
+    });
+    if (!agent) throw new NotFoundError("Agent registration", agentId);
+    if (agent.status !== "APPROVED") {
+      throw new ValidationError("HMAC keys can only be issued to approved agents");
+    }
+
+    const activeKey = await this.prisma.hmacKey.findFirst({
+      where: { agentId, status: "ACTIVE" },
+      select: { keyId: true },
+    });
+    if (activeKey) throw new ConflictError("Agent already has an active HMAC key; rotate it instead");
+
+    return this.issueAgentKey(agentId);
+  }
+
+  async rotateAgentKey(agentId: string, keyId: string) {
+    const agent = await this.prisma.agent.findUnique({
+      where: { id: agentId },
+      select: { id: true, status: true },
+    });
+    if (!agent) throw new NotFoundError("Agent registration", agentId);
+    if (agent.status !== "APPROVED") {
+      throw new ValidationError("HMAC keys can only be issued to approved agents");
+    }
+
+    const secret = randomBytes(32).toString("hex");
+    const newKeyId = `psk_agent_${randomBytes(16).toString("hex")}`;
+    return this.prisma.$transaction(async (tx) => {
+      const current = await tx.hmacKey.findFirst({
+        where: { keyId, agentId, status: "ACTIVE" },
+        select: { keyId: true, algorithm: true },
+      });
+      if (!current) throw new NotFoundError("Active agent HMAC key", keyId);
+
+      const updated = await tx.hmacKey.updateMany({
+        where: { keyId, agentId, status: "ACTIVE" },
+        data: { status: "ROTATED" },
+      });
+      if (updated.count !== 1) throw new ConflictError("Agent HMAC key was changed concurrently");
+
+      const key = await tx.hmacKey.create({
+        data: {
+          keyId: newKeyId,
+          secret: encryptSecret(secret),
+          agentId,
+          algorithm: current.algorithm,
+          status: "ACTIVE",
+          rotatedFrom: keyId,
+        },
+        select: { keyId: true, algorithm: true, status: true, createdAt: true },
+      });
+      return {
+        keyId: key.keyId,
+        algorithm: key.algorithm,
+        status: key.status,
+        createdAt: key.createdAt,
+        secret,
+      };
+    });
+  }
+
+  async revokeAgentKey(agentId: string, keyId: string) {
+    const result = await this.prisma.hmacKey.updateMany({
+      where: { keyId, agentId, status: "ACTIVE" },
+      data: { status: "REVOKED" },
+    });
+    if (result.count !== 1) throw new NotFoundError("Active agent HMAC key", keyId);
+    return { keyId, revoked: true };
+  }
+
+  private async issueAgentKey(agentId: string) {
+    const secret = randomBytes(32).toString("hex");
+    const keyId = `psk_agent_${randomBytes(16).toString("hex")}`;
+    try {
+      const key = await this.prisma.hmacKey.create({
+        data: {
+          keyId,
+          secret: encryptSecret(secret),
+          agentId,
+          algorithm: "sha256",
+          status: "ACTIVE",
+        },
+        select: { keyId: true, algorithm: true, status: true, createdAt: true },
+      });
+      return {
+        keyId: key.keyId,
+        algorithm: key.algorithm,
+        status: key.status,
+        createdAt: key.createdAt,
+        secret,
+      };
+    } catch (error) {
+      if (
+        error &&
+        typeof error === "object" &&
+        "code" in error &&
+        error.code === "P2002"
+      ) {
+        throw new ConflictError("Agent already has an active HMAC key; refresh and try again");
+      }
+      throw error;
+    }
+  }
+
+  async getAgentProfile(agentId: string) {
+    const agent = await this.prisma.agent.findUnique({
+      where: { id: agentId },
+      select: { id: true, code: true, name: true, status: true, country: true },
+    });
+    if (!agent || agent.status !== "APPROVED") {
+      throw new NotFoundError("Approved agent", agentId);
+    }
+    return agent;
+  }
+
+  async listAgentTerminalRegistrationRequests(agentId: string) {
+    const agent = await this.prisma.agent.findUnique({
+      where: { id: agentId },
+      select: { code: true, status: true },
+    });
+    if (!agent || agent.status !== "APPROVED") {
+      throw new NotFoundError("Approved agent", agentId);
+    }
+    return this.prisma.terminalRegistrationRequest.findMany({
+      where: { agentCode: agent.code },
+      orderBy: { createdAt: "desc" },
+      take: 500,
+    });
+  }
+
+  async createAgentTerminalRegistration(
+    agentId: string,
+    input: {
+      customerName: string;
+      country: string;
+      senderPublicIp: string;
+      senderTerminalId: string;
+      senderServerUrl: string;
+      operatingCurrency: string;
+      businessPurpose: string;
+      customerMessage: string;
+    },
+  ) {
+    const agent = await this.prisma.agent.findUnique({
+      where: { id: agentId },
+      select: { code: true, name: true, status: true },
+    });
+    if (!agent || agent.status !== "APPROVED") {
+      throw new NotFoundError("Approved agent", agentId);
+    }
+    return this.prisma.terminalRegistrationRequest.create({
+      data: {
+        agentCode: agent.code,
+        agentName: agent.name,
+        ...input,
+      },
     });
   }
 

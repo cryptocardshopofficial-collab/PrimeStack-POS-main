@@ -1,5 +1,5 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
-import { ForbiddenError, ValidationError } from "../../core/errors.js";
+import { ForbiddenError, UnauthorizedError, ValidationError } from "../../core/errors.js";
 import { sendCreated, sendSuccess } from "../../shared/utils/response.js";
 import { developerPlatformDashboardHtml } from "./developer-platform-dashboard.js";
 import { DeveloperPlatformService } from "./developer-platform.service.js";
@@ -17,6 +17,7 @@ import {
   createTerminalRegistrationSchema,
   createAgentRegistrationSchema,
   updateAgentRegistrationSchema,
+  createAgentTerminalRegistrationSchema,
 } from "./developer-platform.types.js";
 
 const readRoles = ["SUPER_ADMIN", "ADMIN", "OPERATOR", "REVIEWER", "READONLY"];
@@ -38,6 +39,30 @@ export function registerDeveloperPlatformRoutes(
       });
     return sendCreated(reply, await service.createTerminalRegistration(parsed.data));
   });
+  app.get("/agent/profile", async (request, reply) => {
+    if (!request.agent) throw new UnauthorizedError("Agent HMAC authentication required");
+    return sendSuccess(reply, await service.getAgentProfile(request.agent.id));
+  });
+  app.get("/agent/terminal-registration-requests", async (request, reply) => {
+    if (!request.agent) throw new UnauthorizedError("Agent HMAC authentication required");
+    return sendSuccess(
+      reply,
+      await service.listAgentTerminalRegistrationRequests(request.agent.id),
+    );
+  });
+  app.post("/agent/terminal-registration-requests", async (request, reply) => {
+    if (!request.agent) throw new UnauthorizedError("Agent HMAC authentication required");
+    const parsed = createAgentTerminalRegistrationSchema.safeParse(request.body);
+    if (!parsed.success) {
+      throw new ValidationError("Invalid terminal registration request", {
+        errors: parsed.error.errors,
+      });
+    }
+    return sendCreated(
+      reply,
+      await service.createAgentTerminalRegistration(request.agent.id, parsed.data),
+    );
+  });
 
   app.get(
     "/admin/developer-platform-dashboard",
@@ -54,7 +79,8 @@ export function registerDeveloperPlatformRoutes(
       platformApp.addHook("preHandler", async (request, reply) => {
         await platformApp.authenticate(request, reply);
         const role = (request.user as { role?: string } | undefined)?.role;
-        const credentialRoute = request.url.includes("/api-keys");
+        const credentialRoute =
+          request.url.includes("/api-keys") || request.url.includes("/keys");
         const roles =
           request.method === "GET" || request.method === "HEAD"
             ? readRoles
@@ -275,6 +301,22 @@ export function registerDeveloperPlatformRoutes(
             errors: parsed.error.errors,
           });
         return sendSuccess(reply, await service.updateAgentRegistration(id, parsed.data.status));
+      });
+      platformApp.get("/agents/:id/keys", async (request, reply) => {
+        const { id } = request.params as { id: string };
+        return sendSuccess(reply, await service.listAgentKeys(id));
+      });
+      platformApp.post("/agents/:id/keys", async (request, reply) => {
+        const { id } = request.params as { id: string };
+        return sendCreated(reply, await service.createAgentKey(id));
+      });
+      platformApp.post("/agents/:id/keys/:keyId/rotate", async (request, reply) => {
+        const { id, keyId } = request.params as { id: string; keyId: string };
+        return sendSuccess(reply, await service.rotateAgentKey(id, keyId));
+      });
+      platformApp.delete("/agents/:id/keys/:keyId", async (request, reply) => {
+        const { id, keyId } = request.params as { id: string; keyId: string };
+        return sendSuccess(reply, await service.revokeAgentKey(id, keyId));
       });
     },
     { prefix: "/admin/developer-platform" },

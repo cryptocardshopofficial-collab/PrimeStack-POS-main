@@ -7975,6 +7975,11 @@ const server = createServer((req, res) => {
     proxyRequest(req, res, target.origin, target.path);
     return;
   }
+  if (req.method === 'GET' && path === '/api/health') {
+    const target = resolveProxy(url);
+    proxyRequest(req, res, target.origin, target.path);
+    return;
+  }
 
   // -- Operator sign-in / sign-out (public) --
   if (path === '/login') {

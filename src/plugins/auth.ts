@@ -4,6 +4,7 @@ import { config } from "../config/index.js";
 import { prisma } from "../core/database.js";
 import { HmacSignatureError, UnauthorizedError } from "../core/errors.js";
 import { logger } from "../core/logger.js";
+import { decryptSecret } from "../modules/s2s-engine/s2s-crypto.js";
 
 /**
  * HMAC Authentication Plugin
@@ -25,6 +26,11 @@ declare module "fastify" {
       id: string;
       code: string;
       preferredLang: string;
+    };
+    agent?: {
+      id: string;
+      code: string;
+      name: string;
     };
     apiKey?: {
       keyId: string;
@@ -54,6 +60,7 @@ export async function hmacAuthPlugin(app: FastifyInstance): Promise<void> {
         request.url.startsWith("/health") ||
         request.url.startsWith("/docs") ||
         request.url.startsWith("/admin/login") ||
+        request.url.split("?")[0] === "/public/terminal-registration" ||
         request.url.split("?")[0] === "/t2t/whitelist"
       ) {
         return;
@@ -65,6 +72,8 @@ export async function hmacAuthPlugin(app: FastifyInstance): Promise<void> {
       }
 
       const prefix = config.hmac.headerPrefix;
+      const path = request.url.split("?")[0];
+      const isAgentRoute = path === "/agent" || path.startsWith("/agent/");
       const keyId = request.headers[`${prefix}-key-id`];
       const timestamp = request.headers[`${prefix}-timestamp`];
       const nonce = request.headers[`${prefix}-nonce`];
@@ -105,20 +114,33 @@ export async function hmacAuthPlugin(app: FastifyInstance): Promise<void> {
         where: { keyId, status: "ACTIVE" },
         include: {
           merchant: { select: { id: true, code: true, preferredLang: true } },
+          agent: { select: { id: true, code: true, name: true, status: true } },
         },
       });
 
       if (!hmacKey) {
         throw new HmacSignatureError("Unknown key ID");
       }
-      if (!hmacKey.merchant) {
-        throw new HmacSignatureError("Key is not associated with a merchant");
+      if (hmacKey.expiresAt && hmacKey.expiresAt <= new Date()) {
+        throw new HmacSignatureError("HMAC key has expired");
+      }
+
+      let secret = hmacKey.secret;
+      if (isAgentRoute) {
+        if (hmacKey.merchant || !hmacKey.agent || hmacKey.agent.status !== "APPROVED") {
+          throw new HmacSignatureError("An active approved-agent key is required");
+        }
+        secret = decryptSecret(hmacKey.secret);
+      } else {
+        if (hmacKey.agent || !hmacKey.merchant) {
+          throw new HmacSignatureError("This key is not authorized for this route");
+        }
       }
 
       // Compute expected signature
       const body = request.body ? JSON.stringify(request.body) : "";
       const data = `${keyId}${timestamp}${nonce}${body}`;
-      const expected = computeSignature(hmacKey.secret, data);
+      const expected = computeSignature(secret, data);
 
       // Constant-time comparison to prevent timing attacks
       const sigBuffer = Buffer.from(signature, "hex");
@@ -149,11 +171,20 @@ export async function hmacAuthPlugin(app: FastifyInstance): Promise<void> {
       }
 
       // Attach merchant context
-      request.merchant = {
-        id: hmacKey.merchant.id,
-        code: hmacKey.merchant.code,
-        preferredLang: hmacKey.merchant.preferredLang,
-      };
+      if (hmacKey.merchant) {
+        request.merchant = {
+          id: hmacKey.merchant.id,
+          code: hmacKey.merchant.code,
+          preferredLang: hmacKey.merchant.preferredLang,
+        };
+      }
+      if (isAgentRoute && hmacKey.agent) {
+        request.agent = {
+          id: hmacKey.agent.id,
+          code: hmacKey.agent.code,
+          name: hmacKey.agent.name,
+        };
+      }
     },
   );
 }

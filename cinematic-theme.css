@@ -228,6 +228,11 @@ body.cine-cursor-on .cine-cursor-outer {
               filter .9s cubic-bezier(.25, 1, .5, 1);
 }
 
+.cine-word {
+  display: inline-block;
+  white-space: nowrap;
+}
+
 .cine-in .cine-char {
   opacity: 1;
   transform: translateY(0);
@@ -521,13 +526,17 @@ textarea::placeholder {
 
 .hero h1 {
   font-family: 'Italiana', 'Playfair Display', Georgia, serif !important;
-  font-size: clamp(62px, 8.6vw, 124px) !important;
+  font-size: clamp(42px, 8.6vw, 124px) !important;
   font-weight: 400 !important;
   line-height: .92 !important;
   letter-spacing: -.01em !important;
   text-transform: none !important;
   color: var(--cine-cream) !important;
-  max-width: 16ch;
+  width: 100% !important;
+  max-width: none !important;
+  text-wrap: balance;
+  word-break: normal;
+  overflow-wrap: normal;
 }
 
 .hero h1 em,

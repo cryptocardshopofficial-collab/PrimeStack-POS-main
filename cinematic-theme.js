@@ -94,17 +94,23 @@
     let index = 0;
     textNodes.forEach((node) => {
       const fragment = document.createDocumentFragment();
-      for (const char of node.nodeValue) {
-        if (char === ' ' || char === '\n' || char === '\t') {
-          fragment.appendChild(document.createTextNode(char));
+      const parts = node.nodeValue.match(/\s+|\S+/g) || [];
+      for (const part of parts) {
+        if (/^\s+$/.test(part)) {
+          fragment.appendChild(document.createTextNode(part));
           continue;
         }
-        const span = document.createElement('span');
-        span.className = 'cine-char';
-        span.style.transitionDelay = `${(index * 0.035).toFixed(3)}s`;
-        span.textContent = char;
-        fragment.appendChild(span);
-        index += 1;
+        const word = document.createElement('span');
+        word.className = 'cine-word';
+        for (const char of part) {
+          const span = document.createElement('span');
+          span.className = 'cine-char';
+          span.style.transitionDelay = `${(index * 0.035).toFixed(3)}s`;
+          span.textContent = char;
+          word.appendChild(span);
+          index += 1;
+        }
+        fragment.appendChild(word);
       }
       node.parentNode.replaceChild(fragment, node);
     });

@@ -13,6 +13,9 @@ import { randomBytes, createHmac } from "crypto";
 const prisma = new PrismaClient();
 
 async function main() {
+  if (process.env.NODE_ENV === "production" && process.env.ALLOW_DEMO_SEED !== "true") {
+    throw new Error("Production seed is disabled. Bootstrap an administrator out of band.");
+  }
   console.log("Seeding PrimeStack Switch database...\n");
 
   // ── 1. System Ledger Accounts ──────────────────
@@ -41,7 +44,7 @@ async function main() {
         type: acct.type,
         subtype: acct.subtype,
         currency: "USD",
-        balance: 1000000, // seed with 1M for testing
+        balance: process.env.NODE_ENV === "production" ? 0 : 1000000,
       },
     });
     console.log(`  ✓ ${acct.code}`);
@@ -84,7 +87,11 @@ async function main() {
   // ── 2. Admin User ──────────────────────────────
   console.log("\nCreating admin user...");
 
-  const adminPassword = await bcrypt.hash("Admin@2026", 12);
+  const seedAdminPassword = process.env.SEED_ADMIN_PASSWORD?.trim();
+  if (!seedAdminPassword || seedAdminPassword.length < 16) {
+    throw new Error("SEED_ADMIN_PASSWORD is required with at least 16 characters for development bootstrap");
+  }
+  const adminPassword = await bcrypt.hash(seedAdminPassword, 12);
 
   const admin = await prisma.user.upsert({
     where: { email: "admin@primestack.io" },
@@ -99,7 +106,7 @@ async function main() {
       isActive: true,
     },
   });
-  console.log(`  ✓ admin@primestack.io (password: Admin@2026)`);
+  console.log("  ✓ development administrator configured from SEED_ADMIN_PASSWORD");
 
   // ── 3. Sample Merchant ─────────────────────────
   console.log("\nCreating sample merchant...");
@@ -200,19 +207,6 @@ async function main() {
   });
   console.log("  ✓ 127.0.0.1 (localhost)");
 
-  await prisma.ipWhitelistEntry.upsert({
-    where: {
-      id: "seed-ip-any",
-    },
-    update: {},
-    create: {
-      id: "seed-ip-any",
-      ipAddress: "0.0.0.0/0",
-      label: "Allow all (development only — remove in production)",
-      status: "ACTIVE",
-    },
-  });
-  console.log("  ✓ 0.0.0.0/0 (allow all — dev only)");
 
   // ── 6. Default Fraud Rules ─────────────────────
   console.log("\nCreating default fraud rules...");
@@ -256,9 +250,8 @@ async function main() {
   console.log("  ✓ AML threshold rule ($10,000)");
 
   console.log("\n✅ Seed completed successfully!\n");
-  console.log("Admin login:  admin@primestack.io / Admin@2026");
-  console.log("HMAC Key ID:  psk_demo_key_001");
-  console.log(`HMAC Secret:  ${hmacSecret}`);
+  console.log("Admin login: configured through SEED_ADMIN_PASSWORD");
+  console.log("HMAC demo credentials are available only in the database seed transaction");
 }
 
 main()

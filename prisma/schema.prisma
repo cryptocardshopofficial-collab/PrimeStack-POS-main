@@ -773,6 +773,7 @@ model Agent {
   parentAgent    Agent?   @relation("AgentHierarchy", fields: [parentAgentId], references: [id], onDelete: SetNull)
   childAgents    Agent[]  @relation("AgentHierarchy")
   merchants      Merchant[] @relation("AgentMerchants")
+  hmacKeys       HmacKey[]
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
@@ -949,6 +950,8 @@ model HmacKey {
   secret      String // HMAC shared secret (encrypted at rest)
   merchantId  String?
   merchant   Merchant?      @relation(fields: [merchantId], references: [id])
+  agentId     String?
+  agent       Agent?        @relation(fields: [agentId], references: [id], onDelete: Cascade)
   algorithm   String        @default("sha256")
   status      HmacKeyStatus  @default(ACTIVE)
   rotatedFrom String? // previous key ID if rotated
@@ -957,6 +960,7 @@ model HmacKey {
   updatedAt   DateTime      @updatedAt
 
   @@index([merchantId])
+  @@index([agentId])
   @@index([status])
 }
 

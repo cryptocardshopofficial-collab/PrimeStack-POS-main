@@ -44,7 +44,7 @@ docker compose ps
 
 ## 3. Environment Configuration
 
-The `.env` file is pre-configured for local development. No changes needed to start.
+Review `.env` and configure local PostgreSQL, Redis, and development-only secrets before starting. If creating it from `.env.example`, inspect each value and replace placeholders with values appropriate for your local environment. Never deploy example credentials or commit `.env`.
 
 For production, update these values in `.env`:
 ```
@@ -80,16 +80,12 @@ npx prisma migrate dev --name init
 ## 6. Seed Initial Data
 
 ```powershell
-npx tsx prisma/seed.ts
+$env:SEED_ADMIN_PASSWORD = Read-Host "Development admin password (16+ characters)"
+node --import dotenv/config --import tsx .\prisma\seed.ts
+Remove-Item Env:\SEED_ADMIN_PASSWORD
 ```
 
-This creates:
-- **Admin user**: `admin@primestack.io` / `Admin@2026`
-- **Sample merchant**: `MERCHANT-001`
-- **HMAC key**: `psk_demo_key_001` (secret displayed in output — save it)
-- **10 system ledger accounts** (funding, fees, settlement, chargeback reserves)
-- **IP whitelist**: localhost + allow-all (dev only)
-- **2 default fraud rules**: card velocity (10/min) + AML threshold ($10,000)
+The seed creates a development admin account with email `admin@primestack.io`, a sample merchant, system ledger accounts, and development records. The admin password is the value supplied as `SEED_ADMIN_PASSWORD`; there is no fixed default password. Review seed output for any generated development credentials and keep them private. Do not seed production data.
 
 ---
 
@@ -131,6 +127,41 @@ Invoke-WebRequest http://localhost:8081/health | Select-Object -ExpandProperty C
 3. Run **Admin → Login** first — it auto-saves the JWT token
 4. Set `merchant_id` to the ID of a created merchant
 5. Explore all 15 modules from the collection
+
+---
+
+## Terminal-to-Terminal (T2T) Production Requirements
+
+T2T transfers require an active source and destination terminal owned by the
+same merchant, plus an active ledger account for each terminal in the selected
+currency. The API does not create missing terminal accounts. Per-transfer
+amounts are limited to `10,000,000` currency units and at most four decimal
+places; only currencies provisioned on both accounts are accepted.
+
+`POST /t2t/transfer` requires:
+
+- PrimeStack HMAC headers: `x-primestack-key-id`, `x-primestack-timestamp`
+  (Unix milliseconds), `x-primestack-nonce` (unique, 16–128 URL-safe
+  characters), and `x-primestack-signature`.
+- `x-primestack-idempotency-key`, unique per logical transfer and 16–128
+  characters.
+- JSON body: `amount`, `currency`, `sourceId`, and `destId`. Optional
+  `description` is limited to 500 characters.
+
+The signature is HMAC-SHA256 over
+`keyId + timestamp + nonce + JSON.stringify(parsedRequestBody)`. Reuse the
+same idempotency key only for retries with the same transfer details.
+Successful posting, the double-entry journal, balance updates, and audit record
+are committed atomically. Transfer requests are limited to 100 per minute and
+require Redis for distributed rate limiting and replay protection.
+
+Administrators manage the IP allowlist using JWT-authenticated
+`POST /t2t/whitelist`; the route supports `{"ip":"203.0.113.10","action":"add"}`
+and `"remove"`. In production, set `TRUSTED_PROXIES` to only the proxy IP
+addresses/CIDRs actually used by the deployment. Do not trust arbitrary
+forwarded headers or use `0.0.0.0/0`; if unset, forwarded IPs are ignored and
+the allowlist checks the socket peer address. Apply migrations with
+`npx prisma migrate deploy` before enabling T2T.
 
 ---
 
