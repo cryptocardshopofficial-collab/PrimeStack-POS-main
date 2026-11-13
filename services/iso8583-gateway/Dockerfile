@@ -15,6 +15,6 @@ COPY --from=builder --chown=appuser:appgroup /app/iso8583-gateway/node_modules .
 COPY --from=builder --chown=appuser:appgroup /app/iso8583-gateway/dist ./dist
 COPY --from=builder --chown=appuser:appgroup /app/iso8583-gateway/package.json ./
 USER appuser
-EXPOSE 4013
-HEALTHCHECK --interval=10s --timeout=5s --retries=3 CMD wget -qO- http://localhost:4013/health || exit 1
+EXPOSE 9022
+HEALTHCHECK --interval=10s --timeout=5s --retries=3 CMD wget -qO- http://localhost:9022/health || exit 1
 CMD ["node","dist/iso8583-gateway/src/server.js"]

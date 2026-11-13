@@ -3,7 +3,7 @@ import { createClient }   from "redis";
 import { startServer }    from "../../shared/src/http-server.js";
 import { buildRoutes }    from "./api/routes.js";
 
-const PORT = parseInt(process.env.PORT ?? "4006", 10);
+const PORT = parseInt(process.env.PORT ?? "9015", 10);
 
 // PostgreSQL — risk decisions, blacklist, profiles, AML cases
 const pool = new Pool({

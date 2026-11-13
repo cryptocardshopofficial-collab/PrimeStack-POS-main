@@ -3,7 +3,7 @@ import { startServer }  from "../../shared/src/http-server.js";
 import { buildRoutes }  from "./api/routes.js";
 import { runHealthCheck } from "./domain/routing.js";
 
-const PORT = parseInt(process.env.PORT ?? "4012", 10);
+const PORT = parseInt(process.env.PORT ?? "9021", 10);
 const HEALTH_CHECK_INTERVAL_MS = parseInt(process.env.HEALTH_CHECK_INTERVAL ?? "30000", 10);
 
 const pool = new Pool({

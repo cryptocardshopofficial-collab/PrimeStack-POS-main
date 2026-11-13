@@ -31,8 +31,8 @@ const DB_CERT_PATH     = process.env.DB_CERT_PATH     || "";
 const DB_KEY_PATH      = process.env.DB_KEY_PATH      || "";
 const DB_CA_PATH       = process.env.DB_CA_PATH       || "";
 const DB_ENV           = process.env.DB_ENV           || "sandbox";
-const DASHBOARD_URL    = process.env.DASHBOARD_URL    || "http://localhost:8081";
-const PORT             = parseInt(process.env.DB_PORT || "8083", 10);
+const DASHBOARD_URL    = process.env.DASHBOARD_URL    || "http://localhost:9006";
+const PORT             = parseInt(process.env.DB_PORT || "9009", 10);
 
 // ── Token cache ─────────────────────────────────────────────────
 let cachedToken = null;

@@ -15,6 +15,6 @@ COPY --from=builder --chown=appuser:appgroup /app/notification-service/node_modu
 COPY --from=builder --chown=appuser:appgroup /app/notification-service/dist ./dist
 COPY --from=builder --chown=appuser:appgroup /app/notification-service/package.json ./
 USER appuser
-EXPOSE 4009
-HEALTHCHECK --interval=10s --timeout=5s --retries=3 CMD wget -qO- http://localhost:4009/health || exit 1
+EXPOSE 9018
+HEALTHCHECK --interval=10s --timeout=5s --retries=3 CMD wget -qO- http://localhost:9018/health || exit 1
 CMD ["node","dist/notification-service/src/server.js"]

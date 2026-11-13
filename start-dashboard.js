@@ -1,4 +1,4 @@
-﻿﻿// start-dashboard.js — PrimeStack Global Server Network Admin Dashboard
+﻿﻿﻿﻿﻿﻿// start-dashboard.js — PrimeStack Global Server Network Admin Dashboard
 // Node.js HTTP server, no framework, no external deps
 import { createServer } from 'http';
 import { request as httpRequest } from 'http';
@@ -26,25 +26,28 @@ const CINEMATIC_THEME_JS = readOptional('./cinematic-theme.js', 'utf8');
 
 // Base URL the browser-side pages call for API requests.
 // Set API_URL on Render to the deployed API service origin.
-const API_URL = process.env.API_URL || 'http://localhost:8081';
+const API_URL = process.env.API_URL || 'http://localhost:9006';
 
 // --- Service Port Map -------------------------------------------------------
+// Display identifiers only — nothing listens on these values. They key the
+// tiles on the monitoring page. Modules that are not part of this deployment
+// (e.g. the standalone crypto-payout service) are deliberately absent, so they
+// can never be reported as online.
 const SVC = {
-  ledger:       4001,
-  ipwhitelist:  4002,
-  auth:         4003,
-  terminal:     4004,
-  transfer:     4005,
-  risk:         4006,
-  audit:        4007,
-  settlement:   4008,
-  notification: 4009,
-  switchcore:   4010,
-  security:     4011,
-  routing:      4012,
-  iso8583:      4013,
-  crypto:       4014,
-  gateway:      8080,
+  ledger:       9010,
+  ipwhitelist:  9011,
+  auth:         9012,
+  terminal:     9013,
+  transfer:     9014,
+  risk:         9015,
+  audit:        9016,
+  settlement:   9017,
+  notification: 9018,
+  switchcore:   9019,
+  security:     9020,
+  routing:      9021,
+  iso8583:      9022,
+  gateway:      9024,
 };
 
 // ── Single upstream API ─────────────────────────────────────────────────────
@@ -54,10 +57,16 @@ const SVC = {
 // PRIMESTACK_API_URL is set by start-platform.mjs for the single-service setup.
 // For a standalone dashboard deploy, fall back to API_URL (the origin documented
 // above) before the localhost default.
-const API_ORIGIN = process.env.PRIMESTACK_API_URL || process.env.INTERNAL_API_URL || process.env.API_URL || 'http://127.0.0.1:8081';
+const API_ORIGIN = process.env.PRIMESTACK_API_URL || process.env.INTERNAL_API_URL || process.env.API_URL || 'http://127.0.0.1:9006';
 
 // Payment rails service (rails-service.js) — runs alongside the API in this service.
-const RAILS_ORIGIN = process.env.RAILS_SERVICE_URL || `http://127.0.0.1:${process.env.RAILS_PORT || 8082}`;
+const RAILS_ORIGIN = process.env.RAILS_SERVICE_URL || `http://127.0.0.1:${process.env.RAILS_PORT || 9007}`;
+
+// host:port of each upstream, rendered in the gateway route table.
+function originAddress(origin) {
+  return origin.replace(/^https?:\/\//, '');
+}
+const apiAddr = originAddress(API_ORIGIN);
 
 // Console operator HMAC credentials — sign proxied API calls so the
 // closed-by-default API accepts them. Created by prisma/seed.ts.
@@ -674,8 +683,8 @@ function platformOverview() {
 <div class="grid-4" style="margin-bottom:24px">
   <div class="stat-card"><div class="stat-label">Services</div><div class="stat-value" id="svc-count">14</div><div class="stat-note">microservices</div></div>
   <div class="stat-card"><div class="stat-label">Status</div><div class="stat-value stat-ok" id="platform-status">—</div><div class="stat-note">overall health</div></div>
-  <div class="stat-card"><div class="stat-label">Switch Core</div><div class="stat-value">:4010</div><div class="stat-note">transactions + routing</div></div>
-  <div class="stat-card"><div class="stat-label">Gateway</div><div class="stat-value">:8080</div><div class="stat-note">API proxy</div></div>
+  <div class="stat-card"><div class="stat-label">Switch Core</div><div class="stat-value">:9019</div><div class="stat-note">transactions + routing</div></div>
+  <div class="stat-card"><div class="stat-label">Gateway</div><div class="stat-value">:9024</div><div class="stat-note">API proxy</div></div>
 </div>
 <div class="grid-3" style="gap:12px">
   <a href="/platform/banks" class="card" style="text-decoration:none;display:block">
@@ -1321,22 +1330,25 @@ document.addEventListener('DOMContentLoaded', function(){initTabs('risk');});
 
 // --- Platform Monitoring -----------------------------------------------------
 function platformMonitoring() {
+  // Every entry below is a module registered inside the single Fastify API.
+  // The :90xx values are stable service identifiers used to key the status
+  // tiles — they are not listening ports, and this deployment starts only one
+  // API process. Only modules that actually exist in this deployment are listed.
   const svcs = [
-    { key:'ledger',      port:4001, name:'Ledger',         routes:'/accounts, /entries, /holds',                     href:'/admin/svc/ledger' },
-    { key:'ipwhitelist', port:4002, name:'IP Whitelist',   routes:'/entries, /check, /purge',                        href:'/admin/svc/ipwhitelist' },
-    { key:'auth',        port:4003, name:'Auth',           routes:'/verify, /keys, /sign',                           href:'/admin/svc/auth' },
-    { key:'terminal',    port:4004, name:'Terminal',       routes:'/terminals, /merchants, /keys, /firmware',        href:'/admin/svc/terminal' },
-    { key:'transfer',    port:4005, name:'Transfer',       routes:'/transfers',                                      href:'/admin/svc/transfer' },
-    { key:'risk',        port:4006, name:'Risk',           routes:'/risk/evaluate, /risk/blacklist, /risk/aml',      href:'/admin/svc/risk' },
-    { key:'audit',       port:4007, name:'Audit',          routes:'/events, /alerts',                                href:'/admin/svc/audit' },
-    { key:'settlement',  port:4008, name:'Settlement',     routes:'/batches, /queue, /eod, /reconciliation',         href:'/admin/svc/settlement' },
-    { key:'notification',port:4009, name:'Notification',   routes:'/notifications, /webhooks, /events',              href:'/admin/svc/notification' },
-    { key:'switchcore',  port:4010, name:'Switch Core',    routes:'/transactions, /acquirers, /routing',             href:'/admin/svc/switchcore' },
-    { key:'security',    port:4011, name:'Security',       routes:'/hmac/keys, /api-keys, /users, /roles',           href:'/admin/svc/security' },
-    { key:'routing',     port:4012, name:'Routing',        routes:'/routes, /connections, /rules, /dashboard',      href:'/admin/svc/routing' },
-    { key:'iso8583',     port:4013, name:'ISO 8583',       routes:'/process, /parse, /simulate, /dashboard',        href:'/admin/svc/iso8583' },
-    { key:'crypto',      port:4014, name:'Crypto Payout',  routes:'/withdraw, /health',                              href:'/admin/svc/crypto' },
-    { key:'gateway',     port:8080, name:'API Gateway',    routes:'proxy only',                                      href:'/admin/svc/gateway' },
+    { key:'ledger',      port:9010, name:'Ledger',         routes:'/ledger/accounts, /ledger/entries',               href:'/admin/svc/ledger' },
+    { key:'ipwhitelist', port:9011, name:'IP Whitelist',   routes:'/network/ip-whitelist',                           href:'/admin/svc/ipwhitelist' },
+    { key:'auth',        port:9012, name:'Auth',           routes:'/network/hmac-keys, /admin/users',                 href:'/admin/svc/auth' },
+    { key:'terminal',    port:9013, name:'Terminal',       routes:'/terminals, /terminals/:id/health',               href:'/admin/svc/terminal' },
+    { key:'transfer',    port:9014, name:'Transfer',       routes:'/transfers',                                      href:'/admin/svc/transfer' },
+    { key:'risk',        port:9015, name:'Risk',           routes:'/fraud/risk-scores',                              href:'/admin/svc/risk' },
+    { key:'audit',       port:9016, name:'Audit',          routes:'/admin/audit-logs',                               href:'/admin/svc/audit' },
+    { key:'settlement',  port:9017, name:'Settlement',     routes:'/settlement/batches',                             href:'/admin/svc/settlement' },
+    { key:'notification',port:9018, name:'Notification',   routes:'/notifications',                                  href:'/admin/svc/notification' },
+    { key:'switchcore',  port:9019, name:'Switch Core',    routes:'/transactions',                                   href:'/admin/svc/switchcore' },
+    { key:'security',    port:9020, name:'Security',       routes:'/network/api-keys, /network/certificates',         href:'/admin/svc/security' },
+    { key:'routing',     port:9021, name:'Routing',        routes:'/routes',                                         href:'/admin/svc/routing' },
+    { key:'iso8583',     port:9022, name:'ISO 8583',       routes:'/iso8583/parse, /iso8583/build, /iso8583/hosts',  href:'/admin/svc/iso8583' },
+    { key:'gateway',     port:9024, name:'API Gateway',    routes:'reverse proxy for /api/*',                        href:'/admin/svc/gateway' },
   ];
 
   const cards = svcs.map(s => `
@@ -1345,9 +1357,9 @@ function platformMonitoring() {
     <div class="svc-name">${s.name}</div>
     <span id="badge-${s.key}" class="badge badge-gray" aria-live="polite"><span class="dot"></span> Checking</span>
   </div>
-  <div class="svc-port">:${s.port}</div>
+  <div class="svc-port" title="Stable service identifier — not a listening port">#${s.port}</div>
   <div class="svc-routes">${s.routes}</div>
-  <div class="svc-status"><span class="svc-overview-note">Health endpoint</span><span id="latency-${s.key}" class="svc-overview-note">—</span></div>
+  <div class="svc-status"><span class="svc-overview-note">API /health</span><span id="latency-${s.key}" class="svc-overview-note">—</span></div>
   <div class="svc-health-track" aria-hidden="true"><span class="svc-health-fill"></span></div>
 </a>`).join('\n');
 
@@ -1355,7 +1367,8 @@ function platformMonitoring() {
 <div class="page-header">
   <div class="breadcrumb"><a href="/">Home</a><span>/</span><a href="/platform">Platform</a><span>/</span>Monitoring</div>
   <h1>Service Operations Matrix</h1>
-  <p>Live health status for all 14 services. Select a service card to open its admin panel.</p>
+  <p>Live health status for the ${svcs.length} service modules in this deployment. Select a service card to open its admin panel.</p>
+  <p class="svc-overview-note" style="margin-top:6px">All modules run inside a single API process. The <code>#90xx</code> labels are stable identifiers used to key these tiles, not listening ports — one probe result therefore covers every card. Services that are not part of this deployment are not listed here.</p>
 </div>
 <section class="svc-status-panel" aria-label="Service status summary">
   <div class="svc-overview">
@@ -3298,7 +3311,7 @@ function merchantWallet() {
 </div>
 
 <script>
-// ── Real ledger accounts from port 4001 ────────────────────────────────────
+// ── Real ledger accounts from port 9010 ────────────────────────────────────
 var _accounts = [];
 var _cryptoBalances = {BTC:0,ETH:0,USDT:0,USDC:0,BNB:0};
 var _cryptoTxns = [];
@@ -4142,7 +4155,7 @@ function adminLedger() {
 <div class="page-header">
   <div class="breadcrumb"><a href="/platform/monitoring">Monitoring</a><span>/</span>Ledger</div>
   <h1>Ledger Service <span id="led-badge" class="badge badge-gray" style="vertical-align:middle;margin-left:8px"><span class="dot"></span> —</span></h1>
-  <p>Double-entry journal, accounts, and fund holds — port 4001.</p>
+  <p>Double-entry journal, accounts, and fund holds — port 9010.</p>
 </div>
 <div class="tabs">
   <div class="tab active" data-g="led" data-t="led-accounts">Accounts</div>
@@ -4190,7 +4203,7 @@ function loadLedgerAccounts(){api('GET','/wallets/accounts').then(function(r){va
 function loadLedgerEntries(){api('GET','/wallets/entries').then(function(r){var rows=(r.data.data||r.data||[]).slice(0,50).map(function(e){return '<tr><td><code>'+e.reference||e.id+'</code></td><td><code>'+e.entry_type+'</code></td><td>'+e.entry_type+'</td><td>'+e.amount+'</td><td><code>'+(e.reference||'')+'</code></td><td>'+new Date(e.created_at).toLocaleString()+'</td></tr>';}).join('');document.getElementById('le-tbody').innerHTML=rows||'<tr><td colspan="6" style="text-align:center;color:var(--muted)">No entries</td></tr>';});}
 function lookupHold(){api('GET','/wallets/holds/'+document.getElementById('lh-ref').value).then(function(r){showResult('lh-result',r.data,r.ok);});}
 function postEntry(){api('POST','/wallets/entries',{accountId:document.getElementById('lp-account').value,type:document.getElementById('lp-type').value,amount:document.getElementById('lp-amount').value,currency:document.getElementById('lp-cur').value,reference:document.getElementById('lp-ref').value,description:document.getElementById('lp-desc').value}).then(function(r){showResult('lp-result',r.data,r.ok);if(r.ok)toast('Entry posted','ok');});}
-document.addEventListener('DOMContentLoaded', function(){initTabs('led');refreshHealthBadge('led-badge',4001);});
+document.addEventListener('DOMContentLoaded', function(){initTabs('led');refreshHealthBadge('led-badge',9010);});
 <\/script>
 `);
 }
@@ -4200,7 +4213,7 @@ function adminIpWhitelist() {
 <div class="page-header">
   <div class="breadcrumb"><a href="/platform/monitoring">Monitoring</a><span>/</span>IP Whitelist</div>
   <h1>IP Whitelist Service <span id="ipw-badge" class="badge badge-gray" style="vertical-align:middle;margin-left:8px"><span class="dot"></span> —</span></h1>
-  <p>IP allow-list management — port 4002.</p>
+  <p>IP allow-list management — port 9011.</p>
 </div>
 <div class="tabs">
   <button class="tab active" type="button" id="ipw-tab-list" data-g="ipw" data-t="ipw-list" aria-controls="ipw-list">Entries</button>
@@ -4296,7 +4309,7 @@ function purgeIpEntries(){
     toast(purged+' expired entr'+(purged===1?'y':'ies')+' deactivated','ok');loadIpList();
   }).catch(function(error){showResult('iwp-result',{error:error.message},false);toast(error.message,'err');});
 }
-document.addEventListener('DOMContentLoaded', function(){initTabs('ipw');refreshHealthBadge('ipw-badge',4002);});
+document.addEventListener('DOMContentLoaded', function(){initTabs('ipw');refreshHealthBadge('ipw-badge',9011);});
 <\/script>
 `);
 }
@@ -4306,7 +4319,7 @@ function adminAuth() {
 <div class="page-header">
   <div class="breadcrumb"><a href="/platform/monitoring">Monitoring</a><span>/</span>Auth</div>
   <h1>Auth Service <span id="auth-badge" class="badge badge-gray" style="vertical-align:middle;margin-left:8px"><span class="dot"></span> —</span></h1>
-  <p>HMAC signature verification and key management — port 4003.</p>
+  <p>HMAC signature verification and key management — port 9012.</p>
 </div>
 <div class="tabs">
   <div class="tab active" data-g="authsvc" data-t="auth-keys">Keys</div>
@@ -4340,7 +4353,7 @@ function adminAuth() {
 function loadAuthKeys(){api('GET','/auth/keys').then(function(r){document.getElementById('auth-keys-content').innerHTML='<pre style="font-size:.78rem;white-space:pre-wrap">'+JSON.stringify(r.data,null,2)+'</pre>';});}
 function verifyAuth(){api('POST','/auth/verify',{keyId:document.getElementById('av-kid').value,payload:document.getElementById('av-payload').value,signature:document.getElementById('av-sig').value}).then(function(r){showResult('av-result',r.data,r.ok);});}
 function signPayload(){api('POST','/auth/sign',{keyId:document.getElementById('as-kid').value,payload:document.getElementById('as-payload').value}).then(function(r){showResult('as-result',r.data,r.ok);});}
-document.addEventListener('DOMContentLoaded', function(){initTabs('authsvc');refreshHealthBadge('auth-badge',4003);});
+document.addEventListener('DOMContentLoaded', function(){initTabs('authsvc');refreshHealthBadge('auth-badge',9012);});
 <\/script>
 `);
 }
@@ -4350,7 +4363,7 @@ function adminTerminal() {
 <div class="page-header">
   <div class="breadcrumb"><a href="/platform/monitoring">Monitoring</a><span>/</span>Terminal</div>
   <h1>Terminal Service <span id="trm-badge" class="badge badge-gray" style="vertical-align:middle;margin-left:8px"><span class="dot"></span> —</span></h1>
-  <p>POS device management — port 4004.</p>
+  <p>POS device management — port 9013.</p>
 </div>
 <div class="tabs">
   <div class="tab active" data-g="trmsvc" data-t="trm-list">Terminals</div>
@@ -4499,7 +4512,7 @@ function queueCommand(){
 }
 function loadTrmGroups(){api('GET','/terminals/groups').then(function(r){document.getElementById('trmg-content').innerHTML='<pre style="font-size:.78rem;white-space:pre-wrap">'+JSON.stringify(r.data.data||r.data,null,2)+'</pre>';});}
 function loadTrmFleet(){api('GET','/terminals/fleet/overview').then(function(r){document.getElementById('trmfl-content').innerHTML='<pre style="font-size:.78rem;white-space:pre-wrap">'+JSON.stringify(r.data.data||r.data,null,2)+'</pre>';});}
-document.addEventListener('DOMContentLoaded', function(){initTabs('trmsvc');loadTrm();loadMerchants();refreshHealthBadge('trm-badge',4004);});
+document.addEventListener('DOMContentLoaded', function(){initTabs('trmsvc');loadTrm();loadMerchants();refreshHealthBadge('trm-badge',9013);});
 <\/script>
 `);
 }
@@ -4509,7 +4522,7 @@ function adminSwitchcore() {
 <div class="page-header">
   <div class="breadcrumb"><a href="/platform/monitoring">Monitoring</a><span>/</span>Switch Core</div>
   <h1>Switch Core Service <span id="sc-badge" class="badge badge-gray" style="vertical-align:middle;margin-left:8px"><span class="dot"></span> —</span></h1>
-  <p>Transaction processing, acquirer management, and settlement queue — port 4010.</p>
+  <p>Transaction processing, acquirer management, and settlement queue — port 9019.</p>
 </div>
 <div class="tabs">
   <div class="tab active" data-g="sc" data-t="sc-tx">Transactions</div>
@@ -4650,7 +4663,7 @@ function loadSettlementQueue(){
     document.getElementById('sc-queue-tbody').innerHTML=rows||'<tr><td colspan="5" style="text-align:center;color:var(--muted)">Queue empty</td></tr>';
   });
 }
-document.addEventListener('DOMContentLoaded', function(){initTabs('sc');loadTxList();loadAcquirers();loadRoutingRules();loadSettlementQueue();refreshHealthBadge('sc-badge',4010);});
+document.addEventListener('DOMContentLoaded', function(){initTabs('sc');loadTxList();loadAcquirers();loadRoutingRules();loadSettlementQueue();refreshHealthBadge('sc-badge',9019);});
 <\/script>
 `);
 }
@@ -5080,7 +5093,7 @@ function adminTransfer() {
 <div class="page-header">
   <div class="breadcrumb"><a href="/platform/monitoring">Monitoring</a><span>/</span>Transfer</div>
   <h1>Transfer Service <span id="xfr-badge" class="badge badge-gray" style="vertical-align:middle;margin-left:8px"><span class="dot"></span> —</span></h1>
-  <p>Transfer processing — port 4005.</p>
+  <p>Transfer processing — port 9014.</p>
 </div>
 <div class="tabs">
   <div class="tab active" data-g="xfrsvc" data-t="xfr-send">Send</div>
@@ -5121,7 +5134,7 @@ function adminTransfer() {
 function createTransfer(){api('POST','/transfers',{transferRef:document.getElementById('xf-ref').value||'TRF-'+Date.now(),type:document.getElementById('xf-type').value||'WALLET_TO_WALLET',sourceType:document.getElementById('xf-src-type').value||'WALLET',sourceId:document.getElementById('xf-from').value,destType:document.getElementById('xf-dst-type').value||'WALLET',destId:document.getElementById('xf-to').value,amount:document.getElementById('xf-amount').value,currency:document.getElementById('xf-cur').value}).then(function(r){showResult('xf-result',r.data,r.ok);if(r.ok)toast('Transfer sent','ok');});}
 function loadTransfers(){api('GET','/transfers').then(function(r){var rows=(r.data.data||r.data||[]).slice(0,30).map(function(t){return '<tr><td><code>'+t.transfer_ref+'</code></td><td><code>'+t.source_id+'</code></td><td><code>'+t.dest_id+'</code></td><td>'+t.amount+'</td><td><span class="badge '+(t.status==='completed'?'badge-green':t.status==='pending'?'badge-yellow':'badge-red')+'">'+t.status+'</span></td><td>'+new Date(t.created_at).toLocaleDateString()+'</td></tr>';}).join('');document.getElementById('xfrl-tbody').innerHTML=rows||'<tr><td colspan="6" style="text-align:center;color:var(--muted)">No transfers</td></tr>';});}
 function reverseTransfer(){api('POST','/transfers/'+document.getElementById('xfrev-ref').value+'/reverse',{reason:document.getElementById('xfrev-reason').value}).then(function(r){showResult('xfrev-result',r.data,r.ok);if(r.ok)toast('Reversed','ok');});}
-document.addEventListener('DOMContentLoaded', function(){initTabs('xfrsvc');refreshHealthBadge('xfr-badge',4005);});
+document.addEventListener('DOMContentLoaded', function(){initTabs('xfrsvc');refreshHealthBadge('xfr-badge',9014);});
 <\/script>
 `);
 }
@@ -5131,7 +5144,7 @@ function adminRisk() {
 <div class="page-header">
   <div class="breadcrumb"><a href="/platform/monitoring">Monitoring</a><span>/</span>Risk</div>
   <h1>Risk Service <span id="rsk-badge" class="badge badge-gray" style="vertical-align:middle;margin-left:8px"><span class="dot"></span> —</span></h1>
-  <p>Fraud detection, AML, and risk scoring — port 4006.</p>
+  <p>Fraud detection, AML, and risk scoring — port 9015.</p>
 </div>
 <div class="tabs">
   <div class="tab active" data-g="rsksvc" data-t="rsk-eval">Evaluate</div>
@@ -5185,7 +5198,7 @@ function loadRskReview(){api('GET','/risk/review').then(function(r){var rows=(r.
 function doAml(){api('POST','/risk/aml',{name:document.getElementById('aml-n').value,type:document.getElementById('aml-t').value,country:document.getElementById('aml-c').value}).then(function(r){showResult('aml-result',r.data,r.ok);});}
 function loadRskCtry(){api('GET','/risk/countries').then(function(r){var rows=(r.data.data||r.data||[]).map(function(c){return '<tr><td>'+c.country_code+'</td><td><span class='badge '+(c.risk_score>70?'badge-red':c.risk_score>40?'badge-yellow':'badge-green')+'">'+c.risk_score>70?'high':c.risk_score>40?'medium':'low'+'</span></td><td>'+(c.restricted?'Yes':'No')+'</td></tr>';}).join('');document.getElementById('rc-tbody').innerHTML=rows||'<tr><td colspan="3" style="text-align:center;color:var(--muted)">No data</td></tr>';});}
 function loadRskDec(){api('GET','/risk/decisions').then(function(r){document.getElementById('rsk-dec-content').innerHTML='<pre style="font-size:.78rem;white-space:pre-wrap">'+JSON.stringify(r.data,null,2)+'</pre>';});}
-document.addEventListener('DOMContentLoaded', function(){initTabs('rsksvc');refreshHealthBadge('rsk-badge',4006);});
+document.addEventListener('DOMContentLoaded', function(){initTabs('rsksvc');refreshHealthBadge('rsk-badge',9015);});
 <\/script>
 `);
 }
@@ -5195,7 +5208,7 @@ function adminAudit() {
 <div class="page-header">
   <div class="breadcrumb"><a href="/platform/monitoring">Monitoring</a><span>/</span>Audit</div>
   <h1>Audit Service <span id="aud-badge" class="badge badge-gray" style="vertical-align:middle;margin-left:8px"><span class="dot"></span> —</span></h1>
-  <p>System events and security alerts — port 4007.</p>
+  <p>System events and security alerts — port 9016.</p>
 </div>
 <div class="tabs">
   <div class="tab active" data-g="audsvc" data-t="aud-events">Events</div>
@@ -5223,7 +5236,7 @@ function adminAudit() {
 function loadAudEvents(){api('GET','/audit/events').then(function(r){var rows=(r.data.data||r.data||[]).slice(0,30).map(function(e){return '<tr><td><code>'+e.id+'</code></td><td>'+e.event_type+'</td><td>'+(e.actor_id||e.performed_by||'')+'</td><td>'+(e.resource_type||'')+'</td><td>'+new Date(e.created_at).toLocaleString()+'</td></tr>';}).join('');document.getElementById('ae-tbody').innerHTML=rows||'<tr><td colspan="5" style="text-align:center;color:var(--muted)">No events</td></tr>';});}
 function loadAudAlerts(){api('GET','/audit/alerts').then(function(r){var rows=(r.data.data||r.data||[]).map(function(a){return '<tr><td><code>'+a.id+'</code></td><td><span class="badge '+(a.severity==='critical'?'badge-red':a.severity==='high'?'badge-yellow':'badge-gray')+'">'+a.severity+'</span></td><td>'+(a.description||a.message||'')+'</td><td>'+a.status+'</td><td>'+new Date(a.created_at).toLocaleString()+'</td></tr>';}).join('');document.getElementById('aa-tbody').innerHTML=rows||'<tr><td colspan="5" style="text-align:center;color:var(--muted)">No alerts</td></tr>';});}
 function logAudEvent(){try{var det=JSON.parse(document.getElementById('al-details').value||'{}');api('POST','/audit/events',{actorType:'ADMIN',eventType:document.getElementById('al-action').value,description:document.getElementById('al-action').value,actorId:document.getElementById('al-actor').value,resourceType:document.getElementById('al-resource').value,metadata:det}).then(function(r){showResult('al-result',r.data,r.ok);if(r.ok)toast('Event logged','ok');});}catch(e){showResult('al-result',{error:'JSON: '+e.message},false);}}
-document.addEventListener('DOMContentLoaded', function(){initTabs('audsvc');refreshHealthBadge('aud-badge',4007);});
+document.addEventListener('DOMContentLoaded', function(){initTabs('audsvc');refreshHealthBadge('aud-badge',9016);});
 <\/script>
 `);
 }
@@ -5233,7 +5246,7 @@ function adminSettlement() {
 <div class="page-header">
   <div class="breadcrumb"><a href="/platform/monitoring">Monitoring</a><span>/</span>Settlement</div>
   <h1>Settlement Service <span id="stl-badge" class="badge badge-gray" style="vertical-align:middle;margin-left:8px"><span class="dot"></span> —</span></h1>
-  <p>Batch settlement, reconciliation, and treasury — port 4008.</p>
+  <p>Batch settlement, reconciliation, and treasury — port 9017.</p>
 </div>
 <div class="tabs">
   <div class="tab active" data-g="stlsvc" data-t="stl-eod">EOD &amp; Net</div>
@@ -5276,7 +5289,7 @@ function loadStlReversals(){api('GET','/settlement/reversals').then(function(r){
 function loadStlCb(){api('GET','/settlement/chargebacks').then(function(r){document.getElementById('stl-cb-content').innerHTML='<pre style="font-size:.78rem;white-space:pre-wrap">'+JSON.stringify(r.data,null,2)+'</pre>';});}
 function loadStlRecon(){api('GET','/settlement/reconciliation').then(function(r){document.getElementById('stl-recon-content').innerHTML='<pre style="font-size:.78rem;white-space:pre-wrap">'+JSON.stringify(r.data,null,2)+'</pre>';});}
 function loadStlTreasury(){api('GET','/settlement/treasury').then(function(r){document.getElementById('stl-treas-content').innerHTML='<pre style="font-size:.78rem;white-space:pre-wrap">'+JSON.stringify(r.data,null,2)+'</pre>';});}
-document.addEventListener('DOMContentLoaded', function(){initTabs('stlsvc');document.getElementById('stl-date').value=new Date().toISOString().split('T')[0];refreshHealthBadge('stl-badge',4008);});
+document.addEventListener('DOMContentLoaded', function(){initTabs('stlsvc');document.getElementById('stl-date').value=new Date().toISOString().split('T')[0];refreshHealthBadge('stl-badge',9017);});
 <\/script>
 `);
 }
@@ -5286,7 +5299,7 @@ function adminNotification() {
 <div class="page-header">
   <div class="breadcrumb"><a href="/platform/monitoring">Monitoring</a><span>/</span>Notification</div>
   <h1>Notification Service <span id="notif-badge" class="badge badge-gray" style="vertical-align:middle;margin-left:8px"><span class="dot"></span> —</span></h1>
-  <p>Send notifications, manage webhooks — port 4009.</p>
+  <p>Send notifications, manage webhooks — port 9018.</p>
 </div>
 <div class="tabs">
   <div class="tab active" data-g="notifsvc" data-t="notif-send">Send</div>
@@ -5321,7 +5334,7 @@ function sendNotif(){api('POST','/notification/notifications',{to:document.getEl
 function regWebhook(){api('POST','/notification/webhooks',{url:document.getElementById('wh-url').value,events:document.getElementById('wh-events').value.split(','),secret:document.getElementById('wh-secret').value}).then(function(r){showResult('wh-result',r.data,r.ok);if(r.ok)toast('Webhook registered','ok');});}
 function loadWebhooks(){api('GET','/notification/webhooks').then(function(r){document.getElementById('wh-list-content').innerHTML='<pre style="font-size:.78rem;white-space:pre-wrap">'+JSON.stringify(r.data,null,2)+'</pre>';});}
 function loadNotifHist(){api('GET','/notification/notifications').then(function(r){var rows=(r.data.data||r.data||[]).slice(0,30).map(function(n){return '<tr><td><code>'+n.id+'</code></td><td>'+n.channel+'</td><td>'+n.recipient+'</td><td><span class="badge '+(n.status==='sent'?'badge-green':n.status==='failed'?'badge-red':'badge-yellow')+'">'+n.status+'</span></td><td>'+new Date(n.created_at).toLocaleString()+'</td></tr>';}).join('');document.getElementById('nh-tbody').innerHTML=rows||'<tr><td colspan="5" style="text-align:center;color:var(--muted)">No notifications</td></tr>';});}
-document.addEventListener('DOMContentLoaded', function(){initTabs('notifsvc');refreshHealthBadge('notif-badge',4009);});
+document.addEventListener('DOMContentLoaded', function(){initTabs('notifsvc');refreshHealthBadge('notif-badge',9018);});
 <\/script>
 `);
 }
@@ -5332,7 +5345,7 @@ function adminSecurity() {
 <div class="page-header">
   <div class="breadcrumb"><a href="/platform/monitoring">Monitoring</a><span>/</span>Security</div>
   <h1>Security Service <span id="sec-badge" class="badge badge-gray" style="vertical-align:middle;margin-left:8px"><span class="dot"></span> —</span></h1>
-  <p>HMAC keys, API keys, users, roles, and certificates — port 4011.</p>
+  <p>HMAC keys, API keys, users, roles, and certificates — port 9020.</p>
 </div>
 <div class="tabs">
   <div class="tab active" data-g="secsvc" data-t="sec-hmac">HMAC Keys</div>
@@ -5377,7 +5390,7 @@ function loadSecApiKeys(){api('GET','/security/api-keys').then(function(r){var r
 function loadSecUsers(){api('GET','/security/users').then(function(r){var rows=(r.data.data||r.data||[]).map(function(u){return '<tr><td><code>'+u.id+'</code></td><td>'+u.name+'</td><td>'+u.email+'</td><td>'+u.role+'</td><td><span class="badge '+(u.status==='active'?'badge-green':'badge-gray')+'">'+u.status+'</span></td></tr>';}).join('');document.getElementById('su-tbody').innerHTML=rows||'<tr><td colspan="5" style="text-align:center;color:var(--muted)">No users</td></tr>';});}
 function loadSecEvents(){api('GET','/security/events').then(function(r){document.getElementById('se-content').innerHTML='<pre style="font-size:.78rem;white-space:pre-wrap">'+JSON.stringify(r.data,null,2)+'</pre>';});}
 function loadSecCerts(){api('GET','/security/certificates').then(function(r){document.getElementById('sc-certs-content').innerHTML='<pre style="font-size:.78rem;white-space:pre-wrap">'+JSON.stringify(r.data,null,2)+'</pre>';});}
-document.addEventListener('DOMContentLoaded', function(){initTabs('secsvc');refreshHealthBadge('sec-badge',4011);});
+document.addEventListener('DOMContentLoaded', function(){initTabs('secsvc');refreshHealthBadge('sec-badge',9020);});
 <\/script>
 `);
 }
@@ -5387,7 +5400,7 @@ function adminRouting() {
 <div class="page-header">
   <div class="breadcrumb"><a href="/platform/monitoring">Monitoring</a><span>/</span>Routing</div>
   <h1>Routing Service <span id="rt-badge" class="badge badge-gray" style="vertical-align:middle;margin-left:8px"><span class="dot"></span> —</span></h1>
-  <p>Route configuration, connections, rules, and traffic monitoring — port 4012.</p>
+  <p>Route configuration, connections, rules, and traffic monitoring — port 9021.</p>
 </div>
 <div class="tabs">
   <div class="tab active" data-g="rtsvc" data-t="rt-routes">Routes</div>
@@ -5429,7 +5442,7 @@ function loadRtRules(){api('GET','/routing/rules').then(function(r){document.get
 function loadRtHealth(){api('GET','/routing/health-summary').then(function(r){document.getElementById('rt-health-content').innerHTML='<pre style="font-size:.78rem;white-space:pre-wrap">'+JSON.stringify(r.data,null,2)+'</pre>';});}
 function loadRtTraffic(){api('GET','/routing/traffic').then(function(r){document.getElementById('rt-traffic-content').innerHTML='<pre style="font-size:.78rem;white-space:pre-wrap">'+JSON.stringify(r.data,null,2)+'</pre>';});}
 function loadRtLog(){api('GET','/routing/log').then(function(r){document.getElementById('rt-log-content').innerHTML='<pre style="font-size:.78rem;white-space:pre-wrap">'+JSON.stringify(r.data,null,2)+'</pre>';});}
-document.addEventListener('DOMContentLoaded', function(){initTabs('rtsvc');refreshHealthBadge('rt-badge',4012);});
+document.addEventListener('DOMContentLoaded', function(){initTabs('rtsvc');refreshHealthBadge('rt-badge',9021);});
 <\/script>
 `);
 }
@@ -5439,7 +5452,7 @@ function adminIso8583() {
 <div class="page-header">
   <div class="breadcrumb"><a href="/platform/monitoring">Monitoring</a><span>/</span>ISO 8583</div>
   <h1>ISO 8583 Service <span id="iso-badge" class="badge badge-gray" style="vertical-align:middle;margin-left:8px"><span class="dot"></span> —</span></h1>
-  <p>Parse, build, simulate, and monitor ISO 8583 financial messages — port 4013.</p>
+  <p>Parse, build, simulate, and monitor ISO 8583 financial messages — port 9022.</p>
 </div>
 <div class="tabs">
   <div class="tab active" data-g="isosvc" data-t="isosvc-sim">Simulate</div>
@@ -5492,7 +5505,7 @@ function loadIsoHosts(){api('GET','/iso8583/hosts').then(function(r){var rows=(r
 function loadIsoFailover(){api('GET','/iso8583/failover').then(function(r){document.getElementById('isof-content').innerHTML='<pre style="font-size:.78rem;white-space:pre-wrap">'+JSON.stringify(r.data,null,2)+'</pre>';});}
 function loadIsoMsgs(){api('GET','/iso8583/messages').then(function(r){var rows=(r.data.data||r.data||[]).slice(0,30).map(function(m){return '<tr><td><code>'+m.id+'</code></td><td><code>'+m.mti+'</code></td><td>'+(m.amount||'')+'</td><td><span class="badge '+(m.status==='approved'?'badge-green':m.status==='declined'?'badge-red':'badge-yellow')+'">'+m.status+'</span></td><td>'+new Date(m.created_at).toLocaleString()+'</td></tr>';}).join('');document.getElementById('isom-tbody').innerHTML=rows||'<tr><td colspan="5" style="text-align:center;color:var(--muted)">No messages</td></tr>';});}
 function loadIsoMetrics(){api('GET','/iso8583/metrics').then(function(r){document.getElementById('isomet-content').innerHTML='<pre style="font-size:.78rem;white-space:pre-wrap">'+JSON.stringify(r.data,null,2)+'</pre>';});}
-document.addEventListener('DOMContentLoaded', function(){initTabs('isosvc');refreshHealthBadge('iso-badge',4013);});
+document.addEventListener('DOMContentLoaded', function(){initTabs('isosvc');refreshHealthBadge('iso-badge',9022);});
 <\/script>
 `);
 }
@@ -5502,44 +5515,42 @@ function adminGateway() {
 <div class="page-header">
   <div class="breadcrumb"><a href="/platform/monitoring">Monitoring</a><span>/</span>Gateway</div>
   <h1>API Gateway <span id="gw-badge" class="badge badge-gray" style="vertical-align:middle;margin-left:8px"><span class="dot"></span> —</span></h1>
-  <p>Reverse proxy routing table — port 8080.</p>
+  <p>Reverse proxy routing table — every route resolves to the single upstream API at ${API_ORIGIN.replace(/^https?:\/\//, '')}.</p>
 </div>
 <div class="card" style="margin-bottom:20px">
   <div class="card-title" style="margin-bottom:16px">Proxy Route Table</div>
   <div class="table-wrap">
     <table>
-      <thead><tr><th>Dashboard Path</th><th>?</th><th>Service</th><th>Port</th><th>Upstream Path</th></tr></thead>
+      <thead><tr><th>Dashboard Path</th><th>?</th><th>Target</th><th>Host:Port</th><th>Upstream Path</th></tr></thead>
       <tbody>
-        <tr><td><code>/api/transactions/*</code></td><td>→</td><td>Switch Core</td><td>4010</td><td><code>/transactions/*</code></td></tr>
-        <tr><td><code>/api/acquirers/*</code></td><td>→</td><td>Switch Core</td><td>4010</td><td><code>/acquirers/*</code></td></tr>
-        <tr><td><code>/api/routing-rules/*</code></td><td>→</td><td>Switch Core</td><td>4010</td><td><code>/routing/*</code></td></tr>
-        <tr><td><code>/api/settlement-queue/*</code></td><td>→</td><td>Switch Core</td><td>4010</td><td><code>/settlement-queue/*</code></td></tr>
-        <tr><td><code>/api/wallets/entries</code></td><td>→</td><td>Ledger</td><td>4001</td><td><code>/entries</code></td></tr>
-        <tr><td><code>/api/wallets/accounts</code></td><td>→</td><td>Ledger</td><td>4001</td><td><code>/accounts</code></td></tr>
-        <tr><td><code>/api/wallets/holds/*</code></td><td>→</td><td>Ledger</td><td>4001</td><td><code>/holds/*</code></td></tr>
-        <tr><td><code>/api/transfers/*</code></td><td>→</td><td>Transfer</td><td>4005</td><td><code>/transfers/*</code></td></tr>
-        <tr><td><code>/api/crypto/withdraw</code></td><td>→</td><td>Crypto Payout</td><td>4014</td><td><code>/withdraw</code></td></tr>
-        <tr><td><code>/api/terminals/*</code></td><td>→</td><td>Terminal</td><td>4004</td><td>strips /terminals prefix for sub-resources</td></tr>
-        <tr><td><code>/api/ipwhitelist/*</code></td><td>→</td><td>IP Whitelist</td><td>4002</td><td>strips /ipwhitelist</td></tr>
-        <tr><td><code>/api/risk/*</code></td><td>→</td><td>Risk</td><td>4006</td><td>keeps /risk/ prefix</td></tr>
-        <tr><td><code>/api/settlement/*</code></td><td>→</td><td>Settlement</td><td>4008</td><td>strips /settlement</td></tr>
-        <tr><td><code>/api/security/*</code></td><td>→</td><td>Security</td><td>4011</td><td>strips /security</td></tr>
-        <tr><td><code>/api/routing/*</code></td><td>→</td><td>Routing</td><td>4012</td><td>strips /routing</td></tr>
-        <tr><td><code>/api/iso8583/*</code></td><td>→</td><td>ISO 8583</td><td>4013</td><td>strips /iso8583</td></tr>
-        <tr><td><code>/api/audit/*</code></td><td>→</td><td>Audit</td><td>4007</td><td>strips /audit</td></tr>
-        <tr><td><code>/api/notification/*</code></td><td>→</td><td>Notification</td><td>4009</td><td>strips /notification</td></tr>
-        <tr><td><code>/api/auth/*</code></td><td>→</td><td>Auth</td><td>4003</td><td>strips /auth</td></tr>
-        <tr><td><code>/api/platform/banks/*</code></td><td>→</td><td>Dashboard</td><td>${PORT}</td><td>in-memory bank store</td></tr>
-        <tr><td><code>/api/health-all</code></td><td>→</td><td>Dashboard</td><td>${PORT}</td><td>internal health check</td></tr>
+        <tr><td><code>/api/rails/*</code></td><td>→</td><td>Payment Rails</td><td>${RAILS_ORIGIN.replace(/^https?:\/\//, '')}</td><td><code>/rails/*</code></td></tr>
+        <tr><td><code>/api/wallets/accounts</code></td><td>→</td><td>API</td><td>${apiAddr}</td><td><code>/ledger/accounts</code></td></tr>
+        <tr><td><code>/api/wallets/entries</code></td><td>→</td><td>API</td><td>${apiAddr}</td><td><code>/ledger/entries</code></td></tr>
+        <tr><td><code>/api/wallets/:id/balance</code></td><td>→</td><td>API</td><td>${apiAddr}</td><td><code>/ledger/accounts/:id/balance</code></td></tr>
+        <tr><td><code>/api/wallets/holds/*</code></td><td>→</td><td>API</td><td>${apiAddr}</td><td><code>/admin/wallet-holds/*</code></td></tr>
+        <tr><td><code>/api/wallets/list</code></td><td>→</td><td>API</td><td>${apiAddr}</td><td><code>/admin/wallets</code></td></tr>
+        <tr><td><code>/api/transactions/*</code></td><td>→</td><td>API</td><td>${apiAddr}</td><td><code>/transactions/*</code></td></tr>
+        <tr><td><code>/api/transfers/*</code></td><td>→</td><td>API</td><td>${apiAddr}</td><td><code>/admin/transfers/*</code></td></tr>
+        <tr><td><code>/api/wallets/:address/*</code></td><td>→</td><td>API</td><td>${apiAddr}</td><td><code>/admin/wallets/:address/*</code></td></tr>
+        <tr><td><code>/api/merchants/*</code>, <code>/api/escrows/*</code>, <code>/api/fee-rules</code>, <code>/api/pricing-plans</code>, <code>/api/agents</code></td><td>→</td><td>API</td><td>${apiAddr}</td><td>same path under <code>/admin/*</code></td></tr>
+        <tr><td><code>/api/settlement/*</code></td><td>→</td><td>API</td><td>${apiAddr}</td><td><code>/settlement/*</code></td></tr>
+        <tr><td><code>/api/routing-rules/*</code></td><td>→</td><td>API</td><td>${apiAddr}</td><td><code>/routes</code></td></tr>
+        <tr><td><code>/api/risk/*</code></td><td>→</td><td>API</td><td>${apiAddr}</td><td><code>/fraud/*</code></td></tr>
+        <tr><td><code>/api/auth/*</code>, <code>/api/security/*</code></td><td>→</td><td>API</td><td>${apiAddr}</td><td><code>/network/*</code></td></tr>
+        <tr><td><code>/api/ipwhitelist/*</code></td><td>→</td><td>API</td><td>${apiAddr}</td><td><code>/network/ip-whitelist/*</code></td></tr>
+        <tr><td><code>/api/audit/*</code></td><td>→</td><td>API</td><td>${apiAddr}</td><td><code>/admin/audit-logs</code></td></tr>
+        <tr><td><code>/api/&lt;any other&gt;</code></td><td>→</td><td>API</td><td>${apiAddr}</td><td>pass-through, <code>/api</code> prefix stripped</td></tr>
+        <tr><td><code>/api/platform/banks/*</code></td><td>→</td><td>Console</td><td>${PORT}</td><td>in-memory bank store</td></tr>
+        <tr><td><code>/api/health-all</code></td><td>→</td><td>Console</td><td>${PORT}</td><td>internal health check</td></tr>
       </tbody>
     </table>
   </div>
 </div>
 <div class="notice notice-info">
-  The dashboard server runs on port <strong>${PORT}</strong>. The API Gateway service (port 8080) is a separate upstream proxy. The dashboard proxies all <code>/api/*</code> calls directly to the appropriate microservice, bypassing port 8080.
+  The console listens on port <strong>${PORT}</strong> and proxies every <code>/api/*</code> call to the single upstream API at <strong>${apiAddr}</strong>, signing each request with the console HMAC key and replaying the operator session. Payment rails calls go to <strong>${originAddress(RAILS_ORIGIN)}</strong>. The per-service ports listed in the health panel are display-only — no process listens on them in this deployment.
 </div>
 <script>
-document.addEventListener('DOMContentLoaded', function(){refreshHealthBadge('gw-badge',8080);});
+document.addEventListener('DOMContentLoaded', function(){refreshHealthBadge('gw-badge',9024);});
 <\/script>
 `);
 }
@@ -5548,8 +5559,11 @@ function adminCrypto() {
   return page('Crypto Payout', '/admin/svc/crypto', `
 <div class="page-header">
   <div class="breadcrumb"><a href="/platform/monitoring">Monitoring</a><span>/</span>Crypto Payout</div>
-  <h1>Crypto Payout <span id="crypto-badge" class="badge badge-gray" style="vertical-align:middle;margin-left:8px"><span class="dot"></span> —</span></h1>
-  <p>Signs and broadcasts on-chain TRC-20 transfers, then posts the matching ledger entry — port 4014.</p>
+  <h1>Crypto Payout <span class="badge badge-gray" style="vertical-align:middle;margin-left:8px"><span class="dot"></span> Not deployed</span></h1>
+  <p>Not part of this deployment. The crypto payout service exists as a standalone
+  program under <code>services/crypto-payout-service</code> and is not started by
+  <code>start-platform.mjs</code>, so no crypto payout endpoint is reachable here.
+  The reference below documents that service for when it is deployed separately.</p>
 </div>
 <div class="card" style="margin-bottom:20px">
   <div class="card-title" style="margin-bottom:12px">Supported Assets</div>
@@ -5573,7 +5587,7 @@ function adminCrypto() {
         <tr><td><code>TRON_FULL_HOST</code></td><td>Yes</td><td>TRON node / provider endpoint (e.g. <code>https://api.trongrid.io</code>)</td></tr>
         <tr><td><code>TRON_API_KEY</code></td><td>No</td><td>Provider key, sent as <code>TRON-PRO-API-KEY</code></td></tr>
         <tr><td><code>TRON_USDT_CONTRACT</code></td><td>No</td><td>Override the USDT contract address</td></tr>
-        <tr><td><code>LEDGER_SERVICE_URL</code></td><td>No</td><td>Ledger base URL (default <code>http://localhost:4001</code>)</td></tr>
+        <tr><td><code>LEDGER_SERVICE_URL</code></td><td>No</td><td>Ledger base URL (default <code>http://localhost:9010</code>)</td></tr>
       </tbody>
     </table>
   </div>
@@ -5581,9 +5595,6 @@ function adminCrypto() {
 <div class="notice notice-info">
   Withdrawals are external-first: the transfer is broadcast on-chain first, and the ledger debit is only posted after the network returns a transaction hash.
 </div>
-<script>
-document.addEventListener('DOMContentLoaded', function(){refreshHealthBadge('crypto-badge',4014);});
-<\/script>
 `);
 }
 
@@ -5595,10 +5606,17 @@ document.addEventListener('DOMContentLoaded', function(){refreshHealthBadge('cry
 const API_ALIASES = {
   '/wallets/entries':     '/ledger/entries',
   '/wallets/accounts':    '/ledger/accounts',
-  '/wallets/list':        '/wallets',
+  '/wallets/list':        '/admin/wallets',
+  '/wallets':             '/admin/wallets',
   '/accounts':            '/ledger/accounts',
   '/entries':             '/ledger/entries',
-  '/holds':               '/wallet-holds',
+  '/holds':               '/admin/wallet-holds',
+  '/escrows':             '/admin/escrows',
+  '/fee-rules':           '/admin/fee-rules',
+  '/transfers':           '/admin/transfers',
+  '/merchants':           '/admin/merchants',
+  '/pricing-plans':       '/admin/pricing-plans',
+  '/agents':              '/admin/agents',
   '/routing-rules':       '/routes',
   '/routing':             '/routes',
   '/auth/keys':           '/network/api-keys',
@@ -5626,7 +5644,7 @@ function mapApiPath(reqPath) {
   if (API_ALIASES[rest]) return API_ALIASES[rest] + qs;
 
   if (rest.startsWith('/wallets/holds/')) {
-    return '/wallet-holds/' + rest.slice('/wallets/holds/'.length) + qs;
+    return '/admin/wallet-holds/' + rest.slice('/wallets/holds/'.length) + qs;
   }
   const bal = rest.match(/^\/wallets\/([^/]+)\/balance$/);
   if (bal) return '/ledger/accounts/' + bal[1] + '/balance' + qs;
@@ -5638,8 +5656,12 @@ function mapApiPath(reqPath) {
     if (sub === '/accounts' || sub.startsWith('/accounts/')) {
       return '/ledger/accounts' + sub.slice('/accounts'.length) + qs;
     }
-    return sub + qs; // /wallets, /wallets/:address, ...
+    // Everything else the wallet module serves lives under /admin/wallets.
+    return '/admin/wallets' + sub + qs;
   }
+  if (rest.startsWith('/merchants/')) return '/admin' + rest + qs;
+  if (rest.startsWith('/transfers/')) return '/admin' + rest + qs;
+  if (rest.startsWith('/escrows/'))   return '/admin' + rest + qs;
   if (rest.startsWith('/risk/'))         return '/fraud/' + rest.slice('/risk/'.length) + qs;
   if (rest.startsWith('/ipwhitelist/'))  return '/network/ip-whitelist/' + rest.slice('/ipwhitelist/'.length) + qs;
   if (rest.startsWith('/security/'))     return '/network/' + rest.slice('/security/'.length) + qs;
@@ -7659,7 +7681,7 @@ function railsPage() {
 WISE_PROFILE_ID=your_profile_id
 WISE_ENV=live
 WISE_WEBHOOK_PUBLIC_KEY=Wise_RSA_public_key_PEM
-RAILS_PORT=8082</pre><div style="font-size:.78rem;color:var(--text2);margin-top:8px">Virtual IBANs are issued in your Wise business profile, then registered here as customers (Wise IBAN / account number) so incoming credits can be matched and forwarded.</div></div>
+RAILS_PORT=9007</pre><div style="font-size:.78rem;color:var(--text2);margin-top:8px">Virtual IBANs are issued in your Wise business profile, then registered here as customers (Wise IBAN / account number) so incoming credits can be matched and forwarded.</div></div>
 </div>
 </div>
 
@@ -7916,7 +7938,7 @@ const server = createServer((req, res) => {
     '/banking', '/settlement', '/network', '/technology', '/iso20022', '/iso8583',
     '/security', '/compliance', '/solutions', '/merchants', '/enterprises', '/partners',
     '/company', '/about', '/careers', '/contact', '/fintech-cloud', '/industries',
-    '/resources', '/support',
+    '/resources', '/support', '/pricing',
     '/terms', '/privacy', '/cookies', '/acceptable-use'
   ]);
   const canonicalPublicPath = path.length > 1 ? path.replace(/\/+$/, '') : path;
@@ -7931,7 +7953,9 @@ const server = createServer((req, res) => {
     res.end();
     return;
   }
-  if (req.method === 'GET' && publicPages.has(path)) {
+  // '/' belongs to the console launcher for signed-in operators; visitors get the
+  // public marketing site. Without this, this handler shadows the console home.
+  if (req.method === 'GET' && publicPages.has(path) && !(path === '/' && readSession(req))) {
     res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
     res.end(PUBLIC_SITE_HTML);
     return;

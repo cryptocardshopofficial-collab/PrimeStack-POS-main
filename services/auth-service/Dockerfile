@@ -16,6 +16,6 @@ COPY --from=builder --chown=appuser:appgroup /app/auth-service/node_modules ./no
 COPY --from=builder --chown=appuser:appgroup /app/auth-service/dist ./dist
 COPY --from=builder --chown=appuser:appgroup /app/auth-service/package.json ./
 USER appuser
-EXPOSE 4003
-HEALTHCHECK --interval=10s --timeout=5s --retries=3 CMD wget -qO- http://localhost:4003/health || exit 1
+EXPOSE 9012
+HEALTHCHECK --interval=10s --timeout=5s --retries=3 CMD wget -qO- http://localhost:9012/health || exit 1
 CMD ["node","dist/auth-service/src/server.js"]

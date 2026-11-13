@@ -8,7 +8,7 @@ spec:
     app.kubernetes.io/name: ledger-service
   ports:
     - name: http
-      port: 4001
+      port: 9010
       targetPort: http
 ---
 apiVersion: v1
@@ -21,7 +21,7 @@ spec:
     app.kubernetes.io/name: ip-whitelist-service
   ports:
     - name: http
-      port: 4002
+      port: 9011
       targetPort: http
 ---
 apiVersion: v1
@@ -34,7 +34,7 @@ spec:
     app.kubernetes.io/name: auth-service
   ports:
     - name: http
-      port: 4003
+      port: 9012
       targetPort: http
 ---
 apiVersion: v1
@@ -47,7 +47,7 @@ spec:
     app.kubernetes.io/name: terminal-service
   ports:
     - name: http
-      port: 4004
+      port: 9013
       targetPort: http
 ---
 apiVersion: v1
@@ -60,7 +60,7 @@ spec:
     app.kubernetes.io/name: transfer-service
   ports:
     - name: http
-      port: 4005
+      port: 9014
       targetPort: http
 ---
 apiVersion: v1
@@ -73,7 +73,7 @@ spec:
     app.kubernetes.io/name: risk-service
   ports:
     - name: http
-      port: 4006
+      port: 9015
       targetPort: http
 ---
 apiVersion: v1
@@ -86,7 +86,7 @@ spec:
     app.kubernetes.io/name: audit-service
   ports:
     - name: http
-      port: 4007
+      port: 9016
       targetPort: http
 ---
 apiVersion: v1
@@ -99,7 +99,7 @@ spec:
     app.kubernetes.io/name: api-gateway
   ports:
     - name: http
-      port: 8080
+      port: 9024
       targetPort: http
 ---
 apiVersion: v1
@@ -112,7 +112,7 @@ spec:
     app.kubernetes.io/name: settlement-service
   ports:
     - name: http
-      port: 4008
+      port: 9017
       targetPort: http
 ---
 apiVersion: v1
@@ -125,7 +125,7 @@ spec:
     app.kubernetes.io/name: notification-service
   ports:
     - name: http
-      port: 4009
+      port: 9018
       targetPort: http
 ---
 apiVersion: v1
@@ -138,7 +138,7 @@ spec:
     app.kubernetes.io/name: switch-core
   ports:
     - name: http
-      port: 4010
+      port: 9019
       targetPort: http
 ---
 apiVersion: v1
@@ -151,7 +151,7 @@ spec:
     app.kubernetes.io/name: security-service
   ports:
     - name: http
-      port: 4011
+      port: 9020
       targetPort: http
 ---
 apiVersion: v1
@@ -164,7 +164,7 @@ spec:
     app.kubernetes.io/name: routing-service
   ports:
     - name: http
-      port: 4012
+      port: 9021
       targetPort: http
 ---
 apiVersion: v1
@@ -177,5 +177,5 @@ spec:
     app.kubernetes.io/name: iso8583-gateway
   ports:
     - name: http
-      port: 4013
+      port: 9022
       targetPort: http

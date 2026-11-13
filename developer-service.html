@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=5,viewport-fit=cover">
+<title>PrimeStack GSN — Service Reference</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#020914; --bg2:#050e1e; --bg3:#081628;
+  --blue:#0ea5e9; --violet:#8b5cf6; --emerald:#10b981;
+  --gold:#f59e0b; --rose:#f43f5e;
+  --text:#e2e8f0; --muted:#64748b;
+  --border:rgba(14,165,233,.12);
+  --card:rgba(14,165,233,.03);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;line-height:1.6;overflow-x:hidden;min-height:100vh}
+h1,h2,h3,h4{font-family:'Space Grotesk',sans-serif;line-height:1.2}
+code,pre{font-family:'JetBrains Mono',monospace}
+a{color:var(--blue);text-decoration:none}
+::selection{background:rgba(14,165,233,.3)}
+body::before{
+  content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
+  background:
+    linear-gradient(rgba(14,165,233,.04) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(14,165,233,.04) 1px,transparent 1px);
+  background-size:64px 64px;opacity:.6;
+}
+.orb{position:fixed;border-radius:50%;filter:blur(130px);pointer-events:none;z-index:0}
+.orb1{width:640px;height:640px;background:rgba(14,165,233,.08);top:-200px;left:-200px}
+.orb2{width:520px;height:520px;background:rgba(139,92,246,.07);bottom:-150px;right:-150px}
+nav{
+  position:sticky;top:0;z-index:100;height:64px;display:flex;align-items:center;gap:22px;
+  padding:0 5%;background:rgba(2,9,20,.85);backdrop-filter:blur(24px);
+  border-bottom:1px solid var(--border);
+}
+.nav-logo{display:flex;align-items:center;gap:10px;font-family:'Space Grotesk',sans-serif;font-weight:600}
+.nav-logo-dot{width:11px;height:11px;border-radius:50%;background:linear-gradient(135deg,var(--blue),var(--violet));box-shadow:0 0 14px rgba(14,165,233,.6)}
+.nav-links{margin-left:auto;display:flex;gap:20px;font-size:.85rem}
+.nav-links a{color:var(--muted)}
+.nav-links a:hover{color:var(--text)}
+main{position:relative;z-index:1;max-width:1000px;margin:0 auto;padding:56px 5% 80px}
+.crumbs{font-size:.78rem;color:var(--muted);margin-bottom:18px}
+.crumbs a{color:var(--muted)}.crumbs a:hover{color:var(--blue)}
+.hero-pill{display:inline-flex;align-items:center;gap:8px;padding:6px 14px;border:1px solid var(--border);border-radius:999px;font-size:.74rem;letter-spacing:.06em;text-transform:uppercase;color:var(--blue);background:var(--card);margin-bottom:18px}
+.hero-pill-dot{width:6px;height:6px;border-radius:50%;background:var(--emerald);box-shadow:0 0 10px var(--emerald)}
+h1{font-size:clamp(1.9rem,4.5vw,2.9rem);font-weight:700;letter-spacing:-.03em;margin-bottom:12px}
+h1 span{background:linear-gradient(135deg,var(--blue),var(--violet));-webkit-background-clip:text;background-clip:text;color:transparent}
+.sub{color:var(--muted);max-width:720px;font-size:.98rem;margin-bottom:34px}
+.card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:26px 28px;margin-bottom:22px}
+.card h2{font-size:1.1rem;margin-bottom:6px;font-weight:600}
+.card p.lead{color:var(--muted);font-size:.86rem;margin-bottom:18px}
+table{width:100%;border-collapse:collapse;font-size:.83rem}
+th{text-align:left;color:var(--muted);font-weight:500;font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;padding:0 12px 10px;border-bottom:1px solid var(--border)}
+td{padding:11px 12px;border-bottom:1px solid rgba(14,165,233,.07);vertical-align:top}
+tr:last-child td{border-bottom:0}
+td code{background:var(--bg3);padding:3px 8px;border-radius:6px;font-size:.79rem;color:#7dd3fc;white-space:nowrap}
+.method{display:inline-block;min-width:52px;text-align:center;padding:2px 8px;border-radius:6px;font-size:.7rem;font-weight:600;font-family:'JetBrains Mono',monospace}
+.m-get{background:rgba(16,185,129,.14);color:var(--emerald)}
+.m-post{background:rgba(14,165,233,.14);color:var(--blue)}
+.m-patch{background:rgba(245,158,11,.14);color:var(--gold)}
+.m-delete{background:rgba(244,63,94,.14);color:var(--rose)}
+.note{display:flex;gap:12px;padding:16px 18px;border-left:3px solid var(--gold);background:rgba(245,158,11,.05);border-radius:0 10px 10px 0;font-size:.83rem;color:var(--muted)}
+.note strong{color:var(--text);display:block;margin-bottom:4px}
+pre{background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:16px 18px;overflow-x:auto;font-size:.79rem;color:#bae6fd;line-height:1.7}
+.actions{display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin-top:6px}
+button.btn{font:inherit;font-size:.85rem;font-weight:600;padding:11px 20px;border-radius:10px;border:0;cursor:pointer;background:linear-gradient(135deg,var(--blue),var(--violet));color:#fff}
+button.btn.ghost{background:transparent;border:1px solid var(--border);color:var(--text)}
+button.btn:disabled{opacity:.6;cursor:progress}
+.status{font-size:.83rem;color:var(--muted)}
+.status.ok{color:var(--emerald)}
+.status.err{color:var(--rose)}
+footer{position:relative;z-index:1;border-top:1px solid var(--border);padding:30px 5%;text-align:center;color:var(--muted);font-size:.8rem}
+footer span{color:var(--blue)}
+@media(max-width:680px){.nav-links{display:none}main{padding-top:36px}td code{white-space:normal}}
+</style>
+</head>
+<body>
+
+<div class="orb orb1"></div>
+<div class="orb orb2"></div>
+
+<nav>
+  <div class="nav-logo">
+    <div class="nav-logo-dot"></div>
+    <span>PrimeStack GSN</span>
+  </div>
+  <div class="nav-links">
+    <a href="/developer">Developer Portal</a>
+    <a href="/">Home</a>
+  </div>
+</nav>
+
+<main>
+  <div class="crumbs"><a href="/developer">Developer Portal</a> / <span id="crumb">Service</span></div>
+  <div class="hero-pill"><span class="hero-pill-dot"></span>Service Reference</div>
+  <h1 id="title">Service <span>Reference</span></h1>
+  <p class="sub" id="description">Loading service details…</p>
+
+  <section class="card">
+    <h2>Endpoints</h2>
+    <p class="lead">Paths below are relative to this console origin and are proxied to the upstream PrimeStack API. Parameters in <code>:braces</code> are path variables.</p>
+    <table>
+      <thead><tr><th>Method</th><th>Path</th><th>Purpose</th></tr></thead>
+      <tbody id="endpoints"><tr><td colspan="3" style="color:var(--muted)">Loading…</td></tr></tbody>
+    </table>
+  </section>
+
+  <section class="card">
+    <h2>Authentication</h2>
+    <p class="lead">Two schemes are accepted, depending on the route family.</p>
+    <table>
+      <thead><tr><th>Scheme</th><th>Scope</th><th>How</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><span class="method m-post">HMAC</span></td>
+          <td>Merchant &amp; agent routes</td>
+          <td>Send <code>x-primestack-key-id</code>, <code>x-primestack-timestamp</code> (ms), <code>x-primestack-nonce</code>, and <code>x-primestack-signature</code> = HMAC-SHA256 of <code>keyId + timestamp + nonce + body</code>. Timestamps must be within 5 minutes and every nonce is single-use.</td>
+        </tr>
+        <tr>
+          <td><span class="method m-get">JWT</span></td>
+          <td>Operator <code>/admin/*</code> routes</td>
+          <td>Obtain a token from <code>POST /api/admin/login</code> and replay it as <code>Authorization: Bearer &lt;token&gt;</code>.</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section class="card">
+    <h2>Live connectivity</h2>
+    <p class="lead">Checks the upstream API through this console's own proxy.</p>
+    <div class="actions">
+      <button class="btn" id="check" type="button">Check API health</button>
+      <span class="status" id="status">Not checked yet.</span>
+    </div>
+  </section>
+
+  <div class="note">
+    <div>
+      <strong>Full API surface</strong>
+      The complete, always-current request/response schema for every route is published by the API's own OpenAPI document at <code>/docs</code>. Use this page for orientation, and <code>/docs</code> for exact payload shapes.
+    </div>
+  </div>
+</main>
+
+<footer>
+  Powered by PrimeStack <span>Technologies LLC</span> — PrimeStack Global Server Network
+</footer>
+
+<script>
+(function () {
+  var SERVICES = {
+    't2t': {
+      title: 'Terminal-to-Terminal',
+      description: 'Signed, idempotent transfers initiated from an approved sending terminal. Each request carries an HMAC signature and a single-use nonce, and is checked against terminal status, IP allowlist, currency, and available balance before the ledger is touched.',
+      endpoints: [
+        ['POST', '/api/t2t/ping', 'Signed connectivity probe from a registered sending terminal'],
+        ['POST', '/api/transfers', 'Create a transfer from the authenticated terminal'],
+        ['POST', '/api/transfers/bulk', 'Create several transfers in one idempotent request'],
+        ['GET',  '/api/transfers/:reference', 'Retrieve a transfer by its reference'],
+        ['POST', '/api/transfers/:reference/reverse', 'Reverse a previously posted transfer']
+      ]
+    },
+    's2s': {
+      title: 'Server-to-Server',
+      description: 'Peer connections between two PrimeStack deployments. Connections carry their own shared secret, requests are signature-verified with replay protection, and inbound payments post to the ledger with a linked journal entry so they can be reversed cleanly.',
+      endpoints: [
+        ['GET',  '/api/s2s/connections', 'List configured peer connections'],
+        ['POST', '/api/s2s/connections', 'Create a peer connection'],
+        ['POST', '/api/s2s/connections/:id/rotate-secret', 'Rotate a connection shared secret'],
+        ['POST', '/api/s2s/connections/:id/ping', 'Verify a peer connection end to end'],
+        ['POST', '/api/s2s/connections/:id/receive', 'Accept a signed inbound payment'],
+        ['GET',  '/api/s2s/payments', 'List inbound and outbound payments'],
+        ['POST', '/api/s2s/payments/:id/reverse', 'Reverse a payment that has a linked journal entry'],
+        ['GET',  '/api/s2s/withdrawals', 'List withdrawals raised against held balances'],
+        ['POST', '/api/s2s/withdrawals', 'Raise a withdrawal'],
+        ['GET',  '/api/s2s/receipt-templates', 'List receipt templates'],
+        ['POST', '/api/s2s/receipt-templates', 'Create a receipt template'],
+        ['POST', '/api/s2s/receipt-templates/upload', 'Upload a receipt template']
+      ]
+    },
+    'external-terminal': {
+      title: 'External Terminals',
+      description: 'Registration and lifecycle control for merchant-owned terminals — activation, health reporting, remote commands, EMV parameter download, and firmware versions. Administrators review every registration request before a terminal becomes active.',
+      endpoints: [
+        ['POST', '/api/public/terminal-registration', 'Public registration request for a new terminal'],
+        ['GET',  '/api/agent/terminal-registration-requests', 'Registration requests visible to the signed-in agent'],
+        ['POST', '/api/agent/terminal-registration-requests', 'Submit a registration request on behalf of a merchant'],
+        ['GET',  '/api/terminals', 'List terminals'],
+        ['POST', '/api/terminals', 'Register a terminal'],
+        ['GET',  '/api/terminals/:id/health', 'Read last reported terminal health'],
+        ['POST', '/api/terminals/:id/health', 'Record a terminal health report'],
+        ['POST', '/api/terminals/commands', 'Queue a remote command'],
+        ['GET',  '/api/terminals/:id/commands', 'List commands issued to a terminal'],
+        ['GET',  '/api/terminals/:id/emv', 'Read EMV parameters'],
+        ['GET',  '/api/terminals/firmware/versions', 'List firmware versions']
+      ]
+    },
+    'api': {
+      title: 'API Gateway',
+      description: 'Outbound webhooks and request logging. Webhook subscriptions are dispatched over HTTPS with retries, and every delivery attempt is recorded so failures can be replayed deliberately.',
+      endpoints: [
+        ['GET',  '/api/api-gateway/webhooks', 'List webhook subscriptions'],
+        ['POST', '/api/api-gateway/webhooks', 'Create a webhook subscription'],
+        ['DELETE', '/api/api-gateway/webhooks/:webhookId', 'Remove a webhook subscription'],
+        ['POST', '/api/api-gateway/webhooks/dispatch', 'Dispatch an event to subscribers'],
+        ['GET',  '/api/api-gateway/webhooks/deliveries', 'Delivery history'],
+        ['GET',  '/api/api-gateway/logs', 'Gateway request log']
+      ]
+    },
+    'security': {
+      title: 'Keys, Certificates & Allowlists',
+      description: 'The credentials that protect every other service: signer HMAC keys, API keys, X.509 certificates with expiry tracking, and the administrator-managed IP allowlist that gates inbound traffic.',
+      endpoints: [
+        ['GET',  '/api/network/ip-whitelist', 'List allowlisted addresses'],
+        ['POST', '/api/network/ip-whitelist', 'Add an allowlisted address'],
+        ['DELETE', '/api/network/ip-whitelist/:id', 'Remove an allowlisted address'],
+        ['GET',  '/api/network/hmac-keys', 'List signer HMAC keys'],
+        ['POST', '/api/network/hmac-keys', 'Issue a signer HMAC key'],
+        ['POST', '/api/network/hmac-keys/:keyId/rotate', 'Rotate a key'],
+        ['POST', '/api/network/hmac-keys/:keyId/revoke', 'Revoke a key'],
+        ['GET',  '/api/network/api-keys', 'List API keys'],
+        ['POST', '/api/network/api-keys', 'Create an API key'],
+        ['GET',  '/api/network/certificates', 'List certificates'],
+        ['GET',  '/api/network/certificates/expiring', 'Certificates approaching expiry']
+      ]
+    },
+    'banking': {
+      title: 'Banking & Funding Rails',
+      description: 'Saved bank connections and account profiles, plus the pass-through funding rails. The platform is a routing layer, not a vault: customers register their own accounts and funds are routed onward rather than held.',
+      endpoints: [
+        ['GET',  '/api/admin/bank-connections', 'List saved bank connections'],
+        ['POST', '/api/admin/bank-connections', 'Add a bank connection'],
+        ['POST', '/api/admin/bank-connections/:id/test', 'Test a bank connection'],
+        ['GET',  '/api/platform/banks', 'Bank directory'],
+        ['POST', '/api/platform/banks', 'Save a bank record'],
+        ['DELETE', '/api/platform/banks/:id', 'Remove a bank record'],
+        ['POST', '/api/platform/banks/:id/test', 'Test a saved bank record'],
+        ['GET',  '/api/admin/bank-account-profiles', 'List beneficiary account profiles'],
+        ['POST', '/api/admin/bank-account-profiles', 'Create a beneficiary account profile'],
+        ['GET',  '/api/rails/customers', 'Rails customers'],
+        ['POST', '/api/rails/customers', 'Register a rails customer']
+      ]
+    },
+    'wallets': {
+      title: 'Wallets & Holds',
+      description: 'Wallet lifecycle on top of the double-entry ledger — creation, balances, funding, internal transfers, statements, and holds. Every movement is journal-backed; nothing is credited without a balancing pair of ledger lines.',
+      endpoints: [
+        ['GET',  '/api/wallets', 'List wallets'],
+        ['POST', '/api/wallets', 'Create a wallet'],
+        ['GET',  '/api/wallets/:address', 'Retrieve a wallet'],
+        ['GET',  '/api/wallets/:address/balance', 'Read the wallet balance from the ledger'],
+        ['POST', '/api/wallets/:address/fund', 'Fund a wallet'],
+        ['POST', '/api/wallets/:address/transfer', 'Transfer between wallets'],
+        ['GET',  '/api/wallets/:address/statement', 'Wallet statement'],
+        ['POST', '/api/wallets/:address/beneficiaries', 'Add a payout beneficiary'],
+        ['GET',  '/api/wallets/:address/virtual-accounts', 'List virtual accounts'],
+        ['POST', '/api/wallets/:address/virtual-accounts', 'Create a virtual account'],
+        ['GET',  '/api/holds', 'List wallet holds'],
+        ['POST', '/api/holds', 'Place a hold on a balance'],
+        ['POST', '/api/holds/:reference/release', 'Release an active hold']
+      ]
+    },
+    'iso20022': {
+      title: 'ISO 20022 Engine',
+      description: 'Generates, validates, parses, and acknowledges ISO 20022 payment messages (pain.001, pain.002, pacs.008 containers), including ACCC/RJCT acknowledgement. Ledger crediting is disabled unless a dedicated ledger signing secret of at least 32 bytes is configured.',
+      endpoints: [
+        ['POST', '/iso20022/generate', 'Build a message container from inputs'],
+        ['POST', '/iso20022/validate', 'Validate metadata, identifiers, hashes, and balances'],
+        ['POST', '/iso20022/parse', 'Parse an existing container'],
+        ['POST', '/iso20022/ack', 'Generate an ACCC or RJCT acknowledgement'],
+        ['POST', '/iso20022/pain001', 'Generate pain.001 payment initiation'],
+        ['POST', '/iso20022/pain002', 'Generate pain.002 status report'],
+        ['GET',  '/iso20022/templates', 'List available templates'],
+        ['GET',  '/iso20022/schemas', 'List loaded XSD schemas'],
+        ['POST', '/iso20022/ledger-credit', 'Post a validated container to the ledger']
+      ],
+      note: 'The ISO 20022 engine runs as its own process on port 9008. These paths are called directly against that process, not through the /api proxy, and ledger-credit stays disabled until ISO20022_LEDGER_HMAC_SECRET is set to 32 bytes or more.'
+    },
+    'iso8583': {
+      title: 'ISO 8583 Gateway',
+      description: 'Card-present message handling — parsing and building ISO 8583 messages, maintaining host connection definitions, and retaining traces for reconciliation. Host connections are defined per deployment and are not connected until configured.',
+      endpoints: [
+        ['POST', '/api/iso8583/parse', 'Parse a raw ISO 8583 message'],
+        ['POST', '/api/iso8583/build', 'Build an ISO 8583 message'],
+        ['GET',  '/api/iso8583/hosts', 'List host connections'],
+        ['POST', '/api/iso8583/hosts', 'Define a host connection'],
+        ['GET',  '/api/iso8583/hosts/:id', 'Retrieve a host connection'],
+        ['GET',  '/api/iso8583/traces', 'Retained message traces']
+      ]
+    },
+    'ping': {
+      title: 'Connectivity & Health',
+      description: 'The probes used to confirm a deployment is reachable and authorised before any payment traffic is sent. Ping endpoints are signed exactly like real requests, so a successful ping proves credentials, clock skew, and the IP allowlist are all correct.',
+      endpoints: [
+        ['GET',  '/api/health', 'Liveness probe — no authentication required'],
+        ['GET',  '/api/health-all', 'Per-service status panel data'],
+        ['POST', '/api/t2t/ping', 'Signed terminal-to-terminal connectivity probe'],
+        ['POST', '/api/s2s/connections/:id/ping', 'Signed server-to-server probe'],
+        ['GET',  '/api/monitoring/dashboard', 'Rolling service metrics'],
+        ['GET',  '/api/monitoring/errors', 'Recent error events']
+      ]
+    }
+  };
+
+  var slug = (location.pathname.split('/')[2] || '').toLowerCase().replace(/[^a-z0-9-]/g, '');
+  var svc = SERVICES[slug];
+
+  var crumb = document.getElementById('crumb');
+  var titleEl = document.getElementById('title');
+  var descEl = document.getElementById('description');
+  var body = document.getElementById('endpoints');
+
+  if (!svc) {
+    crumb.textContent = slug || 'Unknown';
+    titleEl.innerHTML = 'Service <span>not found</span>';
+    descEl.textContent = 'No reference page is published for "' + (slug || '(empty)') + '". Return to the developer portal to browse the documented services.';
+    body.innerHTML = '<tr><td colspan="3" style="color:var(--muted)">Unavailable.</td></tr>';
+    return;
+  }
+
+  document.title = 'PrimeStack GSN — ' + svc.title;
+  crumb.textContent = svc.title;
+  titleEl.innerHTML = svc.title.replace(/\s+(\S+)$/, ' <span>$1</span>');
+  descEl.textContent = svc.description;
+
+  body.innerHTML = svc.endpoints.map(function (row) {
+    var cls = 'm-' + row[0].toLowerCase();
+    return '<tr><td><span class="method ' + cls + '">' + row[0] + '</span></td>' +
+           '<td><code>' + row[1] + '</code></td>' +
+           '<td>' + row[2] + '</td></tr>';
+  }).join('');
+
+  if (svc.note) {
+    body.insertAdjacentHTML('afterend',
+      '<div class="note" style="margin-top:18px"><div><strong>Deployment note</strong>' + svc.note + '</div></div>');
+  }
+
+  var btn = document.getElementById('check');
+  var status = document.getElementById('status');
+  btn.addEventListener('click', function () {
+    btn.disabled = true;
+    status.className = 'status';
+    status.textContent = 'Checking…';
+    var started = Date.now();
+    fetch('/api/health', { headers: { accept: 'application/json' } })
+      .then(function (r) {
+        return r.json().then(function (d) { return { ok: r.ok, data: d }; });
+      })
+      .then(function (res) {
+        var ms = Date.now() - started;
+        status.className = 'status ' + (res.ok ? 'ok' : 'err');
+        status.textContent = res.ok
+          ? 'API reachable in ' + ms + ' ms — ' + (res.data && res.data.status ? res.data.status : 'ok')
+          : 'API responded HTTP ' + (res.data && res.data.error ? res.data.error : 'error');
+      })
+      .catch(function (e) {
+        status.className = 'status err';
+        status.textContent = 'API unreachable: ' + e.message;
+      })
+      .then(function () { btn.disabled = false; });
+  });
+})();
+</script>
+<script type="module" src="/cinematic-theme.js"></script>
+</body>
+</html>

@@ -44,7 +44,9 @@ async function main() {
         type: acct.type,
         subtype: acct.subtype,
         currency: "USD",
-        balance: process.env.NODE_ENV === "production" ? 0 : 1000000,
+        // Ledger accounts always open at zero. Balances must only ever be
+        // produced by balanced journal entries, never provisioned by the seed.
+        balance: 0,
       },
     });
     console.log(`  ✓ ${acct.code}`);

@@ -16,6 +16,6 @@ COPY --from=builder --chown=appuser:appgroup /app/ip-whitelist-service/node_modu
 COPY --from=builder --chown=appuser:appgroup /app/ip-whitelist-service/dist ./dist
 COPY --from=builder --chown=appuser:appgroup /app/ip-whitelist-service/package.json ./
 USER appuser
-EXPOSE 4002
-HEALTHCHECK --interval=10s --timeout=5s --retries=3 CMD wget -qO- http://localhost:4002/health || exit 1
+EXPOSE 9011
+HEALTHCHECK --interval=10s --timeout=5s --retries=3 CMD wget -qO- http://localhost:9011/health || exit 1
 CMD ["node","dist/ip-whitelist-service/src/server.js"]

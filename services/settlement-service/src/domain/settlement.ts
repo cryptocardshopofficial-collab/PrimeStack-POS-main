@@ -27,7 +27,7 @@ export class SettlementError extends Error {
   }
 }
 
-const LEDGER_URL = process.env.LEDGER_SERVICE_URL ?? "http://localhost:4001";
+const LEDGER_URL = process.env.LEDGER_SERVICE_URL ?? "http://localhost:9010";
 
 /**
  * Open a new settlement batch for a merchant and period.

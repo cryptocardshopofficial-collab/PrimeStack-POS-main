@@ -65,26 +65,37 @@ echo ----------------------------------------------
 docker compose ps --format "table {{.Name}}\t{{.Status}}" 2>nul
 echo.
 
-REM -- Step 4: Start dashboard server + beep + open browser --
-echo [4/4] Starting dashboard server on port 8081...
+REM -- Step 4: Start public website and dashboard + beep + open browser --
+echo [4/4] Starting public website on port 9004 and dashboard on port 9005...
 cd /d "d:\PrimeStack Asset Gateway"
 
-REM Kill any existing process on port 8081
-for /f "tokens=5" %%p in ('netstat -ano ^| findstr ":8081" ^| findstr "LISTENING"') do taskkill /PID %%p /F >nul 2>&1
+set "WEBSITE_PORT=9004"
+set "DASHBOARD_PORT=9005"
+set "SERVE_PUBLIC_SITE=false"
+
+REM Stop only existing PrimeStack website/dashboard processes on these ports.
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$ports = @(9004,9005); foreach ($port in $ports) { $listeners = Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue; foreach ($listener in $listeners) { $process = Get-CimInstance Win32_Process -Filter ('ProcessId = ' + $listener.OwningProcess); if (($port -eq 9004 -and $process.CommandLine -match 'start-public-site\.js') -or ($port -eq 9005 -and $process.CommandLine -match 'start-dashboard\.js|start-platform\.mjs')) { Stop-Process -Id $listener.OwningProcess -Force; Write-Output ('  Stopped existing PrimeStack process on port ' + $port) } } }"
 
 REM Start dashboard server in a minimized window (more reliable than start /b with redirection)
 start "PrimeStack Dashboard" /min cmd /c "node start-dashboard.js"
+start "PrimeStack Website" /min cmd /c "node start-public-site.js"
 
-echo Waiting 5 seconds for dashboard to start...
+echo Waiting 5 seconds for website and dashboard to start...
 timeout /t 5 /nobreak >nul
 
-REM Verify dashboard is running
-curl -s http://localhost:8081/health >nul 2>&1
+REM Verify both web servers are running.
+curl -fsS http://localhost:9005/health >nul 2>&1
 if errorlevel 1 (
     echo WARNING: Dashboard may not have started. Check if Node.js is on PATH.
     echo You can start it manually: node start-dashboard.js
 ) else (
-    echo OK: Dashboard is running on port 8081
+    echo OK: Dashboard is running on port 9005
+)
+curl -fsS http://localhost:9004/health >nul 2>&1
+if errorlevel 1 (
+    echo WARNING: Public website may not have started. Try: npm run website
+) else (
+    echo OK: Public website is running on port 9004
 )
 
 REM Beep 3 times
@@ -94,44 +105,48 @@ echo.
 echo ============================================
 echo   PRIMESTACK SWITCH IS RUNNING
 echo.
+echo   Public Website:
+echo     Website:     http://localhost:9004
+echo.
 echo   Dashboards:
-echo     Operations:  http://localhost:8081/ops
-echo     Admin:       http://localhost:8081/admin/dashboard
-echo     Merchant:    http://localhost:8081/admin/merchant-dashboard
+echo     Operations:  http://localhost:9005/ops
+echo     Admin:       http://localhost:9005/admin/dashboard
+echo     Merchant:    http://localhost:9005/admin/merchant-dashboard
 echo.
 echo   API Endpoints:
-echo     Health All:  http://localhost:8081/admin/health-all
-echo     Live Data:   http://localhost:8081/admin/live-data
-echo     Gateway:     http://localhost:8080/health
+echo     Health All:  http://localhost:9005/admin/health-all
+echo     Live Data:   http://localhost:9005/admin/live-data
+echo     Gateway:     http://localhost:9024/health
 echo.
 echo   Services (all on Docker):
-echo     4001  Ledger Service
-echo     4002  IP Whitelist
-echo     4003  Auth Service
-echo     4004  Terminal Service (TMS)
-echo     4005  Transfer Service
-echo     4006  Risk Engine
-echo     4007  Audit Service
-echo     4008  Settlement Engine
-echo     4009  Notification Service
-echo     4010  Switch Core
-echo     4011  Security Service
-echo     4012  Routing Engine
-echo     4013  ISO 8583 Gateway
-echo     4014  Crypto Payout Service
-echo     8080  API Gateway (external)
+echo     9010  Ledger Service
+echo     9011  IP Whitelist
+echo     9012  Auth Service
+echo     9013  Terminal Service (TMS)
+echo     9014  Transfer Service
+echo     9015  Risk Engine
+echo     9016  Audit Service
+echo     9017  Settlement Engine
+echo     9018  Notification Service
+echo     9019  Switch Core
+echo     9020  Security Service
+echo     9021  Routing Engine
+echo     9022  ISO 8583 Gateway
+echo     9023  Crypto Payout Service
+echo     9024  API Gateway (external)
 echo.
 echo   Stop:  stop-primestack.bat
 echo   Logs:  cd services ^&^& docker compose logs -f
 echo ============================================
 echo.
 
-REM Open operations hub in browser
-start "" "http://localhost:8081/ops"
+REM Open the public website and operations hub in the browser.
+start "" "http://localhost:9004/"
+start "" "http://localhost:9005/ops"
 
 REM Wait 2 seconds then open admin dashboard too
 timeout /t 2 /nobreak >nul
-start "" "http://localhost:8081/admin/dashboard"
+start "" "http://localhost:9005/admin/dashboard"
 
 echo Operations hub opened in browser.
 echo Keep this window open. Close it to stop.

@@ -37,10 +37,15 @@ export async function errorHandlerPlugin(app: FastifyInstance): Promise<void> {
 
     // Our domain errors
     if (error instanceof AppError) {
-      // Attempt i18n translation of the error code
+      // Attempt i18n translation of the error code. Every locale template that
+      // carries a {{message}} placeholder expects this argument to be present —
+      // without it i18next returns the raw template ("Validation failed:
+      // {{message}}") and the real reason is lost.
       const message = request.t
-        ? request.t(`errors:${error.code}`, error.details as Record<string, unknown>) ||
-          error.message
+        ? request.t(`errors:${error.code}`, {
+            message: error.message,
+            ...(error.details || {}),
+          }) || error.message
         : error.message;
 
       return reply.status(error.statusCode).send({

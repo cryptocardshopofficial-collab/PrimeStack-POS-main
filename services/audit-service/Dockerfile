@@ -16,6 +16,6 @@ COPY --from=builder --chown=appuser:appgroup /app/audit-service/node_modules ./n
 COPY --from=builder --chown=appuser:appgroup /app/audit-service/dist ./dist
 COPY --from=builder --chown=appuser:appgroup /app/audit-service/package.json ./
 USER appuser
-EXPOSE 4007
-HEALTHCHECK --interval=10s --timeout=5s --retries=3 CMD wget -qO- http://localhost:4007/health || exit 1
+EXPOSE 9016
+HEALTHCHECK --interval=10s --timeout=5s --retries=3 CMD wget -qO- http://localhost:9016/health || exit 1
 CMD ["node","dist/audit-service/src/server.js"]

@@ -15,6 +15,6 @@ COPY --from=builder --chown=appuser:appgroup /app/security-service/node_modules 
 COPY --from=builder --chown=appuser:appgroup /app/security-service/dist ./dist
 COPY --from=builder --chown=appuser:appgroup /app/security-service/package.json ./
 USER appuser
-EXPOSE 4011
-HEALTHCHECK --interval=10s --timeout=5s --retries=3 CMD wget -qO- http://localhost:4011/health || exit 1
+EXPOSE 9020
+HEALTHCHECK --interval=10s --timeout=5s --retries=3 CMD wget -qO- http://localhost:9020/health || exit 1
 CMD ["node","dist/security-service/src/server.js"]

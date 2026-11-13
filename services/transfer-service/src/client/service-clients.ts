@@ -9,9 +9,9 @@
  * by Node.js's built-in keep-alive.
  */
 
-const LEDGER_URL  = process.env.LEDGER_SERVICE_URL  ?? "http://localhost:4001";
-const RISK_URL    = process.env.RISK_SERVICE_URL    ?? "http://localhost:4006";
-const TERMINAL_URL = process.env.TERMINAL_SERVICE_URL ?? "http://localhost:4004";
+const LEDGER_URL  = process.env.LEDGER_SERVICE_URL  ?? "http://localhost:9010";
+const RISK_URL    = process.env.RISK_SERVICE_URL    ?? "http://localhost:9015";
+const TERMINAL_URL = process.env.TERMINAL_SERVICE_URL ?? "http://localhost:9013";
 
 type ServiceResponse<T> =
   | { success: true;  data: T }

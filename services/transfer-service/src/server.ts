@@ -2,7 +2,7 @@ import { Pool }         from "pg";
 import { startServer }  from "../../shared/src/http-server.js";
 import { buildRoutes }  from "./api/routes.js";
 
-const PORT = parseInt(process.env.PORT ?? "4005", 10);
+const PORT = parseInt(process.env.PORT ?? "9014", 10);
 
 const pool = new Pool({
   host:     process.env.PGHOST     ?? "localhost",

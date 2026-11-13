@@ -47,7 +47,7 @@ export const config = {
   app: {
     name: required("APP_NAME", "primestack-global-server-network"),
     env: required("NODE_ENV", "development"),
-    port: int("PORT", 8081),
+    port: int("PORT", 9006),
     host: required("HOST", "0.0.0.0"),
     logLevel: required("LOG_LEVEL", "info"),
     trustedProxies: required("TRUSTED_PROXIES", "")
@@ -99,7 +99,7 @@ export const config = {
       : required("S2S_SECRET_KEY", "0000000000000000000000000000000000000000000000000000000000000000"),
   },
   cors: {
-    origins: list("CORS_ORIGINS", process.env.NODE_ENV === "production" ? [] : ["http://localhost:3000", "http://localhost:8081"]),
+    origins: list("CORS_ORIGINS", process.env.NODE_ENV === "production" ? [] : ["http://localhost:9004", "http://localhost:9005", "http://localhost:9006"]),
   },
   wise: {
     enabled: required("WISE_VIRTUAL_ACCOUNTS_ENABLED", "false").toLowerCase() === "true",

@@ -15,6 +15,6 @@ COPY --from=builder --chown=appuser:appgroup /app/switch-core/node_modules ./nod
 COPY --from=builder --chown=appuser:appgroup /app/switch-core/dist ./dist
 COPY --from=builder --chown=appuser:appgroup /app/switch-core/package.json ./
 USER appuser
-EXPOSE 4010
-HEALTHCHECK --interval=10s --timeout=5s --retries=3 CMD wget -qO- http://localhost:4010/health || exit 1
+EXPOSE 9019
+HEALTHCHECK --interval=10s --timeout=5s --retries=3 CMD wget -qO- http://localhost:9019/health || exit 1
 CMD ["node","dist/switch-core/src/server.js"]
