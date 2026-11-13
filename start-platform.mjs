@@ -13,7 +13,8 @@ const API_PORT = process.env.API_PORT || '9006';
 
 // The console reads these at import time.
 process.env.API_PORT = API_PORT;
-process.env.PRIMESTACK_API_URL = process.env.PRIMESTACK_API_URL || `http://127.0.0.1:${API_PORT}`;
+// This launcher owns the API process, so ignore inherited URLs for retired services.
+process.env.PRIMESTACK_API_URL = `http://127.0.0.1:${API_PORT}`;
 
 // The API resolves its listen port from PORT — set it before importing.
 process.env.PORT = API_PORT;
