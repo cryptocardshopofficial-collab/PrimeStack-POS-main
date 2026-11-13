@@ -118,10 +118,22 @@ Invoke-WebRequest http://localhost:9006/health | Select-Object -ExpandProperty C
 # http://localhost:9006/api-gateway/info  — API overview
 ```
 
-For the local public website and dashboard, start `node start-dashboard.js` on
-port `9005`, then run `npm run website` for the public site on port `9004`.
-The website's sign-in and API requests are routed through the dashboard. The
-root API remains on port `9006`.
+The public website and operator dashboard run independently on separate ports.
+Start each command in its own terminal:
+
+```powershell
+npm start                 # API on port 9006
+node start-dashboard.js   # operator dashboard on port 9005
+npm run website           # public website on port 9004
+```
+
+The public website's sign-in and API requests are routed through the dashboard,
+but the dashboard no longer serves the public marketing pages. The Render
+Blueprint likewise deploys `primestack-platform` (dashboard + API) and
+`primestack-public-site` as separate web services. Render assigns each service
+its own URL; the public-site service receives the dashboard URL automatically.
+The existing `primestack-website` static site remains the documentation site
+served from `./docs`.
 
 ---
 
