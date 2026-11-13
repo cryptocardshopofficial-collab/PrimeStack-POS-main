@@ -1,0 +1,1 @@
+-- No schema changes; retained as a historical migration placeholder.

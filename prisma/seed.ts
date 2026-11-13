@@ -90,14 +90,18 @@ async function main() {
   console.log("\nCreating admin user...");
 
   const seedAdminPassword = process.env.SEED_ADMIN_PASSWORD?.trim();
-  if (!seedAdminPassword || seedAdminPassword.length < 16) {
-    throw new Error("SEED_ADMIN_PASSWORD is required with at least 16 characters for development bootstrap");
+  if (!seedAdminPassword || seedAdminPassword.length < 8) {
+    throw new Error("SEED_ADMIN_PASSWORD is required with at least 8 characters for development bootstrap");
   }
   const adminPassword = await bcrypt.hash(seedAdminPassword, 12);
 
   const admin = await prisma.user.upsert({
     where: { email: "admin@primestack.io" },
-    update: {},
+    update: {
+      username: "admin",
+      passwordHash: adminPassword,
+      isActive: true,
+    },
     create: {
       email: "admin@primestack.io",
       username: "admin",

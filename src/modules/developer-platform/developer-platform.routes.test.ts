@@ -110,4 +110,27 @@ describe("Developer Platform admin routes", () => {
     expect(adminResponse.json().data.secret).toBe("one-time-secret");
     expect(service.createAgentKey).toHaveBeenCalledWith("agent-id");
   });
+
+  it("requires the KYC workflow for agent creation and status changes", async () => {
+    const legacyPage = await app.inject({
+      method: "GET",
+      url: "/admin/agent-registration-dashboard",
+    });
+    const create = await app.inject({
+      method: "POST",
+      url: "/admin/developer-platform/agents",
+      headers: { "x-test-role": "ADMIN" },
+      payload: { code: "legacy-agent" },
+    });
+    const approve = await app.inject({
+      method: "PATCH",
+      url: "/admin/developer-platform/agents/agent-id",
+      headers: { "x-test-role": "ADMIN" },
+      payload: { status: "APPROVED" },
+    });
+
+    expect(legacyPage.statusCode).toBe(410);
+    expect(create.statusCode).toBe(410);
+    expect(approve.statusCode).toBe(410);
+  });
 });

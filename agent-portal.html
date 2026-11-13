@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Agent Dashboard | PrimeStack</title>
+  <style>
+    :root{color-scheme:dark;font:16px/1.5 Inter,system-ui,sans-serif;background:#0b1020;color:#eef4ff}
+    *{box-sizing:border-box}
+    body{margin:0;min-height:100vh;display:grid;place-items:center;padding:24px}
+    main{width:min(100%,520px)}
+    .card{padding:26px;border:1px solid #26334c;border-radius:14px;background:#121a2b;box-shadow:0 20px 60px #0005}
+    h1{margin:0 0 6px;font-size:1.7rem}
+    p{color:#aeb6c4}
+    label{display:grid;gap:6px;margin:15px 0;color:#c5cfdd;font-size:.9rem}
+    input{height:46px;padding:0 12px;border:1px solid #33425d;border-radius:8px;background:#0b1220;color:#fff;font:inherit}
+    button{min-height:44px;padding:0 14px;border:1px solid #087c9a;border-radius:8px;background:#083747;color:#dffaff;font:inherit;font-weight:650;cursor:pointer}
+    button:disabled{opacity:.6;cursor:wait}
+    .error{min-height:1.5em;color:#ff9da5}
+    .profile[hidden],.login[hidden]{display:none}
+    .profile-code{font-family:ui-monospace,monospace;color:#85eaff}
+    .status{display:inline-block;padding:3px 9px;border-radius:99px;background:#10281f;color:#73e5a2;font-size:.82rem;font-weight:700}
+  </style>
+</head>
+<body>
+  <main>
+    <section class="card login" id="agent-login-panel">
+      <h1>Agent Dashboard</h1>
+      <p>Sign in with the agent code and one-time PIN provided by your administrator. Access is enabled after KYC approval.</p>
+      <form id="agent-login-form">
+        <label>Agent code<input name="code" autocomplete="username" required maxlength="50"></label>
+        <label>12-digit login PIN<input name="pin" type="password" inputmode="numeric" pattern="[0-9]{12}" autocomplete="current-password" required maxlength="12"></label>
+        <button type="submit" id="agent-login-button">Sign in</button>
+      </form>
+      <div class="error" id="agent-login-error" role="alert"></div>
+    </section>
+    <section class="card profile" id="agent-profile-panel" hidden>
+      <h1>Agent Dashboard</h1>
+      <p>Welcome, <strong id="agent-name"></strong>.</p>
+      <p>Agent code: <span class="profile-code" id="agent-code"></span></p>
+      <p>KYC status: <span class="status" id="agent-status"></span></p>
+      <p>Your dashboard access is limited to your own agent account.</p>
+      <button type="button" id="agent-sign-out">Sign out</button>
+    </section>
+  </main>
+  <script>
+  (() => {
+    const tokenKey = "primeStackAgentPortalToken";
+    const loginPanel = document.getElementById("agent-login-panel");
+    const profilePanel = document.getElementById("agent-profile-panel");
+    const error = document.getElementById("agent-login-error");
+    async function loadProfile(token) {
+      const response = await fetch("/api/public/agent-portal/profile", {
+        headers: { Accept: "application/json", Authorization: "Bearer " + token },
+        cache: "no-store"
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok || payload.success !== true) throw new Error("Session expired. Sign in again.");
+      document.getElementById("agent-name").textContent = payload.data.fullName;
+      document.getElementById("agent-code").textContent = payload.data.code;
+      document.getElementById("agent-status").textContent = payload.data.status;
+      loginPanel.hidden = true;
+      profilePanel.hidden = false;
+    }
+    document.getElementById("agent-login-form").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      error.textContent = "";
+      const button = document.getElementById("agent-login-button");
+      const form = event.currentTarget;
+      const formData = new FormData(form);
+      const pinInput = form.elements.namedItem("pin");
+      button.disabled = true;
+      button.textContent = "Signing in…";
+      try {
+        const response = await fetch("/api/public/agent-portal/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Accept: "application/json" },
+          body: JSON.stringify(Object.fromEntries(formData)),
+          cache: "no-store"
+        });
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok || payload.success !== true) throw new Error(payload.error?.message || "Invalid credentials or KYC is not approved.");
+        sessionStorage.setItem(tokenKey, payload.data.token);
+        pinInput.value = "";
+        await loadProfile(payload.data.token);
+      } catch (cause) {
+        pinInput.value = "";
+        error.textContent = cause instanceof Error ? cause.message : "Sign-in failed.";
+      } finally {
+        button.disabled = false;
+        button.textContent = "Sign in";
+      }
+    });
+    document.getElementById("agent-sign-out").addEventListener("click", () => {
+      sessionStorage.removeItem(tokenKey);
+      profilePanel.hidden = true;
+      loginPanel.hidden = false;
+      document.getElementById("agent-login-form").reset();
+      error.textContent = "";
+    });
+    const existingToken = sessionStorage.getItem(tokenKey);
+    if (existingToken) loadProfile(existingToken).catch(() => sessionStorage.removeItem(tokenKey));
+  })();
+  </script>
+</body>
+</html>

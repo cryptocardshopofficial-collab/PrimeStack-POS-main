@@ -1,0 +1,193 @@
+/* ============================================================================
+   PrimeStack developer pages — "To The Stars" ocean theme (theme layer)
+   Adapted from the Christopher Lis CodePen. Keeps all existing content; the
+   THREE.js canvas is a fixed background and the intro becomes the hero.
+   ========================================================================== */
+
+html.has-ocean,
+html.has-ocean body { position: relative; margin: 0; }
+html.has-ocean body { overflow-x: hidden; background: #0a1626; }
+
+/* Canvas background -------------------------------------------------------- */
+#ocean-canvas {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 0;
+  display: block;
+  pointer-events: none;
+}
+
+/* Dark readability scrim between ocean and content ------------------------- */
+#ocean-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background:
+    radial-gradient(120% 80% at 50% 0%, rgba(8, 18, 36, 0.25), rgba(8, 18, 36, 0.72) 60%, rgba(6, 12, 24, 0.92));
+}
+
+/* All existing page content lives above the ocean ------------------------- */
+html.has-ocean body > *:not(#ocean-canvas):not(#ocean-scrim) { position: relative; z-index: 2; }
+
+/* Intro / hero ------------------------------------------------------------ */
+.ocean-intro {
+  position: relative;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  color: #fff;
+  padding: 0 5%;
+}
+
+.ocean-intro .fancy-text {
+  font-family: 'Playfair Display', 'adobe-garamond-pro', Georgia, serif;
+  font-style: italic;
+  letter-spacing: 1px;
+  margin-bottom: 17px;
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 1.05rem;
+}
+
+.ocean-intro h1 {
+  font-family: 'Manrope', 'brandon-grotesque', sans-serif;
+  font-weight: 800;
+  margin: 0;
+  font-size: clamp(1.25rem, 3.4vw, 2.6rem);
+  line-height: 1.15;
+  letter-spacing: 0.01em;
+  text-transform: uppercase;
+}
+
+.ocean-intro h1 span { color: #7dd3fc; }
+
+/* Skewed border button ----------------------------------------------------- */
+.ocean-button {
+  position: relative;
+  cursor: pointer;
+  display: inline-block;
+  font-family: 'Manrope', 'brandon-grotesque', sans-serif;
+  text-transform: uppercase;
+  min-width: 220px;
+  margin-top: 34px;
+  user-select: none;
+}
+.ocean-button:hover .ocean-button__border {
+  box-shadow: 0 0 12px 0 rgba(255, 255, 255, 0.9);
+}
+.ocean-button:hover .ocean-button__border .ocean-button__plane { transform: translateX(0%); }
+.ocean-button:hover .ocean-button__text { color: #121212; }
+
+.ocean-button__border {
+  border: 1px solid #fff;
+  transform: skewX(-20deg);
+  height: 34px;
+  border-radius: 3px;
+  overflow: hidden;
+  position: relative;
+  transition: 0.1s ease-out;
+}
+.ocean-button__plane {
+  position: absolute;
+  background: #fff;
+  height: 34px;
+  width: 110px;
+  transition: 0.18s ease-out;
+}
+.ocean-button__plane--left  { left: 0;  transform: translateX(-100%); }
+.ocean-button__plane--right { right: 0; transform: translateX(100%); }
+.ocean-button__text {
+  position: absolute;
+  left: 0; right: 0; top: 50%;
+  transform: translateY(-50%);
+  transition: 0.18s ease-out;
+  font-size: 0.78rem;
+  letter-spacing: 0.18em;
+  font-weight: 700;
+}
+
+/* X mark (closes the sky view) --------------------------------------------- */
+.ocean-xmark {
+  position: fixed;
+  right: 16px;
+  top: 16px;
+  z-index: 60;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+.ocean-xmark.is-visible { opacity: 1; }
+.ocean-xmark__inner { position: relative; width: 22px; height: 22px; }
+.ocean-xmark__bar {
+  width: 2px; height: 22px; background: #fff;
+  position: absolute; border-radius: 3px;
+  transition: 0.15s ease-out;
+  left: 0; right: 0; margin: 0 auto;
+}
+.ocean-xmark__bar--left  { transform: rotate(45deg); }
+.ocean-xmark__bar--right { transform: rotate(-45deg); }
+.ocean-xmark:hover .ocean-xmark__bar--left  { transform: rotate(45deg) scaleY(1.2); }
+.ocean-xmark:hover .ocean-xmark__bar--right { transform: rotate(-45deg) scaleY(1.2); }
+
+/* Sky container (revealed when camera tilts up) ---------------------------- */
+.ocean-sky {
+  position: fixed;
+  color: #fff;
+  text-transform: uppercase;
+  top: 12%;
+  right: 6%;
+  text-align: center;
+  opacity: 0;
+  z-index: 50;
+  pointer-events: none;
+  transition: opacity 0.6s ease;
+}
+.ocean-sky.is-visible { opacity: 1; }
+.ocean-sky__col {
+  display: inline-block;
+  vertical-align: top;
+  font-weight: 700;
+}
+.ocean-sky__col h2 {
+  font-family: 'Manrope', 'brandon-grotesque', sans-serif;
+  font-size: clamp(1.6rem, 5vw, 4rem);
+  line-height: 0.95;
+  margin: 0;
+}
+.ocean-sky__col--left  { margin-right: 10px; text-align: right; }
+.ocean-sky__col--right { text-align: left; }
+.ocean-sky__track { letter-spacing: 4px; }
+
+/* Corner social triangles (repurposed as nav corners) ---------------------- */
+.ocean-corner {
+  position: fixed;
+  z-index: 40;
+  width: 150px; height: 80px;
+  background: #fff;
+  box-shadow: -1px -1px 20px 0 rgba(0, 0, 0, 0.3);
+  transform-origin: 50% 50%;
+  transition: 0.15s ease-out;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #0a1626;
+  font-family: 'Manrope', sans-serif;
+  font-weight: 700;
+  font-size: 0.72rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  text-decoration: none;
+}
+.ocean-corner:hover { transform: scale(1.05) rotate(45deg); }
+.ocean-corner--left  { bottom: -40px; left: -75px;  transform: rotate(45deg); }
+.ocean-corner--right { bottom: -40px; right: -75px; transform: rotate(-45deg); }
+.ocean-corner--right:hover { transform: scale(1.05) rotate(-45deg); }
+
+@media (max-width: 860px) {
+  .ocean-corner { width: 110px; height: 60px; font-size: 0.6rem; }
+}

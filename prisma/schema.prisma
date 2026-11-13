@@ -774,10 +774,39 @@ model Agent {
   childAgents    Agent[]  @relation("AgentHierarchy")
   merchants      Merchant[] @relation("AgentMerchants")
   hmacKeys       HmacKey[]
+  kycProfile     AgentKycProfile?
+  credential     AgentCredential?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
   @@index([parentAgentId])
+}
+
+model AgentKycProfile {
+  id                       String    @id @default(uuid())
+  agentId                  String    @unique
+  agent                    Agent     @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  encryptedProfile         String    @db.Text
+  encryptedIdentityDocument String   @db.Text
+  encryptedProfilePhoto    String    @db.Text
+  verificationStatus       KycStatus @default(PENDING)
+  encryptedReviewNotes     String?   @db.Text
+  reviewedBy               String?
+  reviewedAt               DateTime?
+  createdAt                DateTime  @default(now())
+  updatedAt                DateTime  @updatedAt
+
+  @@index([verificationStatus, createdAt])
+}
+
+model AgentCredential {
+  id              String   @id @default(uuid())
+  agentId         String   @unique
+  agent           Agent    @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  pinHash         String
+  pinFingerprint  String   @unique
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 }
 
 model TerminalRegistrationRequest {

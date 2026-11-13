@@ -20,8 +20,8 @@ export class AdminService {
   // ── Authentication ──────────────────────────────
 
   async login(email: string, password: string, reply?: FastifyReply) {
-    const user = await this.prisma.user.findUnique({
-      where: { email },
+    const user = await this.prisma.user.findFirst({
+      where: { OR: [{ email }, { username: email }] },
     });
 
     if (!user || !user.isActive) {
