@@ -2,7 +2,7 @@ import { Pool }             from "pg";
 import { startServer, send } from "../../shared/src/http-server.js";
 import * as Notification     from "./domain/notification.js";
 
-const PORT = parseInt(process.env.PORT ?? "4009", 10);
+const PORT = parseInt(process.env.PORT ?? "9018", 10);
 
 const pool = new Pool({
   host:     process.env.PGHOST     ?? "localhost",

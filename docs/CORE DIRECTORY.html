@@ -341,7 +341,7 @@ const FILE_DESCRIPTIONS = {
   'src/server.ts': {
     icon: '⚡',
     title: 'Server Entry Point',
-    description: 'Bootstraps the Fastify application and starts the HTTP server. Loads environment config, connects to PostgreSQL and Redis, registers all plugins and modules, then begins listening on the configured port (default 8081). Handles graceful shutdown on SIGTERM/SIGINT.',
+    description: 'Bootstraps the Fastify application and starts the HTTP server. Loads environment config, connects to PostgreSQL and Redis, registers all plugins and modules, then begins listening on the configured port (default 9006). Handles graceful shutdown on SIGTERM/SIGINT.',
     tags: ['TypeScript', 'Fastify', 'Entry Point'],
     exports: ['default: startServer()'],
     notes: 'This is the runtime entry point. Imported by npm scripts. Contains process lifecycle management.'

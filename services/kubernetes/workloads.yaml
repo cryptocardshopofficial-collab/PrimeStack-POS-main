@@ -34,13 +34,13 @@ spec:
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
-              containerPort: 4001
+              containerPort: 9010
           envFrom:
             - configMapRef:
                 name: primestack-runtime
           env:
             - name: PORT
-              value: "4001"
+              value: "9010"
             - name: PGDATABASE
               value: primestack_ledger
             - name: PGUSER
@@ -122,13 +122,13 @@ spec:
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
-              containerPort: 4002
+              containerPort: 9011
           envFrom:
             - configMapRef:
                 name: primestack-runtime
           env:
             - name: PORT
-              value: "4002"
+              value: "9011"
             - name: PGDATABASE
               value: primestack_ipwl
             - name: PGUSER
@@ -215,13 +215,13 @@ spec:
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
-              containerPort: 4003
+              containerPort: 9012
           envFrom:
             - configMapRef:
                 name: primestack-runtime
           env:
             - name: PORT
-              value: "4003"
+              value: "9012"
             - name: PGDATABASE
               value: primestack_auth
             - name: PGUSER
@@ -313,13 +313,13 @@ spec:
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
-              containerPort: 4004
+              containerPort: 9013
           envFrom:
             - configMapRef:
                 name: primestack-runtime
           env:
             - name: PORT
-              value: "4004"
+              value: "9013"
             - name: PGDATABASE
               value: primestack_terminal
             - name: PGUSER
@@ -401,13 +401,13 @@ spec:
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
-              containerPort: 4005
+              containerPort: 9014
           envFrom:
             - configMapRef:
                 name: primestack-runtime
           env:
             - name: PORT
-              value: "4005"
+              value: "9014"
             - name: PGDATABASE
               value: primestack_transfer
             - name: PGUSER
@@ -494,13 +494,13 @@ spec:
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
-              containerPort: 4006
+              containerPort: 9015
           envFrom:
             - configMapRef:
                 name: primestack-runtime
           env:
             - name: PORT
-              value: "4006"
+              value: "9015"
             - name: PGDATABASE
               value: primestack_risk
             - name: PGUSER
@@ -587,13 +587,13 @@ spec:
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
-              containerPort: 4007
+              containerPort: 9016
           envFrom:
             - configMapRef:
                 name: primestack-runtime
           env:
             - name: PORT
-              value: "4007"
+              value: "9016"
             - name: PGDATABASE
               value: primestack_audit
             - name: PGUSER
@@ -680,13 +680,13 @@ spec:
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
-              containerPort: 8080
+              containerPort: 9024
           envFrom:
             - configMapRef:
                 name: primestack-runtime
           env:
             - name: PORT
-              value: "8080"
+              value: "9024"
           startupProbe:
             httpGet:
               path: /health
@@ -759,13 +759,13 @@ spec:
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
-              containerPort: 4008
+              containerPort: 9017
           envFrom:
             - configMapRef:
                 name: primestack-runtime
           env:
             - name: PORT
-              value: "4008"
+              value: "9017"
             - name: PGDATABASE
               value: primestack_settlement
             - name: PGUSER
@@ -847,13 +847,13 @@ spec:
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
-              containerPort: 4009
+              containerPort: 9018
           envFrom:
             - configMapRef:
                 name: primestack-runtime
           env:
             - name: PORT
-              value: "4009"
+              value: "9018"
             - name: PGDATABASE
               value: primestack_notification
             - name: PGUSER
@@ -935,13 +935,13 @@ spec:
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
-              containerPort: 4010
+              containerPort: 9019
           envFrom:
             - configMapRef:
                 name: primestack-runtime
           env:
             - name: PORT
-              value: "4010"
+              value: "9019"
             - name: PGDATABASE
               value: primestack_switch
             - name: PGUSER
@@ -1025,13 +1025,13 @@ spec:
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
-              containerPort: 4011
+              containerPort: 9020
           envFrom:
             - configMapRef:
                 name: primestack-runtime
           env:
             - name: PORT
-              value: "4011"
+              value: "9020"
             - name: PGDATABASE
               value: primestack_security
             - name: PGUSER
@@ -1118,13 +1118,13 @@ spec:
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
-              containerPort: 4012
+              containerPort: 9021
           envFrom:
             - configMapRef:
                 name: primestack-runtime
           env:
             - name: PORT
-              value: "4012"
+              value: "9021"
             - name: PGDATABASE
               value: primestack_routing
             - name: PGUSER
@@ -1206,13 +1206,13 @@ spec:
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
-              containerPort: 4013
+              containerPort: 9022
           envFrom:
             - configMapRef:
                 name: primestack-runtime
           env:
             - name: PORT
-              value: "4013"
+              value: "9022"
             - name: PGDATABASE
               value: primestack_iso8583
             - name: PGUSER

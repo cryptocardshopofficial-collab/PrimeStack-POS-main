@@ -79,9 +79,9 @@ services:
     container_name: primestack-ledger
     restart: unless-stopped
     ports:
-      - "4001:4001"
+      - "9010:9010"
     environment:
-      PORT:        4001
+      PORT:        9010
       PGHOST:      postgres
       PGPORT:      5432
       PGDATABASE:  primestack_ledger
@@ -92,7 +92,7 @@ services:
       postgres:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:4001/health > /dev/null || exit 1"]
+      test: ["CMD-SHELL", "wget -qO- http://localhost:9010/health > /dev/null || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -104,9 +104,9 @@ services:
     container_name: primestack-ip-whitelist
     restart: unless-stopped
     ports:
-      - "4002:4002"
+      - "9011:9011"
     environment:
-      PORT:        4002
+      PORT:        9011
       PGHOST:      postgres
       PGPORT:      5432
       PGDATABASE:  primestack_ipwl
@@ -127,9 +127,9 @@ services:
     container_name: primestack-auth
     restart: unless-stopped
     ports:
-      - "4003:4003"
+      - "9012:9012"
     environment:
-      PORT:        4003
+      PORT:        9012
       PGHOST:      postgres
       PGDATABASE:  primestack_auth
       PGUSER:      auth_svc
@@ -148,9 +148,9 @@ services:
     container_name: primestack-terminal
     restart: unless-stopped
     ports:
-      - "4004:4004"
+      - "9013:9013"
     environment:
-      PORT:        4004
+      PORT:        9013
       PGHOST:      postgres
       PGDATABASE:  primestack_terminal
       PGUSER:      terminal_svc
@@ -167,16 +167,16 @@ services:
     container_name: primestack-transfer
     restart: unless-stopped
     ports:
-      - "4005:4005"
+      - "9014:9014"
     environment:
-      PORT:              4005
+      PORT:              9014
       PGHOST:            postgres
       PGDATABASE:        primestack_transfer
       PGUSER:            transfer_svc
       PGPASSWORD:        transfer_secret
       PGSSLMODE:         disable
-      LEDGER_SERVICE_URL: http://ledger-service:4001
-      RISK_SERVICE_URL:   http://risk-service:4006
+      LEDGER_SERVICE_URL: http://ledger-service:9010
+      RISK_SERVICE_URL:   http://risk-service:9015
       RABBITMQ_URL:       amqp://primestack:primestack@rabbitmq:5672
     depends_on:
       postgres:
@@ -193,9 +193,9 @@ services:
     container_name: primestack-risk
     restart: unless-stopped
     ports:
-      - "4006:4006"
+      - "9015:9015"
     environment:
-      PORT:        4006
+      PORT:        9015
       PGHOST:      postgres
       PGDATABASE:  primestack_risk
       PGUSER:      risk_svc
@@ -215,9 +215,9 @@ services:
     container_name: primestack-audit
     restart: unless-stopped
     ports:
-      - "4007:4007"
+      - "9016:9016"
     environment:
-      PORT:        4007
+      PORT:        9016
       PGHOST:      postgres
       PGDATABASE:  primestack_audit
       PGUSER:      audit_svc
@@ -235,23 +235,23 @@ services:
     container_name: primestack-gateway
     restart: unless-stopped
     ports:
-      - "8080:8080"
+      - "9024:9024"
     environment:
-      PORT:                     8080
+      PORT:                     9024
       NODE_ENV:                 production
-      LEDGER_SERVICE_URL:       http://ledger-service:4001
-      IP_WHITELIST_SERVICE_URL: http://ip-whitelist-service:4002
-      AUTH_SERVICE_URL:         http://auth-service:4003
-      TERMINAL_SERVICE_URL:     http://terminal-service:4004
-      TRANSFER_SERVICE_URL:     http://transfer-service:4005
-      RISK_SERVICE_URL:         http://risk-service:4006
-      AUDIT_SERVICE_URL:        http://audit-service:4007
-      SETTLEMENT_SERVICE_URL:   http://settlement-service:4008
-      NOTIFICATION_SERVICE_URL: http://notification-service:4009
-      SWITCH_CORE_URL:          http://switch-core:4010
-      SECURITY_SERVICE_URL:     http://security-service:4011
-      ROUTING_SERVICE_URL:      http://routing-service:4012
-      ISO8583_GATEWAY_URL:      http://iso8583-gateway:4013
+      LEDGER_SERVICE_URL:       http://ledger-service:9010
+      IP_WHITELIST_SERVICE_URL: http://ip-whitelist-service:9011
+      AUTH_SERVICE_URL:         http://auth-service:9012
+      TERMINAL_SERVICE_URL:     http://terminal-service:9013
+      TRANSFER_SERVICE_URL:     http://transfer-service:9014
+      RISK_SERVICE_URL:         http://risk-service:9015
+      AUDIT_SERVICE_URL:        http://audit-service:9016
+      SETTLEMENT_SERVICE_URL:   http://settlement-service:9017
+      NOTIFICATION_SERVICE_URL: http://notification-service:9018
+      SWITCH_CORE_URL:          http://switch-core:9019
+      SECURITY_SERVICE_URL:     http://security-service:9020
+      ROUTING_SERVICE_URL:      http://routing-service:9021
+      ISO8583_GATEWAY_URL:      http://iso8583-gateway:9022
     depends_on:
       - security-service
       - ip-whitelist-service
@@ -265,15 +265,15 @@ services:
     container_name: primestack-settlement
     restart: unless-stopped
     ports:
-      - "4008:4008"
+      - "9017:9017"
     environment:
-      PORT:               4008
+      PORT:               9017
       PGHOST:             postgres
       PGDATABASE:         primestack_settlement
       PGUSER:             settlement_svc
       PGPASSWORD:         settlement_secret
       PGSSLMODE:          disable
-      LEDGER_SERVICE_URL: http://ledger-service:4001
+      LEDGER_SERVICE_URL: http://ledger-service:9010
     depends_on:
       postgres:
         condition: service_healthy
@@ -287,9 +287,9 @@ services:
     container_name: primestack-notification
     restart: unless-stopped
     ports:
-      - "4009:4009"
+      - "9018:9018"
     environment:
-      PORT:        4009
+      PORT:        9018
       PGHOST:      postgres
       PGDATABASE:  primestack_notification
       PGUSER:      notification_svc
@@ -306,20 +306,20 @@ services:
     container_name: primestack-switch-core
     restart: unless-stopped
     ports:
-      - "4010:4010"
+      - "9019:9019"
     environment:
-      PORT:                     4010
+      PORT:                     9019
       PGHOST:                   postgres
       PGDATABASE:               primestack_switch
       PGUSER:                   switch_svc
       PGPASSWORD:               switch_secret
       PGSSLMODE:                disable
       PG_POOL_MAX:              "40"
-      LEDGER_SERVICE_URL:       http://ledger-service:4001
-      RISK_SERVICE_URL:         http://risk-service:4006
-      TERMINAL_SERVICE_URL:     http://terminal-service:4004
-      ROUTING_SERVICE_URL:      http://routing-service:4012
-      NOTIFICATION_SERVICE_URL: http://notification-service:4009
+      LEDGER_SERVICE_URL:       http://ledger-service:9010
+      RISK_SERVICE_URL:         http://risk-service:9015
+      TERMINAL_SERVICE_URL:     http://terminal-service:9013
+      ROUTING_SERVICE_URL:      http://routing-service:9021
+      NOTIFICATION_SERVICE_URL: http://notification-service:9018
     depends_on:
       postgres:
         condition: service_healthy
@@ -335,9 +335,9 @@ services:
     container_name: primestack-security
     restart: unless-stopped
     ports:
-      - "4011:4011"
+      - "9020:9020"
     environment:
-      PORT:                   4011
+      PORT:                   9020
       PGHOST:                 postgres
       PGDATABASE:             primestack_security
       PGUSER:                 security_svc
@@ -355,9 +355,9 @@ services:
     container_name: primestack-routing
     restart: unless-stopped
     ports:
-      - "4012:4012"
+      - "9021:9021"
     environment:
-      PORT:                   4012
+      PORT:                   9021
       PGHOST:                 postgres
       PGDATABASE:             primestack_routing
       PGUSER:                 routing_svc
@@ -374,18 +374,18 @@ services:
     container_name: primestack-iso8583
     restart: unless-stopped
     ports:
-      - "4013:4013"
+      - "9022:9022"
     environment:
-      PORT:                4013
+      PORT:                9022
       PGHOST:              postgres
       PGDATABASE:          primestack_iso8583
       PGUSER:              iso8583_svc
       PGPASSWORD:          iso8583_secret
       PGSSLMODE:           disable
       SKIP_CONNECTIONS:    "true"
-      SWITCH_CORE_URL:     http://switch-core:4010
-      RISK_SERVICE_URL:    http://risk-service:4006
-      ROUTING_SERVICE_URL: http://routing-service:4012
+      SWITCH_CORE_URL:     http://switch-core:9019
+      RISK_SERVICE_URL:    http://risk-service:9015
+      ROUTING_SERVICE_URL: http://routing-service:9021
     depends_on:
       postgres:
         condition: service_healthy
@@ -400,10 +400,10 @@ services:
     container_name: primestack-crypto-payout
     restart: unless-stopped
     ports:
-      - "4014:4014"
+      - "9023:9023"
     environment:
-      PORT:                        4014
-      LEDGER_SERVICE_URL:          http://ledger-service:4001
+      PORT:                        9023
+      LEDGER_SERVICE_URL:          http://ledger-service:9010
       TRON_FULL_HOST:              ${TRON_FULL_HOST:-}
       TRON_API_KEY:                ${TRON_API_KEY:-}
       TRON_HOT_WALLET_PRIVATE_KEY: ${TRON_HOT_WALLET_PRIVATE_KEY:-}
@@ -412,7 +412,7 @@ services:
       ledger-service:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:4014/health > /dev/null || exit 1"]
+      test: ["CMD-SHELL", "wget -qO- http://localhost:9023/health > /dev/null || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5

@@ -13,7 +13,7 @@ import { buildHandlers } from "./api/routes.js";
  * with this HTTP interface for admin tooling only.
  */
 
-const PORT = parseInt(process.env.PORT ?? "4001", 10);
+const PORT = parseInt(process.env.PORT ?? "9010", 10);
 const pool = createPool();
 const handlers = buildHandlers(pool);
 

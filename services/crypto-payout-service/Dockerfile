@@ -43,9 +43,9 @@ COPY --from=builder --chown=appuser:appgroup /app/package.json ./
 
 USER appuser
 
-EXPOSE 4014
+EXPOSE 9023
 
 HEALTHCHECK --interval=10s --timeout=5s --retries=3 \
-  CMD wget -qO- http://localhost:4014/health || exit 1
+  CMD wget -qO- http://localhost:9023/health || exit 1
 
 CMD ["node", "dist/server.js"]

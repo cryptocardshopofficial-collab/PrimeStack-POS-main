@@ -17,11 +17,11 @@ import { broadcastTrc20, BroadcasterError, type BroadcastResult } from "./tron.j
  * Step 4 only runs if step 3 produced a real transaction hash.
  */
 
-const PORT = parseInt(process.env.PORT ?? "4014", 10);
+const PORT = parseInt(process.env.PORT ?? "9023", 10);
 
 // The ledger lives inside the Fastify API, which is closed by default: every
 // /ledger/* call must be HMAC-signed. We reuse the internal service key.
-const LEDGER_SERVICE_URL = (process.env.LEDGER_SERVICE_URL ?? "http://127.0.0.1:8081").replace(/\/+$/, "");
+const LEDGER_SERVICE_URL = (process.env.LEDGER_SERVICE_URL ?? "http://127.0.0.1:9010").replace(/\/+$/, "");
 const HMAC_KEY_ID = process.env.LEDGER_HMAC_KEY_ID ?? process.env.CONSOLE_HMAC_KEY_ID ?? "psk_console_001";
 const HMAC_SECRET = process.env.LEDGER_HMAC_SECRET ?? process.env.CONSOLE_HMAC_SECRET ?? "";
 const HMAC_PREFIX = process.env.HMAC_HEADER_PREFIX ?? "x-primestack";

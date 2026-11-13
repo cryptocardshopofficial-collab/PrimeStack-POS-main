@@ -217,7 +217,7 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
 </div>
 <div class="toast" id="toast"></div>
 <script>
-const SERVICES=[{n:"Ledger",p:4001},{n:"IP Whitelist",p:4002},{n:"Auth",p:4003},{n:"Terminal",p:4004},{n:"Transfer",p:4005},{n:"Risk",p:4006},{n:"Audit",p:4007},{n:"Settlement",p:4008},{n:"Notification",p:4009},{n:"Switch Core",p:4010},{n:"Security",p:4011},{n:"Routing",p:4012},{n:"ISO 8583",p:4013},{n:"API Gateway",p:8080}];
+const SERVICES=[{n:"Ledger",p:9010},{n:"IP Whitelist",p:9011},{n:"Auth",p:9012},{n:"Terminal",p:9013},{n:"Transfer",p:9014},{n:"Risk",p:9015},{n:"Audit",p:9016},{n:"Settlement",p:9017},{n:"Notification",p:9018},{n:"Switch Core",p:9019},{n:"Security",p:9020},{n:"Routing",p:9021},{n:"ISO 8583",p:9022},{n:"API Gateway",p:9024}];
 
 function doLogin(){
   const email=document.getElementById('email').value;

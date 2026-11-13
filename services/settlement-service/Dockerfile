@@ -15,6 +15,6 @@ COPY --from=builder --chown=appuser:appgroup /app/settlement-service/node_module
 COPY --from=builder --chown=appuser:appgroup /app/settlement-service/dist ./dist
 COPY --from=builder --chown=appuser:appgroup /app/settlement-service/package.json ./
 USER appuser
-EXPOSE 4008
-HEALTHCHECK --interval=10s --timeout=5s --retries=3 CMD wget -qO- http://localhost:4008/health || exit 1
+EXPOSE 9017
+HEALTHCHECK --interval=10s --timeout=5s --retries=3 CMD wget -qO- http://localhost:9017/health || exit 1
 CMD ["node","dist/settlement-service/src/server.js"]

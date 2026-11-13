@@ -57,7 +57,7 @@ npm install
 npx prisma generate
 npx prisma db push
 npx tsx prisma/seed.ts        # Admin user + sample data
-npm run dev                   # Server at http://localhost:8081
+npm run dev                   # Server at http://localhost:9006
 ```
 
 ## Default Credentials (from seed)

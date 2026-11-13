@@ -8,8 +8,8 @@
 // request with the console HMAC key and replaying the operator session.
 import { setTimeout as delay } from 'node:timers/promises';
 
-const PUBLIC_PORT = process.env.PORT || '3000';
-const API_PORT = process.env.API_PORT || '8081';
+const PUBLIC_PORT = process.env.PORT || '9005';
+const API_PORT = process.env.API_PORT || '9006';
 
 // The console reads these at import time.
 process.env.API_PORT = API_PORT;
@@ -32,10 +32,19 @@ async function waitForApi(attempts = 40) {
 }
 
 // Payment rails service (Wise pass-through) — in-memory, no database.
-const RAILS_PORT = process.env.RAILS_PORT || '8082';
+const RAILS_PORT = process.env.RAILS_PORT || '9007';
 process.env.RAILS_PORT = RAILS_PORT;
 await import('./rails-service.js');
 console.log(`[platform] Payment rails service on 127.0.0.1:${RAILS_PORT}`);
+
+// ISO 20022 engine — message generation, validation, and acknowledgement.
+// It reads ISO20022_PORT (not PORT), so this does not disturb the console port.
+// Ledger posting stays disabled until ISO20022_LEDGER_HMAC_SECRET is set to a
+// secret of at least 32 bytes; the engine logs that on start.
+const ISO20022_PORT = process.env.ISO20022_PORT || '9008';
+process.env.ISO20022_PORT = ISO20022_PORT;
+await import('./iso20022-engine.js');
+console.log(`[platform] ISO 20022 engine on 127.0.0.1:${ISO20022_PORT}`);
 
 const apiReady = await waitForApi();
 console.log(apiReady

@@ -16,6 +16,6 @@ COPY --from=builder --chown=appuser:appgroup /app/transfer-service/node_modules 
 COPY --from=builder --chown=appuser:appgroup /app/transfer-service/dist ./dist
 COPY --from=builder --chown=appuser:appgroup /app/transfer-service/package.json ./
 USER appuser
-EXPOSE 4005
-HEALTHCHECK --interval=10s --timeout=5s --retries=3 CMD wget -qO- http://localhost:4005/health || exit 1
+EXPOSE 9014
+HEALTHCHECK --interval=10s --timeout=5s --retries=3 CMD wget -qO- http://localhost:9014/health || exit 1
 CMD ["node","dist/transfer-service/src/server.js"]

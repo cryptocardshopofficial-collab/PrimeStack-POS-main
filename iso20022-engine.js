@@ -37,8 +37,8 @@ import { fileURLToPath } from "url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-const PORT         = parseInt(process.env.ISO20022_PORT || "8084", 10);
-const DASHBOARD    = process.env.DASHBOARD_URL || "http://localhost:8081";
+const PORT         = parseInt(process.env.ISO20022_PORT || "9008", 10);
+const DASHBOARD    = process.env.DASHBOARD_URL || "http://localhost:9006";
 const LEDGER_HMAC_SECRET = process.env.ISO20022_LEDGER_HMAC_SECRET || "";
 const LEDGER_HMAC_SECRET_VALID = Buffer.byteLength(LEDGER_HMAC_SECRET, "utf8") >= 32;
 const LEDGER_HMAC_WINDOW_SECONDS = 300;

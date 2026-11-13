@@ -19,7 +19,7 @@ services:
         value: production
       # Render assigns PORT; the API listens internally on API_PORT.
       - key: API_PORT
-        value: 8081
+        value: 9006
       - key: HOST
         value: 0.0.0.0
       # Configure this in Render with the trusted proxy CIDRs for the deployment.
@@ -102,7 +102,7 @@ services:
       - key: WISE_WEBHOOK_PUBLIC_KEY
         sync: false
       - key: RAILS_PORT
-        value: 8082
+        value: 9007
       - key: RAILS_PAYOUT_DELAY_MS
         value: 0
 

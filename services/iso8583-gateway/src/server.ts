@@ -3,7 +3,7 @@ import { startServer }    from "../../shared/src/http-server.js";
 import { ConnectionPool } from "./network/connection-manager.js";
 import { buildRoutes }    from "./api/routes.js";
 
-const PORT = parseInt(process.env.PORT ?? "4013", 10);
+const PORT = parseInt(process.env.PORT ?? "9022", 10);
 
 const pool = new Pool({
   host:     process.env.PGHOST     ?? "localhost",

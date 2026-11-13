@@ -101,7 +101,7 @@ Output:
 [INFO] Redis connected
 [INFO] i18n initialized { languages: ['en','fr','es','ar','pt'] }
 [INFO] Fastify application configured
-[INFO] PrimeStack Global Server Network started — development mode { port: 8081 }
+[INFO] PrimeStack Global Server Network started — development mode { port: 9006 }
 [INFO] API documentation available at /docs
 ```
 
@@ -111,19 +111,24 @@ Output:
 
 ```powershell
 # Health check
-Invoke-WebRequest http://localhost:8081/health | Select-Object -ExpandProperty Content
+Invoke-WebRequest http://localhost:9006/health | Select-Object -ExpandProperty Content
 
 # Or visit in browser:
-# http://localhost:8081/docs      — Swagger UI
-# http://localhost:8081/api-gateway/info  — API overview
+# http://localhost:9006/docs      — Swagger UI
+# http://localhost:9006/api-gateway/info  — API overview
 ```
+
+For the local public website and dashboard, start `node start-dashboard.js` on
+port `9005`, then run `npm run website` for the public site on port `9004`.
+The website's sign-in and API requests are routed through the dashboard. The
+root API remains on port `9006`.
 
 ---
 
 ## Testing with Postman
 
 1. Import `primestack-global-server-network.postman_collection.json` into Postman
-2. Set the collection variable `base_url` to `http://localhost:8081`
+2. Set the collection variable `base_url` to `http://localhost:9006`
 3. Run **Admin → Login** first — it auto-saves the JWT token
 4. Set `merchant_id` to the ID of a created merchant
 5. Explore all 15 modules from the collection

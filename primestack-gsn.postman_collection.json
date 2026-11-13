@@ -6,7 +6,7 @@
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
-    { "key": "base_url", "value": "http://localhost:8081", "type": "string" },
+    { "key": "base_url", "value": "http://localhost:9006", "type": "string" },
     { "key": "hmac_key_id", "value": "psk_demo_key_001", "type": "string" },
     { "key": "hmac_secret", "value": "YOUR_HMAC_SECRET_FROM_SEED", "type": "string" },
     { "key": "jwt_token", "value": "", "type": "string" },

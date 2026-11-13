@@ -14,6 +14,6 @@ COPY --from=builder --chown=appuser:appgroup /app/node_modules ./node_modules
 COPY --from=builder --chown=appuser:appgroup /app/dist ./dist
 COPY --from=builder --chown=appuser:appgroup /app/package.json ./
 USER appuser
-EXPOSE 8080
-HEALTHCHECK --interval=10s --timeout=5s --retries=3 CMD wget -qO- http://localhost:8080/health || exit 1
+EXPOSE 9024
+HEALTHCHECK --interval=10s --timeout=5s --retries=3 CMD wget -qO- http://localhost:9024/health || exit 1
 CMD ["node","dist/gateway.js"]

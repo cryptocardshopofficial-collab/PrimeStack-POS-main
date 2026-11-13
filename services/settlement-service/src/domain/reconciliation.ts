@@ -26,7 +26,7 @@ import { createHash } from "crypto";
  * settlement batch history, not from raw transactions.
  */
 
-const LEDGER_URL = process.env.LEDGER_SERVICE_URL ?? "http://localhost:4001";
+const LEDGER_URL = process.env.LEDGER_SERVICE_URL ?? "http://localhost:9010";
 
 export class ReconciliationError extends Error {
   constructor(message: string, public code: string) {

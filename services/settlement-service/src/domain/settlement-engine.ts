@@ -26,7 +26,7 @@ import { Decimal } from "decimal.js";
  *   7. OPEN    — create next business day
  */
 
-const LEDGER_URL = process.env.LEDGER_SERVICE_URL ?? "http://localhost:4001";
+const LEDGER_URL = process.env.LEDGER_SERVICE_URL ?? "http://localhost:9010";
 
 export class SettlementEngineError extends Error {
   constructor(message: string, public code: string, public httpStatus = 422) {

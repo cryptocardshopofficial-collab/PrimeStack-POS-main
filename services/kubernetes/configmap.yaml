@@ -10,18 +10,18 @@ data:
   PGSSLMODE: require
   PG_POOL_MAX: "20"
   REDIS_DB: "0"
-  LEDGER_SERVICE_URL: http://ledger-service:4001
-  IP_WHITELIST_SERVICE_URL: http://ip-whitelist-service:4002
-  AUTH_SERVICE_URL: http://auth-service:4003
-  TERMINAL_SERVICE_URL: http://terminal-service:4004
-  TRANSFER_SERVICE_URL: http://transfer-service:4005
-  RISK_SERVICE_URL: http://risk-service:4006
-  AUDIT_SERVICE_URL: http://audit-service:4007
-  SETTLEMENT_SERVICE_URL: http://settlement-service:4008
-  NOTIFICATION_SERVICE_URL: http://notification-service:4009
-  SWITCH_CORE_URL: http://switch-core:4010
-  SECURITY_SERVICE_URL: http://security-service:4011
-  ROUTING_SERVICE_URL: http://routing-service:4012
-  ISO8583_GATEWAY_URL: http://iso8583-gateway:4013
+  LEDGER_SERVICE_URL: http://ledger-service:9010
+  IP_WHITELIST_SERVICE_URL: http://ip-whitelist-service:9011
+  AUTH_SERVICE_URL: http://auth-service:9012
+  TERMINAL_SERVICE_URL: http://terminal-service:9013
+  TRANSFER_SERVICE_URL: http://transfer-service:9014
+  RISK_SERVICE_URL: http://risk-service:9015
+  AUDIT_SERVICE_URL: http://audit-service:9016
+  SETTLEMENT_SERVICE_URL: http://settlement-service:9017
+  NOTIFICATION_SERVICE_URL: http://notification-service:9018
+  SWITCH_CORE_URL: http://switch-core:9019
+  SECURITY_SERVICE_URL: http://security-service:9020
+  ROUTING_SERVICE_URL: http://routing-service:9021
+  ISO8583_GATEWAY_URL: http://iso8583-gateway:9022
   HEALTH_CHECK_INTERVAL: "30000"
   SKIP_CONNECTIONS: "false"

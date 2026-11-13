@@ -2,7 +2,7 @@ import { Pool }             from "pg";
 import { startServer, send } from "../../shared/src/http-server.js";
 import * as Whitelist        from "./domain/whitelist.js";
 
-const PORT = parseInt(process.env.PORT ?? "4002", 10);
+const PORT = parseInt(process.env.PORT ?? "9011", 10);
 
 const pool = new Pool({
   host:     process.env.PGHOST     ?? "localhost",

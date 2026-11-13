@@ -16,6 +16,6 @@ COPY --from=builder --chown=appuser:appgroup /app/risk-service/node_modules ./no
 COPY --from=builder --chown=appuser:appgroup /app/risk-service/dist ./dist
 COPY --from=builder --chown=appuser:appgroup /app/risk-service/package.json ./
 USER appuser
-EXPOSE 4006
-HEALTHCHECK --interval=10s --timeout=5s --retries=3 CMD wget -qO- http://localhost:4006/health || exit 1
+EXPOSE 9015
+HEALTHCHECK --interval=10s --timeout=5s --retries=3 CMD wget -qO- http://localhost:9015/health || exit 1
 CMD ["node","dist/risk-service/src/server.js"]

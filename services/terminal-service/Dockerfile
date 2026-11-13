@@ -16,6 +16,6 @@ COPY --from=builder --chown=appuser:appgroup /app/terminal-service/node_modules 
 COPY --from=builder --chown=appuser:appgroup /app/terminal-service/dist ./dist
 COPY --from=builder --chown=appuser:appgroup /app/terminal-service/package.json ./
 USER appuser
-EXPOSE 4004
-HEALTHCHECK --interval=10s --timeout=5s --retries=3 CMD wget -qO- http://localhost:4004/health || exit 1
+EXPOSE 9013
+HEALTHCHECK --interval=10s --timeout=5s --retries=3 CMD wget -qO- http://localhost:9013/health || exit 1
 CMD ["node","dist/terminal-service/src/server.js"]

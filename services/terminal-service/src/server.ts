@@ -3,7 +3,7 @@ import { startServer }  from "../../shared/src/http-server.js";
 import { buildRoutes }  from "./api/routes.js";
 import { buildTmsRoutes } from "./api/tms-routes.js";
 
-const PORT = parseInt(process.env.PORT ?? "4004", 10);
+const PORT = parseInt(process.env.PORT ?? "9013", 10);
 
 const pool = new Pool({
   host:     process.env.PGHOST     ?? "localhost",

@@ -4,37 +4,37 @@
 
 ```
 PHASE 1: CORE FOUNDATION
-  ✅ Ledger Service          :4001   Double-entry accounting (SERIALIZABLE)
-  ✅ Transfer Service        :4005   Fund movement orchestration
-  ✅ Auth Service             :4003   Legacy HMAC (superseded by security-service)
-  ✅ Terminal Service         :4004   Terminal registry + full TMS
+  ✅ Ledger Service          :9010   Double-entry accounting (SERIALIZABLE)
+  ✅ Transfer Service        :9014   Fund movement orchestration
+  ✅ Auth Service             :9012   Legacy HMAC (superseded by security-service)
+  ✅ Terminal Service         :9013   Terminal registry + full TMS
 
 PHASE 2: SWITCH CORE + SECURITY
-  ✅ Switch Core              :4010   Transaction lifecycle engine (PS20261022000001)
-  ✅ Security Service         :4011   API keys, HMAC, mTLS refs, RBAC, bcrypt, key rotation
+  ✅ Switch Core              :9019   Transaction lifecycle engine (PS20261022000001)
+  ✅ Security Service         :9020   API keys, HMAC, mTLS refs, RBAC, bcrypt, key rotation
 
 PHASE 4: RISK ENGINE
-  ✅ Risk Engine              :4006   Blacklist, velocity (Redis), scoring, AML, manual review
+  ✅ Risk Engine              :9015   Blacklist, velocity (Redis), scoring, AML, manual review
 
 PHASE 5: ROUTING ENGINE
-  ✅ Routing Engine           :4012   BIN routing, acquirer failover, health monitoring
+  ✅ Routing Engine           :9021   BIN routing, acquirer failover, health monitoring
 
 PHASE 6: SETTLEMENT & RECONCILIATION
-  ✅ Settlement Engine        :4008   Net settlement, NACHA, EOD, reversals, chargebacks
-  ✅ Reconciliation Engine    :4008   Switch vs Bank vs Processor comparison, exceptions
+  ✅ Settlement Engine        :9017   Net settlement, NACHA, EOD, reversals, chargebacks
+  ✅ Reconciliation Engine    :9017   Switch vs Bank vs Processor comparison, exceptions
 
 PHASE 7: ISO 8583 NETWORK GATEWAY
-  ✅ ISO 8583 Gateway         :4013   Parser, builder, MTI router, host connections, sessions
+  ✅ ISO 8583 Gateway         :9022   Parser, builder, MTI router, host connections, sessions
 
 PHASE 8: TERMINAL MANAGEMENT PLATFORM
-  ✅ Terminal Management      :4004   Groups, parameter distribution, app management,
+  ✅ Terminal Management      :9013   Groups, parameter distribution, app management,
                                      key lifecycle, firmware deployment, device analytics
 
 INFRASTRUCTURE
-  ✅ API Gateway              :8080   Single external entry (IP → HMAC → Route)
-  ✅ IP Whitelist Service     :4002   CIDR/INET range matching
-  ✅ Audit Service            :4007   INSERT-ONLY compliance event log
-  ✅ Notification Service     :4009   Email/SMS/webhook with retry + i18n templates
+  ✅ API Gateway              :9024   Single external entry (IP → HMAC → Route)
+  ✅ IP Whitelist Service     :9011   CIDR/INET range matching
+  ✅ Audit Service            :9016   INSERT-ONLY compliance event log
+  ✅ Notification Service     :9018   Email/SMS/webhook with retry + i18n templates
 ```
 
 ## Complete Transaction Flow
@@ -44,36 +44,36 @@ Terminal / API Client
       │
       ▼
 ┌─────────────────────────────────────────────────────────┐
-│ API Gateway :8080                                       │
-│   1. IP Whitelist check  (ip-whitelist-service :4002)   │
-│   2. HMAC verify          (security-service    :4011)   │
+│ API Gateway :9024                                       │
+│   1. IP Whitelist check  (ip-whitelist-service :9011)   │
+│   2. HMAC verify          (security-service    :9020)   │
 │   3. Route to service                                    │
 └─────────────────────────────────────────────────────────┘
       │
       ▼
 ┌─────────────────────────────────────────────────────────┐
-│ Switch Core :4010                                        │
+│ Switch Core :9019                                        │
 │   4. Generate txRef: PS20261022000000001                 │
 │   5. Generate STAN/RRN/auth_code                         │
-│   6. Validate terminal   (terminal-service    :4004)    │
-│   7. Risk evaluation     (risk-service         :4006)   │
+│   6. Validate terminal   (terminal-service    :9013)    │
+│   7. Risk evaluation     (risk-service         :9015)   │
 │      → BLOCK (blacklist/geo) → decline                    │
 │      → REVIEW (score 30-69) → manual_review queue         │
 │      → APPROVE (score <30) → continue                     │
-│   8. Route decision      (routing-service      :4012)   │
+│   8. Route decision      (routing-service      :9021)   │
 │      → NO_ROUTE → ISO code 92                             │
 │      → FOUND → failover chain check                       │
-│   9. Post to ledger      (ledger-service        :4001)   │
+│   9. Post to ledger      (ledger-service        :9010)   │
 │      → SERIALIZABLE transaction                            │
 │      → Atomic balance change (THE money movement)         │
 │  10. Mark APPROVED + auth_code                            │
 │  11. Enqueue settlement                                   │
-│  12. Notify               (notification-service :4009)   │
+│  12. Notify               (notification-service :9018)   │
 └─────────────────────────────────────────────────────────┘
       │
       ▼
 ┌─────────────────────────────────────────────────────────┐
-│ ISO 8583 Gateway :4013 (for terminal-originated tx)     │
+│ ISO 8583 Gateway :9022 (for terminal-originated tx)     │
 │   - Parse inbound hex message                            │
 │   - MTI routing (0200→switch, 0800→echo)                 │
 │   - Forward to switch-core                               │
@@ -84,7 +84,7 @@ Terminal / API Client
 
       Async settlement path:
 ┌─────────────────────────────────────────────────────────┐
-│ Settlement Engine :4008                                  │
+│ Settlement Engine :9017                                  │
 │   - Settlement queue (PENDING → SETTLED)                  │
 │   - Net positions per participant per business date      │
 │   - Net settlement: 25,100 tx → 3 wire transfers         │
@@ -99,7 +99,7 @@ Terminal / API Client
 
       Terminal management:
 ┌─────────────────────────────────────────────────────────┐
-│ Terminal Management Platform :4004                       │
+│ Terminal Management Platform :9013                       │
 │   - Terminal registry (register, activate, decommission) │
 │   - Health monitoring (heartbeats, CPU, memory, latency)  │
 │   - Remote command queue (reboot, update config, keys)   │
@@ -118,20 +118,20 @@ Terminal / API Client
 
 | Port | Service | Phase | Key Responsibility |
 |------|---------|-------|--------------------|
-| 4001 | ledger-service | 1 | Double-entry accounting (SERIALIZABLE isolation) |
-| 4002 | ip-whitelist-service | 1 | CIDR/INET network filtering with 30s cache |
-| 4003 | auth-service | 1 | Legacy HMAC (use security-service) |
-| 4004 | terminal-service | 1+8 | Terminal registry + full TMS |
-| 4005 | transfer-service | 1 | Fund movement orchestration |
-| 4006 | risk-service | 4 | Velocity/blacklist/scoring/AML/manual review |
-| 4007 | audit-service | 1 | INSERT-ONLY compliance log |
-| 4008 | settlement-service | 6 | Net settlement, NACHA, EOD, chargebacks, reconciliation |
-| 4009 | notification-service | 1 | Multi-channel delivery with retry + i18n |
-| 4010 | switch-core | 2 | Transaction lifecycle (PS refs, STAN, ISO 8583 codes) |
-| 4011 | security-service | 2 | API keys (bcrypt), HMAC (AES-256-GCM), RBAC, key rotation |
-| 4012 | routing-service | 5 | BIN routing, acquirer failover, health monitoring |
-| 4013 | iso8583-gateway | 7 | Parser, builder, MTI router, host connections, sessions |
-| 8080 | api-gateway | Infra | Single external entry: IP → HMAC → Route |
+| 9010 | ledger-service | 1 | Double-entry accounting (SERIALIZABLE isolation) |
+| 9011 | ip-whitelist-service | 1 | CIDR/INET network filtering with 30s cache |
+| 9012 | auth-service | 1 | Legacy HMAC (use security-service) |
+| 9013 | terminal-service | 1+8 | Terminal registry + full TMS |
+| 9014 | transfer-service | 1 | Fund movement orchestration |
+| 9015 | risk-service | 4 | Velocity/blacklist/scoring/AML/manual review |
+| 9016 | audit-service | 1 | INSERT-ONLY compliance log |
+| 9017 | settlement-service | 6 | Net settlement, NACHA, EOD, chargebacks, reconciliation |
+| 9018 | notification-service | 1 | Multi-channel delivery with retry + i18n |
+| 9019 | switch-core | 2 | Transaction lifecycle (PS refs, STAN, ISO 8583 codes) |
+| 9020 | security-service | 2 | API keys (bcrypt), HMAC (AES-256-GCM), RBAC, key rotation |
+| 9021 | routing-service | 5 | BIN routing, acquirer failover, health monitoring |
+| 9022 | iso8583-gateway | 7 | Parser, builder, MTI router, host connections, sessions |
+| 9024 | api-gateway | Infra | Single external entry: IP → HMAC → Route |
 
 ## Test Suites
 

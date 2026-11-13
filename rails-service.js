@@ -43,12 +43,12 @@ const WISE_PROFILE_ID     = process.env.WISE_PROFILE_ID     || "";
 const WISE_ENV            = process.env.WISE_ENV            || "sandbox";
 const WISE_WEBHOOK_PUBLIC_KEY = (process.env.WISE_WEBHOOK_PUBLIC_KEY || "")
   .replace(/\\n/g, "\n");
-const PORT                = parseInt(process.env.RAILS_PORT || process.env.WISE_PORT || "8082", 10);
+const PORT                = parseInt(process.env.RAILS_PORT || process.env.WISE_PORT || "9007", 10);
 const PAYOUT_DELAY_MS     = parseInt(process.env.RAILS_PAYOUT_DELAY_MS || "0", 10);
 
 // The ledger and the audit trail both live inside the Fastify API, which is
 // closed by default: every call is HMAC-signed with the internal service key.
-const API_BASE    = (process.env.API_BASE_URL || process.env.PRIMESTACK_API_URL || "http://127.0.0.1:8081").replace(/\/+$/, "");
+const API_BASE    = (process.env.API_BASE_URL || process.env.PRIMESTACK_API_URL || "http://127.0.0.1:9006").replace(/\/+$/, "");
 const HMAC_KEY_ID = process.env.LEDGER_HMAC_KEY_ID || process.env.CONSOLE_HMAC_KEY_ID || "psk_console_001";
 const HMAC_SECRET = process.env.LEDGER_HMAC_SECRET || process.env.CONSOLE_HMAC_SECRET || "";
 const HMAC_PREFIX = process.env.HMAC_HEADER_PREFIX || "x-primestack";

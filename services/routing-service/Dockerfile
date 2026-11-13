@@ -15,6 +15,6 @@ COPY --from=builder --chown=appuser:appgroup /app/routing-service/node_modules .
 COPY --from=builder --chown=appuser:appgroup /app/routing-service/dist ./dist
 COPY --from=builder --chown=appuser:appgroup /app/routing-service/package.json ./
 USER appuser
-EXPOSE 4012
-HEALTHCHECK --interval=10s --timeout=5s --retries=3 CMD wget -qO- http://localhost:4012/health || exit 1
+EXPOSE 9021
+HEALTHCHECK --interval=10s --timeout=5s --retries=3 CMD wget -qO- http://localhost:9021/health || exit 1
 CMD ["node","dist/routing-service/src/server.js"]

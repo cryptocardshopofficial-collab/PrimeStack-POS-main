@@ -81,11 +81,11 @@ export interface TransactionResponse {
 }
 
 // Service URLs
-const LEDGER_URL   = process.env.LEDGER_SERVICE_URL   ?? "http://localhost:4001";
-const RISK_URL     = process.env.RISK_SERVICE_URL     ?? "http://localhost:4006";
-const TERMINAL_URL = process.env.TERMINAL_SERVICE_URL ?? "http://localhost:4004";
-const ROUTING_URL  = process.env.ROUTING_SERVICE_URL  ?? "http://localhost:4012";
-const NOTIF_URL    = process.env.NOTIFICATION_SERVICE_URL ?? "http://localhost:4009";
+const LEDGER_URL   = process.env.LEDGER_SERVICE_URL   ?? "http://localhost:9010";
+const RISK_URL     = process.env.RISK_SERVICE_URL     ?? "http://localhost:9015";
+const TERMINAL_URL = process.env.TERMINAL_SERVICE_URL ?? "http://localhost:9013";
+const ROUTING_URL  = process.env.ROUTING_SERVICE_URL  ?? "http://localhost:9021";
+const NOTIF_URL    = process.env.NOTIFICATION_SERVICE_URL ?? "http://localhost:9018";
 
 /**
  * Process a transaction through the full switch pipeline.

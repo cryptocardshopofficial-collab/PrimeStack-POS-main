@@ -42,13 +42,13 @@ const WISE_ENV            = process.env.WISE_ENV            || "sandbox";
 const WISE_WEBHOOK_PUBLIC_KEY = (process.env.WISE_WEBHOOK_PUBLIC_KEY || "")
   .replace(/\\n/g, "\n");
 const CREDIT_ACCOUNT      = process.env.WISE_DEFAULT_CREDIT_ACCOUNT || "PLATFORM:RESERVE:USD";
-const DASHBOARD_URL       = process.env.DASHBOARD_URL       || "http://localhost:8081";
+const DASHBOARD_URL       = process.env.DASHBOARD_URL       || "http://localhost:9006";
 
 const WISE_BASE = WISE_ENV === "live"
   ? "https://api.transferwise.com"
   : "https://api.sandbox.transferwise.tech";
 
-const PORT = parseInt(process.env.WISE_PORT || "8082", 10);
+const PORT = parseInt(process.env.WISE_PORT || "9007", 10);
 
 // Idempotency set — prevents processing same event twice
 const processedEvents = new Set();

@@ -12,9 +12,9 @@ import { parse, build, buildResponse, extractMti, BuildInput, ParsedMessage } fr
  * Nothing disappears — if a message is received, it stays in the DB.
  */
 
-const SWITCH_CORE_URL = process.env.SWITCH_CORE_URL   ?? "http://localhost:4010";
-const RISK_URL        = process.env.RISK_SERVICE_URL   ?? "http://localhost:4006";
-const ROUTING_URL     = process.env.ROUTING_SERVICE_URL ?? "http://localhost:4012";
+const SWITCH_CORE_URL = process.env.SWITCH_CORE_URL   ?? "http://localhost:9019";
+const RISK_URL        = process.env.RISK_SERVICE_URL   ?? "http://localhost:9015";
+const ROUTING_URL     = process.env.ROUTING_SERVICE_URL ?? "http://localhost:9021";
 
 export class GatewayError extends Error {
   constructor(message: string, public code: string, public responseCode = "96") {

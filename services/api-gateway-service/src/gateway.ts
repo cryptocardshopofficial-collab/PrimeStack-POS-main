@@ -14,7 +14,7 @@ import { createServer, IncomingMessage, ServerResponse } from "http";
  *   6. Log the request     → fire-and-forget to Audit Service
  *
  * Service URLs come from environment variables so this gateway
- * works in local dev (localhost:4001) and production (k8s DNS).
+ * works in local dev (localhost:9010) and production (k8s DNS).
  *
  * mTLS:
  *   In production, the gateway terminates TLS and validates
@@ -24,19 +24,19 @@ import { createServer, IncomingMessage, ServerResponse } from "http";
  */
 
 const SERVICES = {
-  ledger:       process.env.LEDGER_SERVICE_URL        ?? "http://localhost:4001",
-  ipWhitelist:  process.env.IP_WHITELIST_SERVICE_URL   ?? "http://localhost:4002",
-  auth:         process.env.AUTH_SERVICE_URL           ?? "http://localhost:4003",
-  terminal:     process.env.TERMINAL_SERVICE_URL       ?? "http://localhost:4004",
-  transfer:     process.env.TRANSFER_SERVICE_URL       ?? "http://localhost:4005",
-  risk:         process.env.RISK_SERVICE_URL           ?? "http://localhost:4006",
-  audit:        process.env.AUDIT_SERVICE_URL          ?? "http://localhost:4007",
-  settlement:   process.env.SETTLEMENT_SERVICE_URL     ?? "http://localhost:4008",
-  notification: process.env.NOTIFICATION_SERVICE_URL   ?? "http://localhost:4009",
-  switchCore:   process.env.SWITCH_CORE_URL            ?? "http://localhost:4010",
-  security:     process.env.SECURITY_SERVICE_URL       ?? "http://localhost:4011",
-  routing:      process.env.ROUTING_SERVICE_URL        ?? "http://localhost:4012",
-  iso8583:      process.env.ISO8583_GATEWAY_URL        ?? "http://localhost:4013",
+  ledger:       process.env.LEDGER_SERVICE_URL        ?? "http://localhost:9010",
+  ipWhitelist:  process.env.IP_WHITELIST_SERVICE_URL   ?? "http://localhost:9011",
+  auth:         process.env.AUTH_SERVICE_URL           ?? "http://localhost:9012",
+  terminal:     process.env.TERMINAL_SERVICE_URL       ?? "http://localhost:9013",
+  transfer:     process.env.TRANSFER_SERVICE_URL       ?? "http://localhost:9014",
+  risk:         process.env.RISK_SERVICE_URL           ?? "http://localhost:9015",
+  audit:        process.env.AUDIT_SERVICE_URL          ?? "http://localhost:9016",
+  settlement:   process.env.SETTLEMENT_SERVICE_URL     ?? "http://localhost:9017",
+  notification: process.env.NOTIFICATION_SERVICE_URL   ?? "http://localhost:9018",
+  switchCore:   process.env.SWITCH_CORE_URL            ?? "http://localhost:9019",
+  security:     process.env.SECURITY_SERVICE_URL       ?? "http://localhost:9020",
+  routing:      process.env.ROUTING_SERVICE_URL        ?? "http://localhost:9021",
+  iso8583:      process.env.ISO8583_GATEWAY_URL        ?? "http://localhost:9022",
 };
 
 const PORT = parseInt(process.env.PORT ?? "443", 10);
