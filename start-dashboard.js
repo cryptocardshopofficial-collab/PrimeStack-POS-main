@@ -17,10 +17,6 @@ function readOptional(relativePath, encoding) {
 }
 
 const PRODUCT_GUIDE_HTML = readOptional('./product-guide.html', 'utf8');
-const PUBLIC_SITE_HTML = readOptional('./public-site.html', 'utf8');
-const DEVELOPER_PORTAL_HTML = readOptional('./developer-portal.html', 'utf8');
-const DEVELOPER_SERVICE_HTML = readOptional('./developer-service.html', 'utf8');
-const PUBLIC_BRAND_IMAGE = readOptional('./Designer (1).jpg');
 const CINEMATIC_THEME_CSS = readOptional('./cinematic-theme.css', 'utf8');
 const CINEMATIC_THEME_JS = readOptional('./cinematic-theme.js', 'utf8');
 
@@ -7932,58 +7928,6 @@ const server = createServer((req, res) => {
     return;
   }
 
-  // -- Public website --
-  const publicPages = new Set([
-    '/', '/payments', '/collect', '/send', '/payouts', '/wallets',
-    '/banking', '/settlement', '/network', '/technology', '/iso20022', '/iso8583',
-    '/security', '/compliance', '/solutions', '/merchants', '/enterprises', '/partners',
-    '/company', '/about', '/careers', '/contact', '/fintech-cloud', '/industries',
-    '/resources', '/support', '/pricing',
-    '/terms', '/privacy', '/cookies', '/acceptable-use'
-  ]);
-  const canonicalPublicPath = path.length > 1 ? path.replace(/\/+$/, '') : path;
-  if (
-    req.method === 'GET' &&
-    canonicalPublicPath !== path &&
-    (publicPages.has(canonicalPublicPath) || canonicalPublicPath === '/developer')
-  ) {
-    const queryIndex = url.indexOf('?');
-    const query = queryIndex === -1 ? '' : url.slice(queryIndex);
-    res.writeHead(308, { Location: canonicalPublicPath + query });
-    res.end();
-    return;
-  }
-  // '/' belongs to the console launcher for signed-in operators; visitors get the
-  // public marketing site. Without this, this handler shadows the console home.
-  if (req.method === 'GET' && publicPages.has(path) && !(path === '/' && readSession(req))) {
-    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-    res.end(PUBLIC_SITE_HTML);
-    return;
-  }
-  if (req.method === 'GET' && path.startsWith('/developer/')) {
-    const serviceSlug = decodeURIComponent(path.slice('/developer/'.length)).replace(/[^a-z0-9-]/g, '');
-    const developerServicePages = new Set([
-      't2t', 's2s', 'external-terminal', 'api', 'security',
-      'banking', 'wallets', 'iso20022', 'iso8583', 'ping'
-    ]);
-    if (developerServicePages.has(serviceSlug)) {
-      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-      res.end(DEVELOPER_SERVICE_HTML);
-      return;
-    }
-  }
-  if (req.method === 'GET' && path === '/developer') {
-    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-    res.end(DEVELOPER_PORTAL_HTML);
-    return;
-  }
-  let decodedPublicPath = '';
-  try { decodedPublicPath = decodeURIComponent(path); } catch {}
-  if (req.method === 'GET' && decodedPublicPath === '/Designer (1).jpg') {
-    res.writeHead(200, { 'Content-Type': 'image/jpeg', 'Cache-Control': 'public, max-age=86400' });
-    res.end(PUBLIC_BRAND_IMAGE);
-    return;
-  }
   if (req.method === 'GET' && path === '/cinematic-theme.css') {
     res.writeHead(200, { 'Content-Type': 'text/css; charset=utf-8', 'Cache-Control': 'no-cache' });
     res.end(CINEMATIC_THEME_CSS);
@@ -8087,12 +8031,7 @@ const server = createServer((req, res) => {
 
   let html = null;
   
-function developerPortalPage() {
-  return DEVELOPER_PORTAL_HTML;
-}
-
 switch (path) {
-    case '/developer':             html = developerPortalPage(); break;
     case '/':                      html = landingPage();         break;
     case '/platform':              html = platformOverview();    break;
     case '/platform/banks':        html = platformBanks();       break;
@@ -8149,9 +8088,7 @@ switch (path) {
   }
 
   res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-  const output = path === '/developer'
-    ? html
-    : html.replace('</body>', `${dashboardLocalizationScript()}</body>`);
+  const output = html.replace('</body>', `${dashboardLocalizationScript()}</body>`);
   res.end(output);
 });
 

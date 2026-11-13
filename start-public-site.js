@@ -2,7 +2,7 @@ import { createServer, request as httpRequest } from 'node:http';
 import { request as httpsRequest } from 'node:https';
 import { readFileSync } from 'node:fs';
 
-const WEBSITE_PORT = Number(process.env.WEBSITE_PORT || 9004);
+const WEBSITE_PORT = Number(process.env.WEBSITE_PORT || process.env.PORT || 9004);
 const WEBSITE_HOST = process.env.WEBSITE_HOST || '127.0.0.1';
 const DASHBOARD_PORT = Number(process.env.DASHBOARD_PORT || 9005);
 const DASHBOARD_ORIGIN = new URL(
@@ -12,6 +12,8 @@ const PUBLIC_SITE_HTML = readFileSync(new URL('./public-site.html', import.meta.
 const DEVELOPER_PORTAL_HTML = readFileSync(new URL('./developer-portal.html', import.meta.url));
 const DEVELOPER_SERVICE_HTML = readFileSync(new URL('./developer-service.html', import.meta.url));
 const PUBLIC_BRAND_IMAGE = readFileSync(new URL('./Designer (1).jpg', import.meta.url));
+const CINEMATIC_THEME_CSS = readFileSync(new URL('./cinematic-theme.css', import.meta.url));
+const CINEMATIC_THEME_JS = readFileSync(new URL('./cinematic-theme.js', import.meta.url));
 const publicPages = new Set([
   '/', '/payments', '/collect', '/send', '/payouts', '/wallets',
   '/banking', '/settlement', '/network', '/technology', '/iso20022', '/iso8583',
@@ -135,6 +137,20 @@ const server = createServer((req, res) => {
   if (path === '/Designer%20(1).jpg' || path === '/Designer (1).jpg') {
     respond(res, 200, 'image/jpeg', req.method === 'HEAD' ? '' : PUBLIC_BRAND_IMAGE, {
       'Cache-Control': 'public, max-age=86400'
+    });
+    return;
+  }
+
+  if (path === '/cinematic-theme.css') {
+    respond(res, 200, 'text/css; charset=utf-8', req.method === 'HEAD' ? '' : CINEMATIC_THEME_CSS, {
+      'Cache-Control': 'no-cache'
+    });
+    return;
+  }
+
+  if (path === '/cinematic-theme.js') {
+    respond(res, 200, 'text/javascript; charset=utf-8', req.method === 'HEAD' ? '' : CINEMATIC_THEME_JS, {
+      'Cache-Control': 'no-cache'
     });
     return;
   }

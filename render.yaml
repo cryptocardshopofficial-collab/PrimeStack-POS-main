@@ -1,8 +1,7 @@
-# PrimeStack Global Server Network — single-service Render blueprint.
+# PrimeStack Global Server Network — split public site and dashboard blueprint.
 #
-# One web service hosts the entire platform:
-#   • the operator console on Render's public PORT
-#   • the Fastify API internally on API_PORT (proxied by the console)
+# The platform service hosts the operator console and internal API.
+# The public marketing website runs as a separate web service and port.
 services:
   - type: web
     name: primestack-platform
@@ -105,6 +104,25 @@ services:
         value: 9007
       - key: RAILS_PAYOUT_DELAY_MS
         value: 0
+
+  # Public website; sign-in and API requests are proxied to primestack-platform.
+  - type: web
+    name: primestack-public-site
+    runtime: node
+    region: oregon
+    plan: free
+    branch: main
+    buildCommand: npm ci
+    startCommand: node start-public-site.js
+    healthCheckPath: /health
+    envVars:
+      - key: WEBSITE_HOST
+        value: 0.0.0.0
+      - key: DASHBOARD_ORIGIN
+        fromService:
+          type: web
+          name: primestack-platform
+          property: url
 
   # Static documentation site — unchanged, served from ./docs.
   - type: web
