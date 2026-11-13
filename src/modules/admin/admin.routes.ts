@@ -27,15 +27,21 @@ export function registerAdminRoutes(
     }
   };
   // ── Login (public, no auth required) ────────────
-  app.post("/admin/login", async (request: FastifyRequest, reply: FastifyReply) => {
-    const parsed = loginSchema.safeParse(request.body);
-    if (!parsed.success) {
-      throw new ValidationError("Invalid login data", { errors: parsed.error.errors });
-    }
+  app.post(
+    "/admin/login",
+    {
+      config: { rateLimit: { max: 5, timeWindow: "15 minutes" } },
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const parsed = loginSchema.safeParse(request.body);
+      if (!parsed.success) {
+        throw new ValidationError("Invalid login data", { errors: parsed.error.errors });
+      }
 
-    const result = await adminService.login(parsed.data.email, parsed.data.password, reply as never);
-    return sendSuccess(reply, result);
-  });
+      const result = await adminService.login(parsed.data.email, parsed.data.password, reply as never);
+      return sendSuccess(reply, result);
+    },
+  );
 
   // ── User Management (JWT required) ──────────────
 

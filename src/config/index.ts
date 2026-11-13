@@ -74,6 +74,13 @@ export const config = {
     expiresIn: required("JWT_EXPIRES_IN", "24h"),
   },
 
+  agentKyc: {
+    pinPepper: process.env.AGENT_PIN_PEPPER?.trim() ||
+      (process.env.NODE_ENV === "production" ? undefined : "dev-agent-pin-pepper-change-in-production"),
+    encryptionKey: process.env.AGENT_KYC_ENCRYPTION_KEY?.trim() ||
+      (process.env.NODE_ENV === "production" ? undefined : "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="),
+  },
+
   hmac: {
     algorithm: required("HMAC_ALGORITHM", "sha256"),
     headerPrefix: required("HMAC_HEADER_PREFIX", "x-primestack"),

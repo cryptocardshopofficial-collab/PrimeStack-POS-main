@@ -4,6 +4,10 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>PrimeStack Asset Gateway — Usage Guide</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Italiana&family=Outfit:wght@300;400;600&family=Playfair+Display:ital,wght@1,500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Martian+Mono:wght@300;400;600&display=swap" rel="stylesheet">
 <style>
   :root {
     --bg: #0d0f17;
@@ -30,7 +34,7 @@
   body {
     background: var(--bg);
     color: var(--text);
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-family: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     font-size: 15px;
     line-height: 1.7;
   }
@@ -282,9 +286,216 @@
   p { color: var(--text-muted); margin-bottom: 12px; font-size: 14px; }
   h3 { color: var(--text); font-size: 16px; margin: 20px 0 10px; }
   h4 { color: var(--text-muted); font-size: 14px; font-weight: 600; margin: 16px 0 8px; }
+
+  /* ═══════════════════════════════════════════════════════════════
+     FLIGHT LOG THEME LAYER — scroll-driven inks, serif & mono.
+     Same visual language as /pricing and /developer; additive, so
+     every existing section, table and code block keeps working.
+     ═══════════════════════════════════════════════════════════════ */
+  @property --fl-y{syntax:'<integer>';initial-value:0;inherits:false}
+  @property --fl-p{syntax:'<integer>';initial-value:0;inherits:true}
+  @property --fl-mx{syntax:'<percentage>';initial-value:50%;inherits:false}
+
+  :root{
+    --bg:#07090d; --surface:#0d1118; --surface2:#12161e; --border:#1c2430;
+    --accent:#c6ff3d; --accent-dim:#26301a;
+    --green:#9ee84a; --yellow:#ffb02e; --red:#ff5d4a; --purple:#5cc8ff; --cyan:#5cc8ff;
+    --text:#ece6d6; --text-muted:#a2abb8; --text-dim:#7d8796;
+    --radius:4px; --radius-sm:3px;
+    --fl-ink:#07090d; --fl-ink2:#0d1118; --fl-line:#1c2430;
+    --fl-paper:#ece6d6; --fl-dim:#7d8796;
+    --fl-lime:#c6ff3d; --fl-amber:#ffb02e; --fl-coral:#ff5d4a; --fl-sky:#5cc8ff;
+    --fl-serif:'Italiana','Times New Roman',serif;
+    --fl-mono:'Martian Mono',ui-monospace,'SF Mono',Menlo,monospace;
+    --fl-spring:linear(0,.009,.035 2.1%,.141,.281 6.7%,.723 12.9%,.938 16.7%,1.017,1.077,1.121,1.149 24.3%,1.159,1.163,1.161,1.154 29.9%,1.129 32.8%,1.051 39.6%,1.017 43.1%,.991,.977 51%,.974 53.8%,.975 57.1%,.997 69.8%,1.003 76.9%,1.004 83.8%,1);
+  }
+  body{background:var(--fl-ink);timeline-scope:--t-request,--t-verify,--t-build,--t-live,--t-flspine}
+  body::before{content:"";position:fixed;inset:0;z-index:90;pointer-events:none;opacity:.09;mix-blend-mode:overlay;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>")}
+  body::after{content:"";position:fixed;inset:0;z-index:89;pointer-events:none;background:radial-gradient(ellipse at 50% 40%,transparent 55%,#000a 100%)}
+
+  /* ── type ── */
+  h1,h2,h3,h4,.hero h1,.section-header h2{font-family:var(--fl-serif);font-weight:400;letter-spacing:-.02em}
+  .section-header{border-bottom-color:var(--fl-line)}
+  .section-header h2{color:var(--fl-paper);font-size:clamp(22px,2.6vw,30px);line-height:1.1}
+  .section-header h2 small{font-family:var(--fl-mono);font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--fl-dim);font-weight:300}
+  .section-num{width:auto;min-width:32px;height:24px;padding:0 9px;border-radius:3px;background:#c6ff3d14;color:var(--fl-lime);font-family:var(--fl-mono);font-size:11px;font-weight:600}
+  .hero{background:linear-gradient(135deg,#0a0d13,#0d1118 60%,#0a0d13);border-color:var(--fl-line);border-radius:4px}
+  .hero::before{background:radial-gradient(circle,rgba(198,255,61,.10) 0%,transparent 70%)}
+  .hero h1{color:var(--fl-paper);font-size:clamp(30px,4.4vw,52px);line-height:1.05;letter-spacing:-.03em}
+  .hero h1 span{color:var(--fl-lime)}
+  .hero p{color:var(--fl-dim)}
+  .badge{border-radius:99px;font-family:var(--fl-mono);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase}
+  .badge-blue{background:#c6ff3d10;border-color:#c6ff3d33;color:var(--fl-lime)}
+  .badge-green{background:#9ee84a10;border-color:#9ee84a33;color:var(--fl-lime)}
+  .badge-yellow{background:#ffb02e10;border-color:#ffb02e33;color:var(--fl-amber)}
+  .badge-purple{background:#5cc8ff10;border-color:#5cc8ff33;color:var(--fl-sky)}
+  .badge-cyan{background:#5cc8ff10;border-color:#5cc8ff33;color:var(--fl-sky)}
+  .badge-red{background:#ff5d4a10;border-color:#ff5d4a33;color:var(--fl-coral)}
+  h4{color:var(--fl-dim)}
+
+  /* ── nav ── */
+  nav{background:rgba(7,9,13,.96);border-bottom-color:var(--fl-line)}
+  .nav-brand{color:var(--fl-lime);font-family:var(--fl-serif);font-size:19px;font-weight:400;letter-spacing:-.01em}
+  nav a{font-family:var(--fl-mono);font-size:10.5px;letter-spacing:.06em;border-radius:3px}
+  nav a:hover{background:#c6ff3d0f;color:var(--fl-paper)}
+  nav a.active{background:#c6ff3d14;color:var(--fl-lime)}
+
+  /* ── surfaces ── */
+  .card,.toc-item,.steps li{background:linear-gradient(160deg,var(--fl-ink2),#090c11);border-color:var(--fl-line);border-radius:4px}
+  .card h3{color:var(--fl-paper)}
+  .card p{color:var(--fl-dim)}
+  .toc-item{color:var(--fl-dim)}
+  .toc-item:hover{border-color:#c6ff3d66;background:#c6ff3d0a;color:var(--fl-paper)}
+  .toc-item strong{color:var(--fl-paper)}
+  .step-num{background:#c6ff3d1a;color:var(--fl-lime)}
+  .steps li strong{color:var(--fl-paper)}
+  .steps li p{color:var(--fl-dim)}
+  .callout{border-radius:4px;color:var(--fl-dim)}
+  .callout-info{background:#c6ff3d0a;border-color:#c6ff3d33}
+  .callout-info strong{color:var(--fl-lime)}
+  .callout-warn{background:#ffb02e0a;border-color:#ffb02e33}
+  .callout-warn strong{color:var(--fl-amber)}
+  .callout-danger{background:#ff5d4a0a;border-color:#ff5d4a33}
+  .callout-danger strong{color:var(--fl-coral)}
+  .callout-success{background:#9ee84a0a;border-color:#9ee84a33}
+  .callout-success strong{color:var(--fl-lime)}
+
+  /* ── code & tables ── */
+  .code-block{background:#0a0c11;border-color:var(--fl-line);border-radius:4px}
+  .code-block-header{background:var(--fl-ink2);border-bottom-color:var(--fl-line);font-family:var(--fl-mono);font-size:10.5px;letter-spacing:.08em}
+  .code-block-header .lang{color:var(--fl-lime)}
+  .copy-btn{border-radius:3px;font-family:var(--fl-mono);background:#c6ff3d0f;border-color:var(--fl-line);color:var(--fl-dim)}
+  .copy-btn:hover{border-color:var(--fl-lime);color:var(--fl-lime)}
+  pre{color:#a7b0bd}
+  .prop{color:var(--fl-lime)}
+  .table-wrap{border-radius:4px;border-color:var(--fl-line)}
+  thead tr{background:var(--fl-ink2)}
+  th{font-family:var(--fl-mono);font-size:10px;letter-spacing:.12em;color:var(--fl-dim)}
+  td{border-bottom-color:rgba(236,230,214,.07);color:var(--text)}
+  tr:hover td{background:#c6ff3d08}
+  td code,th code,p code,li code{background:#12161e;border-color:var(--fl-line);color:var(--fl-sky)}
+  hr{border-top-color:var(--fl-line)}
+  footer{border-top-color:var(--fl-line);color:var(--fl-dim);font-family:var(--fl-mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase}
+  footer a{color:var(--fl-lime)}
+
+  /* ── scroll progress ── */
+  .fl-progress{position:fixed;inset:0 0 auto 0;height:3px;z-index:110;background:linear-gradient(90deg,var(--fl-lime),var(--fl-amber),var(--fl-coral));transform-origin:0 50%;scale:0 1;animation:flGrow 1ms linear both;animation-timeline:scroll(root block)}
+  @keyframes flGrow{to{scale:1 1}}
+
+  /* ── HUD lanes ── */
+  .fl-hud{position:fixed;z-index:95;right:clamp(12px,2vw,28px);top:50%;translate:0 -50%;display:grid;gap:14px;font-family:var(--fl-mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;animation:flHudIn 1ms linear both;animation-timeline:scroll(root block);animation-range:0 8vh}
+  @keyframes flHudIn{from{opacity:0;translate:20px -50%}to{opacity:1;translate:0 -50%}}
+  .fl-lane{display:grid;grid-template-columns:auto 10px;align-items:center;gap:10px;justify-items:end;color:var(--fl-dim)}
+  .fl-lane i{width:10px;height:10px;border-radius:50%;border:1px solid var(--fl-dim);background:transparent;animation:flPip 1ms linear both}
+  .fl-lane span{animation:flLaneTxt 1ms linear both}
+  .fl-lane[data-b="request"] :is(i,span){animation-timeline:--t-request;animation-range:entry 90% cover 55%}
+  .fl-lane[data-b="verify"] :is(i,span){animation-timeline:--t-verify;animation-range:entry 90% cover 55%}
+  .fl-lane[data-b="build"] :is(i,span){animation-timeline:--t-build;animation-range:entry 90% cover 55%}
+  .fl-lane[data-b="live"] :is(i,span){animation-timeline:--t-live;animation-range:entry 90% cover 55%}
+  @keyframes flPip{to{background:var(--fl-lime);border-color:var(--fl-lime);box-shadow:0 0 14px var(--fl-lime);scale:1.35}}
+  @keyframes flLaneTxt{to{color:var(--fl-paper)}}
+  .fl-readout{margin-top:6px;padding-top:12px;border-top:1px solid var(--fl-line);text-align:right;color:var(--fl-dim);animation:flRd 1ms linear both;animation-timeline:scroll(root block);counter-reset:p var(--fl-p)}
+  .fl-readout::before{content:counter(p) "%";color:var(--fl-lime);font-weight:600;font-size:18px;letter-spacing:0;display:block}
+  @keyframes flRd{from{--fl-p:0}to{--fl-p:100}}
+
+  /* ── integration path timeline ── */
+  .fl-stages{position:relative;z-index:2;background:var(--fl-ink);padding:6vh 0 4vh}
+  .fl-intro{max-width:56ch;margin:0 auto clamp(40px,10vh,110px);font-family:var(--fl-serif);font-size:clamp(24px,3.2vw,40px);line-height:1.2;color:var(--fl-dim);text-align:center}
+  .fl-intro .w{display:inline-block;color:#3b4452;animation:flLit 1ms linear both;animation-timeline:view(block);animation-range:entry 55% cover 42%}
+  .fl-intro .w:nth-child(3n){animation-range:entry 62% cover 46%}
+  .fl-intro .w:nth-child(4n){animation-range:entry 68% cover 50%}
+  @keyframes flLit{to{color:var(--fl-paper)}}
+
+  .fl-timeline{position:relative;max-width:1180px;margin:0 auto;padding:2vh 0 6vh;view-timeline:--t-flspine block}
+  .fl-spine,.fl-spine::after{position:absolute;left:50%;top:0;bottom:0;width:2px;translate:-50% 0}
+  .fl-spine{background:repeating-linear-gradient(var(--fl-line) 0 6px,transparent 6px 12px)}
+  .fl-spine::after{content:"";background:linear-gradient(var(--fl-lime),var(--fl-amber) 70%,var(--fl-coral));box-shadow:0 0 22px var(--fl-lime),0 0 60px #c6ff3d55;transform-origin:top;scale:1 0;animation:flFill 1ms linear both;animation-timeline:--t-flspine;animation-range:cover 18% cover 82%}
+  @keyframes flFill{to{scale:1 1}}
+
+  .fl-event{position:relative;display:grid;grid-template-columns:1fr 1fr;column-gap:0;align-items:center;margin:0 0 clamp(90px,18vh,200px);padding:0;background:transparent}
+  .fl-event:last-of-type{margin-bottom:0}
+  #fl-request{view-timeline:--t-request block;--c:var(--fl-amber)}
+  #fl-verify{view-timeline:--t-verify block;--c:var(--fl-sky)}
+  #fl-build{view-timeline:--t-build block;--c:var(--fl-coral)}
+  #fl-live{view-timeline:--t-live block;--c:var(--fl-lime)}
+
+  .fl-card{position:relative;padding:clamp(22px,3vw,40px);background:linear-gradient(160deg,var(--fl-ink2),#090c11);border:1px solid var(--fl-line);border-radius:4px;overflow:hidden;isolation:isolate;animation:flCardIn 1ms var(--fl-spring) both;animation-timeline:view(block);animation-range:entry 0% entry 85%}
+  .fl-event:nth-of-type(odd) .fl-card{grid-column:1;margin-right:clamp(36px,6vw,84px);--from:-90px}
+  .fl-event:nth-of-type(even) .fl-card{grid-column:2;margin-left:clamp(36px,6vw,84px);--from:90px}
+  @keyframes flCardIn{from{opacity:0;translate:var(--from) 40px;rotate:calc(var(--from) / 30);scale:.86;filter:blur(8px)}}
+  .fl-card::before{content:"";position:absolute;inset:0;z-index:-1;opacity:.9;background:radial-gradient(420px 220px at var(--fl-mx,50%) 0%,color-mix(in oklab,var(--c) 28%,transparent),transparent 70%);animation:flSweep 1ms linear both;animation-timeline:view(block);animation-range:entry 20% exit 20%}
+  @keyframes flSweep{from{--fl-mx:0%}to{--fl-mx:100%}}
+
+  .fl-tag{display:inline-flex;align-items:center;gap:10px;font-family:var(--fl-mono);font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--c)}
+  .fl-tag::before{content:"";width:26px;height:1px;background:var(--c);transform-origin:left;scale:0 1;animation:flTagLine 1ms linear both;animation-timeline:view(block);animation-range:entry 30% entry 100%}
+  @keyframes flTagLine{to{scale:1 1}}
+  .fl-card h2{font-family:var(--fl-serif);font-weight:400;font-size:clamp(38px,5.2vw,76px);line-height:.95;letter-spacing:-.03em;margin:14px 0 8px;color:var(--fl-paper)}
+  .fl-card h2 small{font-size:.34em;font-family:var(--fl-mono);letter-spacing:.1em;color:var(--fl-dim);font-weight:300;margin-left:.5em;text-transform:uppercase}
+  .fl-card p{color:#aab3c0;font-family:var(--fl-mono);font-size:12.5px;line-height:1.8;max-width:44ch}
+  .fl-card code{color:var(--c);background:#ffffff0a;padding:1px 6px;border-radius:3px;font-size:12px}
+  .fl-stepnum{display:block;font-family:'Playfair Display','Italiana',serif;font-style:italic;font-weight:500;font-size:clamp(48px,8vw,120px);line-height:1;margin-top:22px;color:transparent;-webkit-text-stroke:1px var(--c);counter-reset:y var(--fl-y);animation:flSpin 1ms linear both;animation-timeline:view(block);animation-range:entry 0% entry 85%}
+  .fl-stepnum::before{content:counter(y)}
+  @keyframes flSpin{from{--fl-y:0}to{--fl-y:var(--to)}}
+  .fl-stepnum .fl-mo{font-family:var(--fl-mono);font-size:11px;letter-spacing:.2em;-webkit-text-stroke:0;color:var(--fl-dim);text-transform:uppercase;margin-left:14px;vertical-align:top}
+  .fl-chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:22px}
+  .fl-chips span{font-family:var(--fl-mono);font-size:10px;letter-spacing:.12em;padding:5px 10px;border:1px solid var(--fl-line);border-radius:99px;color:var(--fl-dim);animation:flChip 1ms var(--fl-spring) both;animation-timeline:view(block);animation-range:entry 55% entry 100%}
+  .fl-chips span:nth-child(2){animation-range:entry 65% entry 105%}
+  .fl-chips span:nth-child(3){animation-range:entry 75% entry 110%}
+  @keyframes flChip{from{opacity:0;translate:0 14px;scale:.8}}
+  .fl-jump{display:inline-block;margin-top:20px;font-family:var(--fl-mono);font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--c)}
+  .fl-jump:hover{border-bottom:1px solid var(--c)}
+  .fl-node{position:absolute;left:50%;top:50%;width:22px;height:22px;translate:-50% -50%;z-index:3;border-radius:50%;background:var(--fl-ink);border:2px solid var(--c);animation:flNode 1ms var(--fl-spring) both;animation-timeline:view(block);animation-range:entry 35% entry 70%}
+  .fl-node::after{content:"";position:absolute;inset:-2px;border-radius:50%;border:1px solid var(--c);animation:flPing 2.4s ease-out infinite}
+  @keyframes flNode{from{scale:0}to{scale:1;box-shadow:0 0 0 6px var(--fl-ink),0 0 30px var(--c)}}
+  @keyframes flPing{to{scale:3.2;opacity:0}}
+  .fl-link{position:absolute;top:50%;height:1px;background:var(--c);width:clamp(36px,6vw,84px);transform-origin:var(--o);scale:0 1;animation:flLinkIn 1ms linear both;animation-timeline:view(block);animation-range:entry 30% entry 75%}
+  .fl-event:nth-of-type(odd) .fl-link{right:50%;--o:right;margin-right:11px}
+  .fl-event:nth-of-type(even) .fl-link{left:50%;--o:left;margin-left:11px}
+  @keyframes flLinkIn{to{scale:1 1}}
+
+  @media(max-width:760px){
+    .fl-hud{display:none}
+    .fl-spine,.fl-spine::after{left:18px}
+    .fl-event{grid-template-columns:1fr;padding-left:44px}
+    .fl-event .fl-card,.fl-event:nth-of-type(odd) .fl-card,.fl-event:nth-of-type(even) .fl-card{grid-column:1;margin:0;--from:60px}
+    .fl-node{left:18px}
+    .fl-link{display:none}
+  }
+  @supports not (animation-timeline: scroll()){
+    .fl-progress,.fl-hud{display:none}
+    .fl-card,.fl-node,.fl-link,.fl-chips span,.fl-intro .w,.fl-stepnum{animation:none}
+    .fl-card{opacity:0;translate:0 30px;transition:opacity .7s,translate .7s var(--fl-spring)}
+    .fl-card.in{opacity:1;translate:0 0}
+    .fl-spine::after{scale:1 1}
+    .fl-link{scale:1 1}
+    .fl-node{scale:1}
+    .fl-stepnum::before{content:attr(data-step)}
+    .fl-intro .w{color:var(--fl-paper)}
+  }
+  @media(prefers-reduced-motion:reduce){
+    .fl-progress,.fl-hud{display:none}
+    .fl-card,.fl-node,.fl-link,.fl-chips span,.fl-intro .w,.fl-stepnum{animation:none!important}
+    .fl-card{opacity:1;translate:0 0;scale:1;rotate:none;filter:none}
+    .fl-spine::after{scale:1 1}
+    .fl-link{scale:1 1}
+    .fl-node{scale:1}
+    .fl-intro .w{color:var(--fl-paper)}
+    .fl-stepnum::before{content:attr(data-step)}
+  }
 </style>
+<link rel="stylesheet" href="/developer-ocean.css">
 </head>
 <body>
+
+<!-- ═══ FLIGHT LOG — scroll progress + HUD ═══ -->
+<div class="fl-progress" aria-hidden="true"></div>
+<div class="fl-hud" aria-hidden="true">
+  <div class="fl-lane" data-b="request"><span>01 Request access</span><i></i></div>
+  <div class="fl-lane" data-b="verify"><span>02 Authenticate</span><i></i></div>
+  <div class="fl-lane" data-b="build"><span>03 Integrate</span><i></i></div>
+  <div class="fl-lane" data-b="live"><span>04 Go live</span><i></i></div>
+  <div class="fl-readout">Complete</div>
+</div>
 
 <!-- ═══ NAV ═══ -->
 <nav id="top-nav">
@@ -329,6 +540,66 @@
       <span class="badge badge-red">Double-Entry Ledger</span>
     </div>
   </div>
+
+  <!-- ─── FLIGHT LOG — integration path timeline ─── -->
+  <section class="fl-stages">
+    <p class="fl-intro">Four stages carry a merchant from an access request to live, reconciled settlement — this guide documents every endpoint along the way.</p>
+    <div class="fl-timeline">
+      <span class="fl-spine" aria-hidden="true"></span>
+
+      <article class="fl-event" id="fl-request">
+        <span class="fl-node" aria-hidden="true"></span>
+        <span class="fl-link" aria-hidden="true"></span>
+        <div class="fl-card">
+          <span class="fl-tag">Stage 01 — Onboarding</span>
+          <h2>Request access <small>setup &amp; environment</small></h2>
+          <p>Stand up the stack — PostgreSQL, Redis and the Fastify process — then request environment access, seed the database and confirm the health endpoint responds before any credential is issued.</p>
+          <span class="fl-stepnum" style="--to:1" data-step="01"><span class="fl-mo">stage</span></span>
+          <div class="fl-chips"><span>Infrastructure</span><span>Environment access</span><span>Health check</span></div>
+          <a class="fl-jump" href="#getting-started">Jump to Getting Started →</a>
+        </div>
+      </article>
+
+      <article class="fl-event" id="fl-verify">
+        <span class="fl-node" aria-hidden="true"></span>
+        <span class="fl-link" aria-hidden="true"></span>
+        <div class="fl-card">
+          <span class="fl-tag">Stage 02 — Security</span>
+          <h2>Authenticate <small>hmac + jwt</small></h2>
+          <p>Sign merchant and agent requests with HMAC and a fresh timestamp and nonce, or present an administrator JWT for operator-only routes. Keep every secret in a server-side manager.</p>
+          <span class="fl-stepnum" style="--to:2" data-step="02"><span class="fl-mo">stage</span></span>
+          <div class="fl-chips"><span>HMAC signing</span><span>Admin JWT</span><span>Key rotation</span></div>
+          <a class="fl-jump" href="#auth">Jump to Authentication →</a>
+        </div>
+      </article>
+
+      <article class="fl-event" id="fl-build">
+        <span class="fl-node" aria-hidden="true"></span>
+        <span class="fl-link" aria-hidden="true"></span>
+        <div class="fl-card">
+          <span class="fl-tag">Stage 03 — Build</span>
+          <h2>Integrate &amp; test <small>transfers, ledger, s2s</small></h2>
+          <p>Create merchants and wallets, move value with transfers and the server-to-server engine, and verify every movement against the double-entry ledger. Exercise failures with synthetic data and idempotency keys.</p>
+          <span class="fl-stepnum" style="--to:3" data-step="03"><span class="fl-mo">stage</span></span>
+          <div class="fl-chips"><span>Wallets &amp; transfers</span><span>S2S engine</span><span>Ledger entries</span></div>
+          <a class="fl-jump" href="#transfers">Jump to Transfers →</a>
+        </div>
+      </article>
+
+      <article class="fl-event" id="fl-live">
+        <span class="fl-node" aria-hidden="true"></span>
+        <span class="fl-link" aria-hidden="true"></span>
+        <div class="fl-card">
+          <span class="fl-tag">Stage 04 — Production</span>
+          <h2>Go live &amp; reconcile <small>routing, settlement, alerts</small></h2>
+          <p>Route through BIN rules, settle and reconcile against ledger evidence, and watch health, metrics and webhook notifications. Reachability alone never proves an external payment settled.</p>
+          <span class="fl-stepnum" style="--to:4" data-step="04"><span class="fl-mo">stage</span></span>
+          <div class="fl-chips"><span>Routing &amp; BIN</span><span>Settlement</span><span>Monitoring</span></div>
+          <a class="fl-jump" href="#monitoring">Jump to Monitoring →</a>
+        </div>
+      </article>
+    </div>
+  </section>
 
   <!-- ─── TABLE OF CONTENTS ─── -->
   <section>
@@ -1301,5 +1572,43 @@ function updateNav() {
 window.addEventListener('scroll', updateNav, { passive: true });
 updateNav();
 </script>
+<script>
+// Flight Log — intro word-lit split + non-scroll-timeline fallback
+(function () {
+  var intro = document.querySelector('.fl-intro');
+  if (intro && !intro.dataset.flSplit) {
+    intro.dataset.flSplit = '1';
+    var words = intro.textContent.trim().split(/\s+/);
+    intro.textContent = '';
+    words.forEach(function (word, index) {
+      var span = document.createElement('span');
+      span.className = 'w';
+      span.textContent = word;
+      intro.appendChild(span);
+      if (index < words.length - 1) intro.appendChild(document.createTextNode(' '));
+    });
+  }
+
+  if (!window.CSS || !CSS.supports || !CSS.supports('animation-timeline: scroll()')) {
+    var cards = document.querySelectorAll('.fl-card');
+    if ('IntersectionObserver' in window) {
+      var obs = new IntersectionObserver(function (entries) {
+        entries.forEach(function (entry) {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('in');
+            obs.unobserve(entry.target);
+          }
+        });
+      }, { threshold: 0.15 });
+      cards.forEach(function (card) { obs.observe(card); });
+    } else {
+      cards.forEach(function (card) { card.classList.add('in'); });
+    }
+  }
+})();
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r124/three.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/2.1.3/TweenMax.min.js"></script>
+<script src="/developer-ocean.js"></script>
 </body>
 </html>

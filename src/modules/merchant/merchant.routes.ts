@@ -3,7 +3,6 @@ import { MerchantService } from "./merchant.service.js";
 import {
   assignAgentSchema,
   assignMerchantWalletSchema,
-  createAgentSchema,
   createKycDocumentSchema,
   createMerchantInvoiceSchema,
   createMerchantSchema,
@@ -265,19 +264,6 @@ export function registerMerchantRoutes(
       reply,
       await merchantService.mapMerchantWallet(id, parsed.data),
     );
-  });
-
-  app.get("/agents", async (_request, reply) => {
-    return sendSuccess(reply, await merchantService.listAgents());
-  });
-
-  app.post("/agents", async (request, reply) => {
-    const parsed = createAgentSchema.safeParse(request.body);
-    if (!parsed.success)
-      throw new ValidationError("Invalid agent", {
-        errors: parsed.error.errors,
-      });
-    return sendCreated(reply, await merchantService.createAgent(parsed.data));
   });
 
   app.put("/merchants/:id/agent", async (request, reply) => {

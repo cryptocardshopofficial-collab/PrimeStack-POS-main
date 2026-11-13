@@ -55,13 +55,16 @@ export async function hmacAuthPlugin(app: FastifyInstance): Promise<void> {
   app.addHook(
     "preValidation",
     async (request: FastifyRequest, _reply: FastifyReply) => {
+      const path = request.url.split("?")[0];
       // Skip auth for health, docs, and admin login routes
       if (
         request.url.startsWith("/health") ||
         request.url.startsWith("/docs") ||
         request.url.startsWith("/admin/login") ||
-        request.url.split("?")[0] === "/public/terminal-registration" ||
-        request.url.split("?")[0] === "/t2t/whitelist"
+        path === "/public/terminal-registration" ||
+        path === "/public/agent-portal/login" ||
+        path === "/public/agent-portal/profile" ||
+        path === "/t2t/whitelist"
       ) {
         return;
       }
@@ -72,7 +75,6 @@ export async function hmacAuthPlugin(app: FastifyInstance): Promise<void> {
       }
 
       const prefix = config.hmac.headerPrefix;
-      const path = request.url.split("?")[0];
       const isAgentRoute = path === "/agent" || path.startsWith("/agent/");
       const keyId = request.headers[`${prefix}-key-id`];
       const timestamp = request.headers[`${prefix}-timestamp`];

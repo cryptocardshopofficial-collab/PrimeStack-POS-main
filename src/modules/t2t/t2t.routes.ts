@@ -1,6 +1,6 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 import { createHash, randomUUID } from "crypto";
-import { isIP } from "net";
+import { createConnection, isIP } from "net";
 import { z } from "zod";
 import { Decimal } from "../../core/decimal.js";
 import { prisma } from "../../core/database.js";
@@ -37,6 +37,12 @@ const t2tWhitelistSchema = z.object({
   note: z.string().trim().max(500).optional(),
 });
 
+const t2tPingSchema = z.object({
+  ip: z.string().trim().min(1).max(45).optional(),
+  port: z.coerce.number().int().min(1).max(65535).optional(),
+  timeoutMs: z.coerce.number().int().min(100).max(10000).default(3000),
+});
+
 function normalizeIp(ip: string): string {
   const normalized = ip.trim().toLowerCase();
   return normalized.startsWith("::ffff:") ? normalized.slice(7) : normalized;
@@ -70,6 +76,82 @@ async function isAllowed(ip: string): Promise<boolean> {
     ip,
   );
   return rows[0]?.allowed === true;
+}
+
+type PingResult = {
+  ip: string;
+  note: string | null;
+  reachable: boolean;
+  port: number | null;
+  latencyMs: number | null;
+  error: string | null;
+};
+
+// TCP ping: opens a socket to the sender's IP and measures how long the
+// handshake takes. ICMP is not usable without raw-socket privileges, so a TCP
+// connect is the reliable way to prove a sender endpoint is reachable.
+function tcpProbe(
+  ip: string,
+  port: number,
+  timeoutMs: number,
+): Promise<{ reachable: boolean; latencyMs: number; error: string | null }> {
+  return new Promise((resolve) => {
+    const started = Date.now();
+    const socket = createConnection({ host: ip, port });
+    let settled = false;
+    const finish = (reachable: boolean, error: string | null) => {
+      if (settled) return;
+      settled = true;
+      socket.destroy();
+      resolve({ reachable, latencyMs: Date.now() - started, error });
+    };
+    socket.setTimeout(timeoutMs);
+    socket.once("connect", () => finish(true, null));
+    socket.once("timeout", () => finish(false, "timeout"));
+    socket.once("error", (err: NodeJS.ErrnoException) =>
+      finish(false, err.code || err.message),
+    );
+  });
+}
+
+async function pingSenderIp(
+  ip: string,
+  ports: number[],
+  timeoutMs: number,
+): Promise<Omit<PingResult, "note">> {
+  if (!isIP(ip)) {
+    return {
+      ip,
+      reachable: false,
+      port: null,
+      latencyMs: null,
+      error: "invalid_ip",
+    };
+  }
+  let last: { latencyMs: number; error: string | null } = {
+    latencyMs: 0,
+    error: "unreachable",
+  };
+  for (const port of ports) {
+    const probe = await tcpProbe(ip, port, timeoutMs);
+    if (probe.reachable) {
+      return {
+        ip,
+        reachable: true,
+        port,
+        latencyMs: probe.latencyMs,
+        error: null,
+      };
+    }
+    last = probe;
+  }
+  return {
+    ip,
+    reachable: false,
+    port: ports[ports.length - 1] ?? null,
+    latencyMs: last.latencyMs,
+    error: last.error,
+  };
 }
 
 export function registerT2tRoutes(app: FastifyInstance): void {
@@ -150,6 +232,73 @@ export function registerT2tRoutes(app: FastifyInstance): void {
           `SELECT ip, note, added_at FROM "T2tIpWhitelist" ORDER BY added_at DESC`,
         );
       return sendSuccess(reply, { whitelistedIps: rows, count: rows.length });
+    },
+  );
+
+  // Ping one sender IP or every whitelisted sender to confirm reachability.
+  app.post(
+    "/t2t/whitelist/ping",
+    {
+      preHandler: app.authenticate,
+    },
+    async (req: FastifyRequest, reply: FastifyReply) => {
+      const role = (req.user as { role?: string } | undefined)?.role;
+      if (!role || !["SUPER_ADMIN", "ADMIN", "OPERATOR"].includes(role)) {
+        throw new ForbiddenError("Your role cannot ping T2T sender IPs");
+      }
+      const parsed = t2tPingSchema.safeParse(req.body ?? {});
+      if (!parsed.success) {
+        throw new ValidationError("Invalid ping request", {
+          errors: parsed.error.errors,
+        });
+      }
+      const { timeoutMs } = parsed.data;
+      const ports = parsed.data.port ? [parsed.data.port] : [443, 80];
+
+      let targets: { ip: string; note: string | null }[];
+      if (parsed.data.ip) {
+        const ip = normalizeIp(parsed.data.ip);
+        targets = await prisma.$queryRawUnsafe(
+          `SELECT ip, note FROM "T2tIpWhitelist" WHERE ip = $1 LIMIT 1`,
+          ip,
+        );
+        if (!targets.length) throw new NotFoundError("Sender IP", ip);
+      } else {
+        targets = await prisma.$queryRawUnsafe(
+          `SELECT ip, note FROM "T2tIpWhitelist" ORDER BY added_at DESC`,
+        );
+      }
+
+      const results: PingResult[] = await Promise.all(
+        targets.map(async (target) => ({
+          ...(await pingSenderIp(target.ip, ports, timeoutMs)),
+          note: target.note,
+        })),
+      );
+
+      const reachable = results.filter((r) => r.reachable);
+      const latencies = reachable
+        .map((r) => r.latencyMs)
+        .filter((ms): ms is number => typeof ms === "number");
+      const avgLatencyMs = latencies.length
+        ? Math.round(latencies.reduce((a, b) => a + b, 0) / latencies.length)
+        : null;
+
+      logger.info(
+        { count: results.length, reachable: reachable.length, ports },
+        "T2T sender IP ping",
+      );
+
+      return sendSuccess(reply, {
+        results,
+        summary: {
+          total: results.length,
+          reachable: reachable.length,
+          unreachable: results.length - reachable.length,
+          avgLatencyMs,
+          ports,
+        },
+      });
     },
   );
 

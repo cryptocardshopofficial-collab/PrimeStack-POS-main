@@ -19,6 +19,8 @@ function readOptional(relativePath, encoding) {
 const PRODUCT_GUIDE_HTML = readOptional('./product-guide.html', 'utf8');
 const CINEMATIC_THEME_CSS = readOptional('./cinematic-theme.css', 'utf8');
 const CINEMATIC_THEME_JS = readOptional('./cinematic-theme.js', 'utf8');
+const AGENT_REGISTRATION_CONTENT = readFileSync(new URL('./agent-registration-content.html', import.meta.url), 'utf8');
+const AGENT_PORTAL_HTML = readFileSync(new URL('./agent-portal.html', import.meta.url), 'utf8');
 
 // Base URL the browser-side pages call for API requests.
 // Set API_URL on Render to the deployed API service origin.
@@ -506,7 +508,9 @@ function sidebar(active) {
     ${link('/platform/settlement','Settlement','<svg width="14" height="14" fill="none" viewBox="0 0 16 16"><rect x="2" y="3" width="12" height="10" rx="1.5" stroke="currentColor" stroke-width="1.5"/><path d="M2 7h12M5 3v2M11 3v2" stroke="currentColor" stroke-width="1.5"/></svg>')}
     ${link('/platform/risk','Risk Engine','<svg width="14" height="14" fill="none" viewBox="0 0 16 16"><path d="M8 1.5L1.5 5v6L8 14.5 14.5 11V5L8 1.5z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M8 6v3M8 10.5v.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>')}
     ${link('/platform/monitoring','Monitoring','<svg width="14" height="14" fill="none" viewBox="0 0 16 16"><path d="M1 9l3-4 3 3 3-5 3 3 2-2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>')}
+    ${link('/platform/ping','Ping','<svg width="14" height="14" fill="none" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.5" stroke="currentColor" stroke-width="1.5"/><circle cx="8" cy="8" r="2.5" stroke="currentColor" stroke-width="1.5"/><path d="M8 8h6.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>')}
     ${link('/platform/merchants','Merchants','<svg width="14" height="14" fill="none" viewBox="0 0 16 16"><path d="M2 5h12l-1.5 7H3.5L2 5z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M1 5l1-3h12l1 3" stroke="currentColor" stroke-width="1.5"/></svg>')}
+    ${link('/platform/agents','Register Agent','<svg width="14" height="14" fill="none" viewBox="0 0 16 16"><circle cx="6" cy="5" r="3" stroke="currentColor" stroke-width="1.5"/><path d="M1 14c.4-2.5 2-4 5-4s4.6 1.5 5 4M13 5v6M10 8h6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>')}
   </div>
   <div class="sidebar-section nav-panel" id="nav-merchant" role="tabpanel" aria-labelledby="nav-tab-merchant" data-nav-panel="merchant" hidden>
     ${link('/merchant','Dashboard','<svg width="14" height="14" fill="none" viewBox="0 0 16 16"><rect x="1.5" y="1.5" width="5.5" height="5.5" rx="1" stroke="currentColor" stroke-width="1.5"/><rect x="9" y="1.5" width="5.5" height="5.5" rx="1" stroke="currentColor" stroke-width="1.5"/><rect x="1.5" y="9" width="5.5" height="5.5" rx="1" stroke="currentColor" stroke-width="1.5"/><rect x="9" y="9" width="5.5" height="5.5" rx="1" stroke="currentColor" stroke-width="1.5"/></svg>')}
@@ -722,6 +726,10 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 <\/script>
 `);
+}
+
+function platformAgentRegistration() {
+  return page('Register Agent', '/platform/agents', AGENT_REGISTRATION_CONTENT);
 }
 
 // --- Platform Banks ----------------------------------------------------------
@@ -1460,6 +1468,202 @@ document.addEventListener('DOMContentLoaded', function(){
   window.setInterval(updateClock,1000);
   refreshAll();
   window.setInterval(refreshAll,15000);
+});
+<\/script>
+`);
+}
+
+// --- Platform Ping -----------------------------------------------------------
+function platformPing() {
+  // Same module list as Monitoring — the stable #90xx identifiers key each row.
+  const svcs = [
+    { key:'ledger',      port:9010, name:'Ledger' },
+    { key:'ipwhitelist', port:9011, name:'IP Whitelist' },
+    { key:'auth',        port:9012, name:'Auth' },
+    { key:'terminal',    port:9013, name:'Terminal' },
+    { key:'transfer',    port:9014, name:'Transfer' },
+    { key:'risk',        port:9015, name:'Risk' },
+    { key:'audit',       port:9016, name:'Audit' },
+    { key:'settlement',  port:9017, name:'Settlement' },
+    { key:'notification',port:9018, name:'Notification' },
+    { key:'switchcore',  port:9019, name:'Switch Core' },
+    { key:'security',    port:9020, name:'Security' },
+    { key:'routing',     port:9021, name:'Routing' },
+    { key:'iso8583',     port:9022, name:'ISO 8583' },
+    { key:'gateway',     port:9024, name:'API Gateway' },
+  ];
+
+  const rows = svcs.map(s => `
+<tr id="prow-${s.key}" data-state="checking">
+  <td><strong>${s.name}</strong></td>
+  <td><code>#${s.port}</code></td>
+  <td><span id="pbadge-${s.key}" class="badge badge-gray" aria-live="polite"><span class="dot"></span> Checking</span></td>
+  <td id="plat-${s.key}" style="font-variant-numeric:tabular-nums">—</td>
+  <td id="ptime-${s.key}" style="color:var(--muted)">—</td>
+  <td style="text-align:right"><button class="btn btn-ghost btn-sm" onclick="pingService('${s.key}')">Ping</button></td>
+</tr>`).join('');
+
+  return page('Ping', '/platform/ping', `
+<div class="page-header">
+  <div class="breadcrumb"><a href="/">Home</a><span>/</span><a href="/platform">Platform</a><span>/</span>Ping</div>
+  <h1>Service Ping</h1>
+  <p>Send a reachability probe to every service in this deployment and read back reachable/unreachable plus round-trip latency.</p>
+  <p class="svc-overview-note" style="margin-top:6px">All modules run inside a single API process, so one upstream <code>/health</code> probe covers every row — per-service results reflect that shared round-trip.</p>
+</div>
+<section class="svc-status-panel" aria-label="Ping summary">
+  <div class="svc-overview">
+    <div class="svc-overview-title">Sweep Status</div>
+    <div id="ping-summary" class="svc-overview-value" aria-live="polite">Ready to ping</div>
+    <div id="ping-summary-note" class="svc-overview-note">Press “Ping All Services” to start a sweep.</div>
+    <div class="svc-overview-track" id="ping-track" role="progressbar" aria-label="Reachable services" aria-valuemin="0" aria-valuemax="${svcs.length}" aria-valuenow="0">
+      <span id="ping-summary-fill" class="svc-overview-fill"></span>
+    </div>
+  </div>
+  <div class="svc-metrics">
+    <div class="svc-metric"><div class="svc-metric-label">Reachable</div><div id="ping-reachable" class="svc-metric-value">—</div></div>
+    <div class="svc-metric"><div class="svc-metric-label">Unreachable</div><div id="ping-unreachable" class="svc-metric-value">—</div></div>
+    <div class="svc-metric"><div class="svc-metric-label">Avg Latency</div><div id="ping-avg" class="svc-metric-value">—</div></div>
+  </div>
+</section>
+<div class="svc-toolbar">
+  <button id="ping-all" class="btn btn-primary" onclick="pingAll(true)">${svgIcon("refresh")} Ping All Services</button>
+  <span id="ping-overall" class="badge badge-gray" role="status" aria-live="polite"><span class="dot"></span> Idle</span>
+  <span id="ping-last" class="svc-last-checked">Last ping —</span>
+  <time id="ping-clock" class="svc-clock" aria-label="Local time">--:--:--</time>
+</div>
+<div class="card">
+  <div class="card-header">
+    <div class="card-title">Services <span class="card-sub" style="font-weight:400">${svcs.length} modules</span></div>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Service</th><th>Identifier</th><th>Status</th><th>Latency</th><th>Last Ping</th><th></th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+  </div>
+  <div id="ping-log" class="result show" role="log" aria-live="polite" style="font: .72rem/1.7 'Consolas','Menlo',monospace"></div>
+</div>
+<script>
+var PING_SVCS = ${JSON.stringify(svcs.map(s => ({ key:s.key, port:s.port, name:s.name })))};
+var pingBusy = false;
+
+function pingLog(html, color) {
+  var log = document.getElementById('ping-log');
+  if (!log) return;
+  var line = document.createElement('div');
+  line.innerHTML = '<span style="color:var(--muted)">' + new Date().toLocaleTimeString() + '</span> ' +
+    '<span style="color:' + (color || 'var(--text)') + '">' + html + '</span>';
+  log.appendChild(line);
+  while (log.childNodes.length > 200) log.removeChild(log.firstChild);
+  log.scrollTop = log.scrollHeight;
+}
+
+function pingSweep(cb) {
+  fetch('/api/health-all', { cache: 'no-store' }).then(function(r) {
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    return r.json();
+  }).then(function(d) {
+    if (!d || !d.services || typeof d.services !== 'object') throw new Error('response did not include service results');
+    cb(null, d.services);
+  }).catch(function(e) { cb(e, null); });
+}
+
+function applyPingRow(s, info) {
+  var badge = document.getElementById('pbadge-' + s.key);
+  var row = document.getElementById('prow-' + s.key);
+  var lat = document.getElementById('plat-' + s.key);
+  var time = document.getElementById('ptime-' + s.key);
+  var ok = !!(info && info.ok);
+  if (badge) { badge.className = 'badge ' + (ok ? 'badge-green' : 'badge-red'); badge.innerHTML = '<span class="dot"></span> ' + (ok ? 'Reachable' : 'Unreachable'); }
+  if (row) row.dataset.state = ok ? 'online' : 'offline';
+  if (lat) lat.textContent = info && Number.isFinite(Number(info.responseMs)) ? Math.max(0, Number(info.responseMs)) + ' ms' : '—';
+  if (time) time.textContent = new Date().toLocaleTimeString();
+  return ok;
+}
+
+function pingAll(manual) {
+  if (pingBusy) return;
+  pingBusy = true;
+  var btn = document.getElementById('ping-all');
+  var ob = document.getElementById('ping-overall');
+  if (btn) btn.disabled = true;
+  if (ob) { ob.className = 'badge badge-gray'; ob.innerHTML = '<span class="dot"></span> Pinging…'; }
+  pingSweep(function(err, services) {
+    var total = PING_SVCS.length, up = 0, sum = 0, n = 0;
+    var summary = document.getElementById('ping-summary');
+    var note = document.getElementById('ping-summary-note');
+    var fill = document.getElementById('ping-summary-fill');
+    var track = document.getElementById('ping-track');
+    if (err) {
+      PING_SVCS.forEach(function(s) { applyPingRow(s, { ok: false }); });
+      if (summary) summary.textContent = 'Sweep failed';
+      if (note) note.textContent = err.message;
+      if (fill) fill.style.width = '0';
+      if (track) track.setAttribute('aria-valuenow', '0');
+      document.getElementById('ping-reachable').textContent = '—';
+      document.getElementById('ping-unreachable').textContent = total;
+      document.getElementById('ping-avg').textContent = '—';
+      if (ob) { ob.className = 'badge badge-yellow'; ob.textContent = 'Sweep failed'; ob.title = err.message; }
+      pingLog('sweep failed — ' + err.message, 'var(--danger)');
+    } else {
+      PING_SVCS.forEach(function(s) {
+        var info = services['port_' + s.port];
+        if (applyPingRow(s, info)) up++;
+        if (info && Number.isFinite(Number(info.responseMs))) { sum += Math.max(0, Number(info.responseMs)); n++; }
+      });
+      var down = total - up;
+      var avg = n ? Math.round(sum / n) : null;
+      if (summary) summary.textContent = up === total ? 'All services reachable' : up === 0 ? 'All services unreachable' : up + ' / ' + total + ' reachable';
+      if (note) note.textContent = down === 0 ? 'Every service answered the probe.' : down + ' service' + (down === 1 ? ' did' : 's did') + ' not answer.';
+      if (fill) fill.style.width = (total ? up / total * 100 : 0) + '%';
+      if (track) track.setAttribute('aria-valuenow', String(up));
+      document.getElementById('ping-reachable').textContent = String(up);
+      document.getElementById('ping-unreachable').textContent = String(down);
+      document.getElementById('ping-avg').textContent = avg === null ? '—' : avg + ' ms';
+      if (ob) {
+        if (up === total) { ob.className = 'badge badge-green'; ob.innerHTML = '<span class="dot"></span> ' + total + ' reachable'; }
+        else if (up === 0) { ob.className = 'badge badge-red'; ob.innerHTML = '<span class="dot"></span> All unreachable'; }
+        else { ob.className = 'badge badge-yellow'; ob.innerHTML = '<span class="dot"></span> ' + up + '/' + total + ' reachable'; }
+      }
+      var now = new Date().toLocaleTimeString();
+      document.getElementById('ping-last').textContent = 'Last ping ' + now;
+      if (manual) pingLog('sweep complete — ' + up + '/' + total + ' reachable' + (avg === null ? '' : ', avg ' + avg + ' ms'), up === total ? 'var(--success)' : 'var(--warn)');
+    }
+    pingBusy = false;
+    if (btn) btn.disabled = false;
+  });
+}
+
+function pingService(key) {
+  var s = null;
+  for (var i = 0; i < PING_SVCS.length; i++) if (PING_SVCS[i].key === key) s = PING_SVCS[i];
+  if (!s || pingBusy) return;
+  pingBusy = true;
+  var btn = document.querySelector('#prow-' + key + ' button');
+  if (btn) btn.disabled = true;
+  pingSweep(function(err, services) {
+    if (err) {
+      applyPingRow(s, { ok: false });
+      pingLog('ping <code>#' + s.port + '</code> ' + s.name + ' → unreachable (' + err.message + ')', 'var(--danger)');
+    } else {
+      var info = services['port_' + s.port];
+      var ok = applyPingRow(s, info);
+      var ms = info && Number.isFinite(Number(info.responseMs)) ? Math.max(0, Number(info.responseMs)) + ' ms' : '—';
+      pingLog('ping <code>#' + s.port + '</code> ' + s.name + ' → ' + (ok ? 'reachable' : 'unreachable') + ' ' + ms, ok ? 'var(--success)' : 'var(--danger)');
+      document.getElementById('ping-last').textContent = 'Last ping ' + new Date().toLocaleTimeString();
+    }
+    pingBusy = false;
+    if (btn) btn.disabled = false;
+  });
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  var clock = document.getElementById('ping-clock');
+  var tick = function() { clock.textContent = new Date().toLocaleTimeString(); };
+  tick();
+  window.setInterval(tick, 1000);
+  pingAll(false);
+  window.setInterval(function() { pingAll(false); }, 30000);
 });
 <\/script>
 `);
@@ -5729,6 +5933,41 @@ function signRequest(keyId, timestamp, nonce, rawBody) {
   return createHmac('sha256', CONSOLE_HMAC_SECRET).update(`${keyId}${timestamp}${nonce}${rawBody}`).digest('hex');
 }
 
+function proxyRawRequest(req, res, targetOrigin, targetPath) {
+  const base = new URL(targetOrigin);
+  const useTls = base.protocol === 'https:';
+  const headers = { ...req.headers, host: base.host };
+  delete headers.cookie;
+  delete headers.authorization;
+  for (const header of ['connection', 'keep-alive', 'proxy-authenticate', 'proxy-authorization', 'te', 'trailer', 'transfer-encoding', 'upgrade']) {
+    delete headers[header];
+  }
+
+  const proxy = (useTls ? httpsRequest : httpRequest)(
+    {
+      hostname: base.hostname,
+      port: base.port || (useTls ? 443 : 80),
+      path: targetPath,
+      method: req.method,
+      headers,
+    },
+    upstream => {
+      res.writeHead(upstream.statusCode || 502, upstream.headers);
+      upstream.pipe(res);
+    }
+  );
+
+  proxy.on('error', error => {
+    console.error(`[dashboard] Raw webhook proxy failed: ${error.message}`);
+    if (!res.headersSent) {
+      res.writeHead(502, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Rails webhook service unavailable' }));
+    }
+  });
+  req.on('aborted', () => proxy.destroy());
+  req.pipe(proxy);
+}
+
 // Proxy a console request to the upstream API, signing it so the closed-by-default
 // API accepts it, and forwarding the operator session for /admin/* routes.
 function proxyRequest(req, res, targetOrigin, targetPath) {
@@ -5740,7 +5979,8 @@ function proxyRequest(req, res, targetOrigin, targetPath) {
   delete headers['cookie'];         // console-internal cookie is not for the API
   headers.host = base.host;
 
-  const session = readSession(req);
+  const isAgentPortalProfile = targetPath.split('?')[0] === '/public/agent-portal/profile';
+  const session = isAgentPortalProfile ? null : readSession(req);
   if (session) headers.authorization = `Bearer ${session.token}`;
 
   const body = [];
@@ -7050,6 +7290,16 @@ function t2tEnginePage() {
       Response if not: <code>{"reachable": false, "whitelisted": false}</code>
     </div>
   </div>
+  <div class="card" style="margin-top:20px;max-width:760px">
+    <div class="card-title" style="margin-bottom:12px">Ping Sender IPs</div>
+    <p style="font-size:.82rem;color:var(--muted);margin-bottom:12px">Probe the whitelisted sender IPs from this server (TCP 443, then 80) to confirm each sender endpoint is online and measure latency.</p>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">
+      <input id="t2e-ip-ping-in" class="input-mono" placeholder="Sender IP e.g. 216.24.57.16" style="flex:1;min-width:220px">
+      <button class="btn btn-primary btn-sm" onclick="t2ePingIp()">Ping IP</button>
+      <button class="btn btn-ghost btn-sm" onclick="t2ePingSenders()">Ping All Senders</button>
+    </div>
+    <div id="t2e-ip-ping-out"></div>
+  </div>
 </div>
 
 <div id="t2e-send" class="tab-pane" data-g="t2e">
@@ -7106,6 +7356,9 @@ window.t2eAdd=async function(){const ip=document.getElementById('t2e-ip-in').val
 window.t2eWlLoad=async function(){const r=await go('GET','/t2t/whitelist',null);const el=document.getElementById('t2e-wl-list');if(r.ok&&r.d.data){const ips=r.d.data.whitelistedIps||[];el.innerHTML=ips.length?ips.map(x=>'<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border)"><span style="font-family:monospace">'+x.ip+'</span><span style="color:var(--muted);font-size:.72rem">'+(x.note||'')+'</span><button class="btn btn-danger btn-sm" onclick="t2eRm(\''+x.ip+'\')">Remove</button></div>').join(''):'<span style="color:var(--muted)">No IPs whitelisted yet</span>';}else{el.innerHTML=err(r.d);}};
 window.t2eRm=async function(ip){const r=await go('POST','/t2t/whitelist',{ip,action:'remove'});if(r.ok){toast('Removed','ok');t2eWlLoad();}};
 async function _doPing(inputId,outId){const tid=document.getElementById(inputId).value.trim()||undefined;const r=await go('POST','/t2t/ping',{terminalId:tid});const el=document.getElementById(outId);if(r.ok&&r.d.data){const d=r.d.data;el.innerHTML=d.reachable?'<div style="padding:10px;background:var(--success-bg,rgba(24,116,58,.1));border:1px solid var(--success);border-radius:6px;font-size:.85rem">✅ Connected — IP <code>'+d.callerIp+'</code> is whitelisted. Ready to transfer.</div>':'<div style="padding:10px;background:rgba(181,9,9,.08);border:1px solid var(--danger);border-radius:6px;font-size:.85rem">❌ IP <code>'+d.callerIp+'</code> not whitelisted. Add it in Setup first.</div>';}else{el.innerHTML=err(r.d);}}window.t2ePingSetup=async function(){await _doPing('t2e-ping-in-setup','t2e-ping-out-setup');};window.t2ePing=async function(){await _doPing('t2e-ping-in','t2e-ping-out');};
+function _renderIpPing(el,d){if(!d||!d.results){el.innerHTML=err(d||{});return;}const rows=d.results;const s=d.summary||{};const head='<div style="font-size:.78rem;color:var(--muted);margin-bottom:8px">'+s.total+' sender(s) probed on port(s) '+(s.ports||[]).join('/')+' — '+s.reachable+' reachable, '+s.unreachable+' unreachable'+(s.avgLatencyMs!=null?' · avg '+(s.avgLatencyMs)+' ms':'')+'</div>';const body=rows.map(function(x){var ok=x.reachable;var badge=ok?'<span class="badge badge-green">REACHABLE</span>':'<span class="badge badge-red">UNREACHABLE</span>';var detail=ok?('port '+x.port+' · '+x.latencyMs+' ms'):(x.error||'unreachable');return '<tr><td style="padding:7px 8px;font-family:monospace">'+x.ip+'</td><td style="padding:7px 8px">'+badge+'</td><td style="padding:7px 8px;font-size:.74rem;color:var(--muted)">'+detail+'</td><td style="padding:7px 8px;font-size:.72rem;color:var(--muted)">'+(x.note||'')+'</td></tr>';}).join('');el.innerHTML=head+'<div class="card" style="padding:0;overflow:hidden"><table style="width:100%;border-collapse:collapse;font-size:.8rem"><thead><tr style="background:var(--surf2)"><th style="padding:7px 8px;text-align:left;font-size:.65rem;text-transform:uppercase;color:var(--muted)">IP</th><th style="padding:7px 8px;text-align:left;font-size:.65rem;text-transform:uppercase;color:var(--muted)">Status</th><th style="padding:7px 8px;text-align:left;font-size:.65rem;text-transform:uppercase;color:var(--muted)">Detail</th><th style="padding:7px 8px;text-align:left;font-size:.65rem;text-transform:uppercase;color:var(--muted)">Note</th></tr></thead><tbody>'+body+'</tbody></table></div>';}
+window.t2ePingIp=async function(){const ip=document.getElementById('t2e-ip-ping-in').value.trim();if(!ip){toast('Enter a sender IP','err');return;}const el=document.getElementById('t2e-ip-ping-out');el.innerHTML='<div style="color:var(--muted);font-size:.8rem;padding:8px 0">Pinging '+ip+'…</div>';const r=await go('POST','/t2t/whitelist/ping',{ip});if(r.ok)_renderIpPing(el,r.d.data);else el.innerHTML=err(r.d);};
+window.t2ePingSenders=async function(){const el=document.getElementById('t2e-ip-ping-out');el.innerHTML='<div style="color:var(--muted);font-size:.8rem;padding:8px 0">Pinging all whitelisted senders…</div>';const r=await go('POST','/t2t/whitelist/ping',{});if(r.ok)_renderIpPing(el,r.d.data);else el.innerHTML=err(r.d);};
 window.t2eTx=async function(){const src=document.getElementById('t2e-src').value.trim(),dst=document.getElementById('t2e-dst').value.trim(),amt=document.getElementById('t2e-amt').value.trim(),cur=document.getElementById('t2e-cur').value,desc=document.getElementById('t2e-desc').value.trim();if(!src||!amt){toast('Source terminal and amount required','err');return;}const r=await go('POST','/t2t/transfer',{sourceId:src,destId:dst,amount:amt,currency:cur,description:desc||undefined});const el=document.getElementById('t2e-tx-out');if(r.ok&&r.d.data){const d=r.d.data;el.innerHTML='<div style="margin-top:12px;padding:16px;background:var(--success-bg,rgba(24,116,58,.1));border:1px solid var(--success);border-radius:8px"><strong style="font-size:.95rem">✅ '+d.reference+' — COMPLETED</strong><br><br><table style="font-size:.82rem;border-collapse:collapse"><tr><td style="color:var(--muted);padding:3px 16px 3px 0">Amount</td><td><strong>'+d.amount+' '+d.currency+'</strong></td></tr><tr><td style="color:var(--muted);padding:3px 16px 3px 0">From</td><td>'+d.sourceId+'</td></tr><tr><td style="color:var(--muted);padding:3px 16px 3px 0">To</td><td>'+d.destId+'</td></tr><tr><td style="color:var(--muted);padding:3px 16px 3px 0">Your balance</td><td><strong>'+d.destBalance+' '+d.currency+'</strong></td></tr><tr><td style="color:var(--muted);padding:3px 16px 3px 0">Journal</td><td style="font-family:monospace;font-size:.72rem">'+d.journalEntryRef+'</td></tr></table></div>';toast('Transfer completed','ok');}else{el.innerHTML='<div style="margin-top:8px;padding:12px;background:rgba(181,9,9,.08);border:1px solid var(--danger);border-radius:8px;font-size:.82rem">'+JSON.stringify(r.d.error||r.d)+'</div>';}};
 window.t2eHistLoad=async function(){const tid=document.getElementById('t2e-hist-in').value.trim();const r=await go('GET','/t2t/transfers'+(tid?'?tid='+encodeURIComponent(tid):''),null);const rows=r.d.data||[];document.getElementById('t2e-hist-n').textContent=rows.length+' transfers';document.getElementById('t2e-hist-body').innerHTML=rows.length?rows.map(t=>'<tr><td style="padding:8px;font-family:monospace;font-size:.7rem">'+t.reference+'</td><td style="padding:8px">'+t.sourceId+'</td><td style="padding:8px">'+t.destId+'</td><td style="padding:8px;font-weight:600">'+t.amount+' '+t.currency+'</td><td style="padding:8px"><span class="badge badge-green">'+t.status+'</span></td><td style="padding:8px;font-size:.72rem;color:var(--muted)">'+(t.completedAt?new Date(t.completedAt).toLocaleString():'-')+'</td></tr>').join(''):'<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--muted)">No transfers yet</td></tr>';};
 window.t2eBalCheck=async function(){const tid=document.getElementById('t2e-bal-in').value.trim();if(!tid){toast('Enter terminal ID','err');return;}const r=await go('GET','/t2t/balance/'+encodeURIComponent(tid),null);const el=document.getElementById('t2e-bal-out');if(r.ok&&r.d.data){const d=r.d.data;el.innerHTML='<div style="padding:16px;background:var(--surf2);border:1px solid var(--border);border-radius:8px;display:inline-block"><div style="font-size:.78rem;color:var(--muted)">'+d.terminalId+'</div><div style="font-size:2rem;font-weight:700;letter-spacing:-.04em">'+d.balance+' '+d.currency+'</div></div>';}else{el.innerHTML=err(r.d);}};
@@ -7829,8 +8082,8 @@ ${CSS}
   <form class="login-card" method="POST" action="/login" id="loginForm">
     <div class="login-mark">${svgIcon('grid')}<span>PrimeStack Global Server Network</span></div>
     <div class="login-sub">Operator console — authorised personnel only</div>
-    <label for="email">Email</label>
-    <input id="email" name="email" type="email" autocomplete="username" required autofocus>
+    <label for="email">Username</label>
+    <input id="email" name="email" type="text" autocomplete="username" required autofocus>
     <label for="password">Password</label>
     <input id="password" name="password" type="password" autocomplete="current-password" required>
     ${errorMessage ? `<div class="login-err">${errorMessage}</div>` : ''}
@@ -7849,7 +8102,11 @@ document.getElementById('loginForm').addEventListener('submit', function () {
 
 function handleLogin(req, res) {
   if (req.method === 'GET') {
-    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+    const pageHeaders = {
+      'Content-Type': 'text/html; charset=utf-8',
+      'Cache-Control': 'no-store',
+    };
+    res.writeHead(200, pageHeaders);
     res.end(loginPage());
     return;
   }
@@ -7918,6 +8175,14 @@ function handleLogin(req, res) {
 
 // --- HTTP Server -------------------------------------------------------------
 const server = createServer((req, res) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+  if (process.env.NODE_ENV === 'production') {
+    res.setHeader('Strict-Transport-Security', 'max-age=31536000');
+  }
+
   const url = req.url || '/';
   const path = url.split('?')[0];
 
@@ -7943,9 +8208,27 @@ const server = createServer((req, res) => {
     proxyRequest(req, res, target.origin, target.path);
     return;
   }
+  if (req.method === 'GET' && path === '/api/public/agent-portal/profile') {
+    const target = resolveProxy(url);
+    proxyRequest(req, res, target.origin, target.path);
+    return;
+  }
+  if (req.method === 'GET' && path === '/agent-portal') {
+    res.writeHead(200, {
+      'Content-Type': 'text/html; charset=utf-8',
+      'Cache-Control': 'no-store',
+      'X-Content-Type-Options': 'nosniff',
+    });
+    res.end(AGENT_PORTAL_HTML);
+    return;
+  }
   if (req.method === 'GET' && path === '/api/health') {
     const target = resolveProxy(url);
     proxyRequest(req, res, target.origin, target.path);
+    return;
+  }
+  if (req.method === 'POST' && path === '/api/rails/webhook') {
+    proxyRawRequest(req, res, RAILS_ORIGIN, '/rails/webhook');
     return;
   }
 
@@ -8011,7 +8294,9 @@ const server = createServer((req, res) => {
   }
 
   if (path === '/platform/guide') {
-    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+    const pageHeaders = { 'Content-Type': 'text/html; charset=utf-8' };
+    if (path === '/platform/agents') pageHeaders['Cache-Control'] = 'no-store';
+    res.writeHead(200, pageHeaders);
     res.end(PRODUCT_GUIDE_HTML);
     return;
   }
@@ -8040,7 +8325,9 @@ switch (path) {
     case '/platform/settlement':   html = platformSettlement();  break;
     case '/platform/risk':         html = platformRisk();        break;
     case '/platform/monitoring':   html = platformMonitoring();  break;
+    case '/platform/ping':         html = platformPing();        break;
     case '/platform/merchants':    html = platformMerchants();   break;
+    case '/platform/agents':       html = platformAgentRegistration(); break;
     case '/platform/receive-funds': html = receiveFundsPage();  break;
     case '/platform/server-funds':  html = serverFundsPage();   break;
     case '/platform/rails':         html = railsPage();         break;
@@ -8087,7 +8374,9 @@ switch (path) {
       return;
   }
 
-  res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+  const pageHeaders = { 'Content-Type': 'text/html; charset=utf-8' };
+  if (path === '/platform/agents') pageHeaders['Cache-Control'] = 'no-store';
+  res.writeHead(200, pageHeaders);
   const output = html.replace('</body>', `${dashboardLocalizationScript()}</body>`);
   res.end(output);
 });

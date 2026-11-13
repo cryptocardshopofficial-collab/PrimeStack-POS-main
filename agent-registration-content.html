@@ -1,0 +1,337 @@
+<style>
+  .agent-page{display:grid;gap:16px}
+  .agent-card{padding:18px}
+  .agent-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px}
+  .agent-form label{display:grid;gap:6px;color:var(--text2);font-size:.76rem;font-weight:650}
+  .agent-form input,.agent-form select,.agent-form textarea{width:100%;min-height:42px;padding:9px 10px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text);font:inherit}
+  .agent-form textarea{min-height:78px;resize:vertical}
+  .agent-form .wide{grid-column:1/-1}
+  .agent-hint{margin:0;color:var(--muted);font-size:.74rem;line-height:1.55}
+  .agent-feedback{min-height:1.3em;color:#ff9da5;font-size:.8rem}
+  .agent-pin{padding:16px;border:1px solid #188c69;border-radius:10px;background:#08241f}
+  .agent-pin[hidden]{display:none}
+  .agent-pin code{font-size:1.25rem;letter-spacing:.14em;color:#b5ffe4}
+  .agent-table{width:100%;border-collapse:collapse;min-width:880px}
+  .agent-table th,.agent-table td{padding:10px 8px;border-bottom:1px solid var(--border);text-align:left;vertical-align:top}
+  .agent-table th{color:var(--muted);font-size:.7rem;text-transform:uppercase}
+  .agent-table td{font-size:.78rem}
+  .agent-actions{display:flex;flex-wrap:wrap;gap:6px}
+  .agent-actions button{min-height:34px;padding:5px 8px}
+  .agent-status{font-weight:700}
+  .agent-status.PENDING{color:#ffd378}
+  .agent-status.APPROVED{color:#73e5a2}
+  .agent-status.REJECTED{color:#ff9da5}
+  .agent-dialog{width:min(650px,calc(100% - 24px));max-height:85vh;overflow:auto;margin:auto;padding:20px;border:1px solid var(--border);border-radius:12px;background:var(--panel);color:var(--text)}
+  .agent-dialog::backdrop{background:#0009}
+  .agent-details{display:grid;grid-template-columns:150px 1fr;gap:8px 14px;margin:16px 0}
+  .agent-details dt{color:var(--muted)}
+  .agent-details dd{margin:0;overflow-wrap:anywhere}
+  @media(max-width:700px){.agent-form{grid-template-columns:1fr}.agent-form .wide{grid-column:auto}.agent-details{grid-template-columns:1fr;gap:3px}.agent-details dd{margin-bottom:10px}}
+</style>
+
+<div class="page-header">
+  <div class="breadcrumb"><a href="/platform">Platform</a><span>/</span>Register Agent</div>
+  <h1>Register Agent</h1>
+  <p>Collect and review agent identity details and KYC documents. Uploaded KYC data is encrypted before database storage.</p>
+</div>
+
+<div class="agent-page">
+  <div class="agent-pin" id="agent-pin-panel" role="status" aria-live="polite" hidden>
+    <strong>Registration complete — show this PIN only once</strong>
+    <p class="agent-hint">The agent can sign in to the Agent Dashboard after their KYC is approved. The PIN is not saved in the browser or returned by the agent list.</p>
+    <p style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:12px 0 0">
+      <span>Agent code: <code id="registered-agent-code"></code></span>
+      <span>Login PIN: <code id="registered-agent-pin"></code></span>
+      <button class="btn btn-ghost btn-sm" type="button" id="copy-agent-pin">Copy PIN</button>
+      <button class="btn btn-ghost btn-sm" type="button" id="dismiss-agent-pin">Dismiss</button>
+    </p>
+    <div id="pin-feedback" class="agent-hint" aria-live="polite"></div>
+  </div>
+
+  <section class="card agent-card">
+    <h2>Agent details and identity verification</h2>
+    <p class="agent-hint" style="margin:6px 0 16px">All fields marked required must be completed. Upload a clear government ID image or PDF and a recent profile photo.</p>
+    <form class="agent-form" id="agent-registration-form">
+      <label>Full name
+        <input name="fullName" autocomplete="name" maxlength="255" required>
+      </label>
+      <label>Email address
+        <input name="email" type="email" autocomplete="email" maxlength="320" required>
+      </label>
+      <label>Mobile number
+        <input name="mobileNumber" type="tel" autocomplete="tel" maxlength="50" required>
+      </label>
+      <label>Date of birth
+        <input name="dateOfBirth" type="date" required>
+      </label>
+      <label>Nationality
+        <input name="nationality" maxlength="100" required>
+      </label>
+      <label>Country of residence
+        <input name="country" maxlength="100" required>
+      </label>
+      <label class="wide">Residential address
+        <textarea name="residentialAddress" autocomplete="street-address" maxlength="1000" required></textarea>
+      </label>
+      <label>Government ID type
+        <select name="governmentIdType" required>
+          <option value="">Select document type</option>
+          <option value="PASSPORT">Passport</option>
+          <option value="NATIONAL_ID">National ID</option>
+          <option value="DRIVERS_LICENSE">Driver's license</option>
+          <option value="OTHER">Other government ID</option>
+        </select>
+      </label>
+      <label>Government ID / passport number
+        <input name="governmentIdNumber" maxlength="100" autocomplete="off" required>
+      </label>
+      <label>ID issuing country
+        <input name="governmentIdIssuingCountry" maxlength="100" required>
+      </label>
+      <label>ID expiration date <span class="agent-hint">(if applicable)</span>
+        <input name="governmentIdExpiry" type="date">
+      </label>
+      <label>ID document upload (PDF, JPEG, or PNG; max 5 MB)
+        <input name="idDocument" type="file" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png" required>
+      </label>
+      <label>Profile photo (JPEG, PNG, or WebP; max 2 MB)
+        <input name="profilePhoto" type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" required>
+      </label>
+      <div class="wide agent-feedback" id="agent-feedback" role="alert"></div>
+      <div class="wide">
+        <button class="btn btn-primary" type="submit" id="register-agent-button">Register Agent</button>
+      </div>
+    </form>
+  </section>
+
+  <section class="card agent-card">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
+      <div><h2>Agent KYC registrations</h2><p class="agent-hint">Only authorized administrators can view these personal details and documents.</p></div>
+      <button class="btn btn-ghost btn-sm" type="button" id="refresh-agent-list">Refresh</button>
+    </div>
+    <div class="agent-feedback" id="agent-list-feedback" role="status" aria-live="polite"></div>
+    <div class="table-wrap">
+      <table class="agent-table">
+        <thead><tr><th>Agent</th><th>Contact</th><th>Identity</th><th>Status</th><th>Documents</th><th>Review</th></tr></thead>
+        <tbody id="agent-registrations">
+          <tr><td colspan="6" class="empty">Loading registrations…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+</div>
+
+<dialog class="agent-dialog" id="agent-details-dialog" aria-labelledby="agent-details-title">
+  <h2 id="agent-details-title">Agent KYC details</h2>
+  <dl class="agent-details" id="agent-details-list"></dl>
+  <form method="dialog"><button class="btn btn-ghost" type="submit">Close</button></form>
+</dialog>
+
+<script>
+(() => {
+  const form = document.getElementById("agent-registration-form");
+  const feedback = document.getElementById("agent-feedback");
+  const rows = document.getElementById("agent-registrations");
+  const pinPanel = document.getElementById("agent-pin-panel");
+  const pinValue = document.getElementById("registered-agent-pin");
+  const dialog = document.getElementById("agent-details-dialog");
+  const detailsList = document.getElementById("agent-details-list");
+  const maxIdSize = 5 * 1024 * 1024;
+  const maxPhotoSize = 2 * 1024 * 1024;
+  const api = async (path, options = {}) => {
+    const response = await fetch(path, { ...options, credentials: "same-origin", cache: "no-store", headers: { Accept: "application/json", ...(options.headers || {}) } });
+    const payload = await response.json().catch(() => ({}));
+    if (response.status === 401) {
+      window.location.assign("/login");
+      throw new Error("Your administrator session has expired.");
+    }
+    if (!response.ok || payload.success !== true) throw new Error(payload.error?.message || "The request failed.");
+    return payload;
+  };
+  const readFile = (file) => new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const value = String(reader.result || "");
+      const comma = value.indexOf(",");
+      if (comma < 0) reject(new Error("Could not read the selected file."));
+      else resolve({ fileName: file.name, mimeType: file.type, contentBase64: value.slice(comma + 1) });
+    };
+    reader.onerror = () => reject(new Error("Could not read the selected file."));
+    reader.readAsDataURL(file);
+  });
+  const addCell = (row, value) => {
+    const cell = document.createElement("td");
+    cell.textContent = value == null || value === "" ? "—" : String(value);
+    row.appendChild(cell);
+    return cell;
+  };
+  const makeButton = (label, action) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "btn btn-ghost btn-sm";
+    button.textContent = label;
+    button.addEventListener("click", action);
+    return button;
+  };
+  const showError = (element, error) => {
+    element.textContent = error instanceof Error ? error.message : "The request failed.";
+  };
+  async function loadAgents() {
+    const feedbackElement = document.getElementById("agent-list-feedback");
+    feedbackElement.textContent = "Loading registrations…";
+    try {
+      const result = await api("/api/admin/agents?page=1&pageSize=100");
+      rows.replaceChildren();
+      if (!result.data.length) {
+        const row = document.createElement("tr");
+        addCell(row, "No agent registrations yet.").colSpan = 6;
+        rows.appendChild(row);
+        feedbackElement.textContent = "";
+        return;
+      }
+      for (const agent of result.data) {
+        const row = document.createElement("tr");
+        addCell(row, agent.code + " · " + agent.fullName);
+        addCell(row, agent.email + "\n" + agent.mobileNumber);
+        addCell(row, agent.governmentIdType.replaceAll("_", " ") + " · " + agent.maskedGovernmentIdNumber);
+        const statusCell = addCell(row, agent.status);
+        statusCell.classList.add("agent-status", agent.status);
+        const documents = document.createElement("td");
+        documents.append(makeButton("ID document", () => downloadDocument(agent, "identity")), makeButton("Profile photo", () => downloadDocument(agent, "photo")));
+        row.appendChild(documents);
+        const actions = document.createElement("td");
+        const actionGroup = document.createElement("div");
+        actionGroup.className = "agent-actions";
+        actionGroup.appendChild(makeButton("Details", () => showDetails(agent)));
+        if (agent.status !== "APPROVED") actionGroup.appendChild(makeButton("Approve", () => updateStatus(agent.id, "APPROVED")));
+        if (agent.status !== "REJECTED") actionGroup.appendChild(makeButton("Reject", () => updateStatus(agent.id, "REJECTED")));
+        actions.appendChild(actionGroup);
+        row.appendChild(actions);
+        rows.appendChild(row);
+      }
+      feedbackElement.textContent = "";
+    } catch (error) {
+      rows.replaceChildren();
+      const row = document.createElement("tr");
+      addCell(row, "Could not load agent registrations.").colSpan = 6;
+      rows.appendChild(row);
+      showError(feedbackElement, error);
+    }
+  }
+  function showDetails(agent) {
+    const values = [
+      ["Agent code", agent.code], ["Full name", agent.fullName], ["Email", agent.email],
+      ["Mobile", agent.mobileNumber], ["Date of birth", agent.dateOfBirth],
+      ["Nationality", agent.nationality], ["Country", agent.country],
+      ["Residential address", agent.residentialAddress], ["ID type", agent.governmentIdType.replaceAll("_", " ")],
+      ["ID number", agent.maskedGovernmentIdNumber], ["Issuing country", agent.governmentIdIssuingCountry],
+      ["ID expiry", agent.governmentIdExpiry || "Not provided"], ["KYC status", agent.status],
+      ["Review notes", agent.reviewNotes || "—"]
+    ];
+    detailsList.replaceChildren();
+    for (const [label, value] of values) {
+      const term = document.createElement("dt");
+      const description = document.createElement("dd");
+      term.textContent = label;
+      description.textContent = value == null ? "—" : String(value);
+      detailsList.append(term, description);
+    }
+    dialog.showModal();
+  }
+  async function downloadDocument(agent, kind) {
+    const feedbackElement = document.getElementById("agent-list-feedback");
+    try {
+      const response = await fetch("/api/admin/agents/" + encodeURIComponent(agent.id) + "/documents/" + kind, { credentials: "same-origin", cache: "no-store" });
+      if (response.status === 401) {
+        window.location.assign("/login");
+        return;
+      }
+      if (!response.ok) throw new Error("Could not retrieve the KYC document.");
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      const mime = response.headers.get("content-type") || "";
+      const extension = mime === "application/pdf" ? ".pdf" : mime === "image/png" ? ".png" : mime === "image/webp" ? ".webp" : ".jpg";
+      link.href = url;
+      link.download = agent.code + "-" + kind + extension;
+      link.click();
+      window.setTimeout(() => URL.revokeObjectURL(url), 30000);
+      feedbackElement.textContent = "";
+    } catch (error) {
+      showError(feedbackElement, error);
+    }
+  }
+  async function updateStatus(agentId, status) {
+    const note = status === "REJECTED" ? window.prompt("Optional reason for rejection:") : "";
+    if (status === "REJECTED" && note === null) return;
+    try {
+      await api("/api/admin/agents/" + encodeURIComponent(agentId) + "/kyc-status", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status, reviewNotes: note || undefined })
+      });
+      await loadAgents();
+    } catch (error) {
+      showError(document.getElementById("agent-list-feedback"), error);
+    }
+  }
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    feedback.textContent = "";
+    const formData = new FormData(form);
+    const idDocument = formData.get("idDocument");
+    const profilePhoto = formData.get("profilePhoto");
+    if (!(idDocument instanceof File) || !(profilePhoto instanceof File)) {
+      showError(feedback, new Error("Upload both an ID document and a profile photo."));
+      return;
+    }
+    if (idDocument.size > maxIdSize || profilePhoto.size > maxPhotoSize) {
+      showError(feedback, new Error("The ID document must be at most 5 MB and the profile photo at most 2 MB."));
+      return;
+    }
+    const button = document.getElementById("register-agent-button");
+    button.disabled = true;
+    button.textContent = "Registering…";
+    try {
+      const body = Object.fromEntries(formData);
+      delete body.idDocument;
+      delete body.profilePhoto;
+      if (!body.governmentIdExpiry) delete body.governmentIdExpiry;
+      body.idDocument = await readFile(idDocument);
+      body.profilePhoto = await readFile(profilePhoto);
+      const result = await api("/api/admin/agents", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body)
+      });
+      document.getElementById("registered-agent-code").textContent = result.data.agent.code;
+      pinValue.textContent = result.data.loginPin;
+      document.getElementById("pin-feedback").textContent = "";
+      pinPanel.hidden = false;
+      form.reset();
+      await loadAgents();
+      pinPanel.scrollIntoView({ behavior: "smooth", block: "center" });
+    } catch (error) {
+      showError(feedback, error);
+    } finally {
+      button.disabled = false;
+      button.textContent = "Register Agent";
+    }
+  });
+  document.getElementById("copy-agent-pin").addEventListener("click", async () => {
+    try {
+      await navigator.clipboard.writeText(pinValue.textContent || "");
+      document.getElementById("pin-feedback").textContent = "PIN copied to the clipboard. Share it through a secure channel.";
+    } catch {
+      document.getElementById("pin-feedback").textContent = "Clipboard access is unavailable. Use a secure browser context to copy the PIN.";
+    }
+  });
+  document.getElementById("dismiss-agent-pin").addEventListener("click", () => {
+    pinValue.textContent = "";
+    document.getElementById("registered-agent-code").textContent = "";
+    pinPanel.hidden = true;
+  });
+  document.getElementById("refresh-agent-list").addEventListener("click", loadAgents);
+  loadAgents();
+})();
+</script>
