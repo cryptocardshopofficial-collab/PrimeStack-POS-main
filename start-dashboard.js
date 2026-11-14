@@ -8154,13 +8154,29 @@ function handleLogin(req, res) {
             token = parsed && parsed.data ? parsed.data.token : null;
           } catch { /* not JSON */ }
 
-          if (!upstream.statusCode || upstream.statusCode >= 400 || !token) {
-            res.writeHead(401, { 'Content-Type': 'text/html; charset=utf-8' });
-            res.end(loginPage('Incorrect email or password.'));
+          const status = upstream.statusCode || 0;
+
+          if (status === 200 && token) {
+            res.writeHead(302, { 'Set-Cookie': sessionCookie(token), Location: '/' });
+            res.end();
             return;
           }
-          res.writeHead(302, { 'Set-Cookie': sessionCookie(token), Location: '/' });
-          res.end();
+
+          // Report the real cause — a throttled or failing API is not the
+          // same as a wrong password.
+          if (status === 429) {
+            res.writeHead(429, { 'Content-Type': 'text/html; charset=utf-8' });
+            res.end(loginPage('Too many sign-in attempts. Please wait 15 minutes and try again.'));
+            return;
+          }
+          if (status >= 500 || status === 0) {
+            res.writeHead(502, { 'Content-Type': 'text/html; charset=utf-8' });
+            res.end(loginPage(`Authentication service is unavailable (API returned HTTP ${status || 'no response'}). Please try again shortly.`));
+            return;
+          }
+
+          res.writeHead(401, { 'Content-Type': 'text/html; charset=utf-8' });
+          res.end(loginPage('Incorrect email or password.'));
         });
       }
     );
