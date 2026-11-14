@@ -58,6 +58,19 @@ export async function errorHandlerPlugin(app: FastifyInstance): Promise<void> {
       });
     }
 
+    // Fastify's own errors carry a meaningful status code (429 from the rate
+    // limiter, 400 body parse failures, 415 unsupported media type …).
+    // Collapsing them into 500 hides the real cause from the caller.
+    if (typeof error.statusCode === "number" && error.statusCode >= 400 && error.statusCode < 500) {
+      return reply.status(error.statusCode).send({
+        success: false,
+        error: {
+          code: error.code,
+          message: error.message,
+        },
+      });
+    }
+
     // Unknown errors — log and return generic 500
     logger.error({ err: error, path: request.url, method: request.method }, "Unhandled error");
 
