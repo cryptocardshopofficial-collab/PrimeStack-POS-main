@@ -41,13 +41,24 @@ function isIpInCidr(ip: string, cidr: string): boolean {
   return (ipNum & mask) === (baseNum & mask);
 }
 
+/** Redis is an optional cache: the whitelist is always authoritative in Postgres. */
+function redisReady(): boolean {
+  return redis.status === "ready";
+}
+
 async function getCachedWhitelist(): Promise<string[]> {
-  const cached = await redis.get(WHITELIST_CACHE_KEY);
-  if (cached) {
+  if (redisReady()) {
     try {
-      return JSON.parse(cached) as string[];
-    } catch {
-      // cache corrupted — fall through to DB
+      const cached = await redis.get(WHITELIST_CACHE_KEY);
+      if (cached) {
+        try {
+          return JSON.parse(cached) as string[];
+        } catch {
+          // cache corrupted — fall through to DB
+        }
+      }
+    } catch (err) {
+      logger.warn({ err }, "IP whitelist cache read failed — falling back to database");
     }
   }
 
@@ -57,7 +68,13 @@ async function getCachedWhitelist(): Promise<string[]> {
   });
 
   const ips = entries.map((e) => e.ipAddress);
-  await redis.set(WHITELIST_CACHE_KEY, JSON.stringify(ips), "EX", CACHE_TTL_SECONDS);
+  if (redisReady()) {
+    try {
+      await redis.set(WHITELIST_CACHE_KEY, JSON.stringify(ips), "EX", CACHE_TTL_SECONDS);
+    } catch (err) {
+      logger.warn({ err }, "IP whitelist cache write failed");
+    }
+  }
   return ips;
 }
 
@@ -75,8 +92,13 @@ async function isIpWhitelisted(ip: string): Promise<boolean> {
 
 /** Invalidate the IP whitelist cache — call after CRUD operations */
 export async function invalidateIpWhitelistCache(): Promise<void> {
-  await redis.del(WHITELIST_CACHE_KEY);
-  logger.debug("IP whitelist cache invalidated");
+  if (!redisReady()) return;
+  try {
+    await redis.del(WHITELIST_CACHE_KEY);
+    logger.debug("IP whitelist cache invalidated");
+  } catch (err) {
+    logger.warn({ err }, "IP whitelist cache invalidation failed");
+  }
 }
 
 export async function ipWhitelistPlugin(app: FastifyInstance): Promise<void> {
