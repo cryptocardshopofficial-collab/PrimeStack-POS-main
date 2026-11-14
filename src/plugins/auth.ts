@@ -61,6 +61,8 @@ export async function hmacAuthPlugin(app: FastifyInstance): Promise<void> {
         request.url.startsWith("/health") ||
         request.url.startsWith("/docs") ||
         request.url.startsWith("/admin/login") ||
+        path === "/network" ||
+        path.startsWith("/network/") ||
         path === "/public/terminal-registration" ||
         path === "/public/agent-portal/login" ||
         path === "/public/agent-portal/profile" ||
