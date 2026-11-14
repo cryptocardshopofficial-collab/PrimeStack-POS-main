@@ -45,6 +45,25 @@ import { registerS2sEngineModule } from "./modules/s2s-engine/s2s-engine.module.
 import { registerT2tRoutes } from "./modules/t2t/t2t.routes.js";
 
 /**
+ * Probe Redis once at boot. Redis only backs optional caching and distributed
+ * rate limiting, so an unreachable instance must never take the API down.
+ */
+async function redisReachable(timeoutMs = 1500): Promise<boolean> {
+  try {
+    await Promise.race([
+      redis.ping(),
+      new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error("redis ping timed out")), timeoutMs).unref();
+      }),
+    ]);
+    return true;
+  } catch {
+    logger.warn("Redis unreachable — rate limiting will use the in-process store");
+    return false;
+  }
+}
+
+/**
  * Create and configure the Fastify application.
  * All plugins and module routes are registered here.
  */
@@ -101,11 +120,14 @@ export async function createApp(): Promise<FastifyInstance> {
     ],
   });
 
+  // Redis is optional: when it is unreachable, fall back to the in-process
+  // rate-limit store instead of failing every request with a 500.
+  const useRedisStore = await redisReachable();
+
   await app.register(rateLimit, {
     max: config.rateLimit.max,
     timeWindow: `${config.rateLimit.window} seconds`,
-    redis,
-    nameSpace: "primestack:rate-limit:",
+    ...(useRedisStore ? { redis, nameSpace: "primestack:rate-limit:" } : {}),
     allowList: (request) =>
       request.url.startsWith("/health") || request.url.startsWith("/docs"),
   });
