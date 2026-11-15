@@ -1,7 +1,7 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 import { AuthorizationService } from "./authorization.service.js";
 import { sendSuccess, sendPaginated, parsePagination } from "../../shared/utils/response.js";
-import { NotFoundError, ValidationError } from "../../core/errors.js";
+import { ForbiddenError, NotFoundError, ValidationError } from "../../core/errors.js";
 import { renderTransactionSummary } from "./transaction-summary.js";
 
 /**
@@ -83,12 +83,40 @@ export function registerTransactionRoutes(
 
   // ── List & Get ──────────────────────────────────
 
+  app.get(
+    "/admin/transactions",
+    { preHandler: app.authenticate },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const role = (request.user as { role?: string } | undefined)?.role;
+      if (!role || !["SUPER_ADMIN", "ADMIN", "OPERATOR", "REVIEWER", "READONLY"].includes(role)) {
+        throw new ForbiddenError("Your admin role cannot view transactions");
+      }
+
+      const { page, pageSize } = parsePagination(request.query as Record<string, unknown>);
+      const query = request.query as Record<string, unknown>;
+      const result = await authService.listTransactions({
+        merchantId: query.merchantId as string | undefined,
+        terminalId: query.terminalId as string | undefined,
+        status: query.status as string | undefined,
+        type: query.type as string | undefined,
+        page,
+        pageSize,
+      });
+
+      return sendPaginated(reply, result.data, result.meta);
+    },
+  );
+
   app.get("/transactions", async (request: FastifyRequest, reply: FastifyReply) => {
     const { page, pageSize } = parsePagination(request.query as Record<string, unknown>);
     const query = request.query as Record<string, unknown>;
+    const merchantId = request.merchant?.id;
+    if (!merchantId) {
+      throw new ForbiddenError("Authenticated merchant context is required");
+    }
 
     const result = await authService.listTransactions({
-      merchantId: query.merchantId as string | undefined,
+      merchantId,
       terminalId: query.terminalId as string | undefined,
       status: query.status as string | undefined,
       type: query.type as string | undefined,
@@ -102,6 +130,9 @@ export function registerTransactionRoutes(
   app.get("/transactions/:stan", async (request: FastifyRequest, reply: FastifyReply) => {
     const { stan } = request.params as { stan: string };
     const transaction = await authService.getTransaction(stan);
+    if (!request.merchant?.id || request.merchant.id !== transaction.merchantId) {
+      throw new NotFoundError("Transaction", stan);
+    }
     return sendSuccess(reply, transaction);
   });
 

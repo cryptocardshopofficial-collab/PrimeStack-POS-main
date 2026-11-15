@@ -389,6 +389,7 @@ function controlsScript(): string {
       const backButton = document.querySelector('.ps-back');
       const backLabel = document.querySelector('.ps-back-label');
       const backIcon = document.querySelector('.ps-back>span:first-child');
+      if (!languageSelect || !themeButton || !themeLabel || !themeIcon || !backButton || !backLabel || !backIcon) return;
       const textOriginals = new WeakMap();
       const textRendered = new WeakMap();
       const titleElement = document.querySelector('title');
@@ -493,6 +494,7 @@ function controlsScript(): string {
 }
 
 export function enhanceAdminHtml(html: string): string {
-  if (!html.includes("</body>") || html.includes('id="ps-admin-ui-styles"')) return html;
+  const alreadyEnhanced = /id=["']ps-admin-ui-(?:styles|script)["']|class=["']ps-global-controls["']/.test(html);
+  if (!html.includes("</body>") || alreadyEnhanced) return html;
   return html.replace("</body>", `${controlMarkup}${controlStyles}${controlsScript()}</body>`);
 }

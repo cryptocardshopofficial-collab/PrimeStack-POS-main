@@ -78,7 +78,7 @@ async function getCachedWhitelist(): Promise<string[]> {
   return ips;
 }
 
-async function isIpWhitelisted(ip: string): Promise<boolean> {
+export async function isIpWhitelisted(ip: string): Promise<boolean> {
   // If no whitelist entries exist at all, allow all (open mode for dev)
   const whitelist = await getCachedWhitelist();
   if (whitelist.length === 0) return true;

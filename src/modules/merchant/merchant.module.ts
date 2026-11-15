@@ -1,8 +1,10 @@
 import { FastifyInstance } from "fastify";
 import { prisma } from "../../core/database.js";
 import { MerchantService } from "./merchant.service.js";
+import { MerchantRegistrationService } from "./merchant-registration.service.js";
 import {
   registerMerchantPortalRoutes,
+  registerMerchantPublicRoutes,
   registerMerchantRoutes,
 } from "./merchant.routes.js";
 import { merchantDashboardHtml } from "./merchant-dashboard.js";
@@ -11,6 +13,7 @@ import { logger } from "../../core/logger.js";
 import { ForbiddenError } from "../../core/errors.js";
 
 export const merchantService = new MerchantService(prisma);
+const merchantRegistrationService = new MerchantRegistrationService(prisma);
 
 export function registerMerchantModule(app: FastifyInstance): void {
   app.get("/admin/merchant-dashboard", async (_request, reply) =>
@@ -49,6 +52,7 @@ export function registerMerchantModule(app: FastifyInstance): void {
     { prefix: "/admin" },
   );
   registerMerchantPortalRoutes(app, merchantService);
+  registerMerchantPublicRoutes(app, merchantRegistrationService);
   logger.info("Merchant module registered");
 }
 

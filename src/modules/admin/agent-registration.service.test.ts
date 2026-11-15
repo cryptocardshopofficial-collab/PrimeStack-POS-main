@@ -68,6 +68,56 @@ function createService() {
   };
 }
 
+function createPortalService() {
+  const transaction = {
+    agentKycProfile: { findUnique: vi.fn() },
+    merchant: {
+      findFirst: vi.fn(),
+      updateMany: vi.fn(),
+    },
+    auditLog: { create: vi.fn() },
+  };
+  const prisma = {
+    $transaction: vi.fn(async (callback: (tx: typeof transaction) => Promise<unknown>) =>
+      callback(transaction),
+    ),
+    agentKycProfile: { findUnique: vi.fn() },
+    merchant: { findMany: vi.fn() },
+    transaction: { findMany: vi.fn(), count: vi.fn() },
+  };
+  prisma.agentKycProfile.findUnique.mockResolvedValue({
+    verificationStatus: "APPROVED",
+    encryptedProfile: encryptAgentKycValue(JSON.stringify({
+      fullName: "Example Agent",
+      email: "agent@example.com",
+      mobileNumber: "+1 555 0100",
+      residentialAddress: "10 Example Street",
+      dateOfBirth: "1990-01-01",
+      nationality: "Example",
+      country: "Example",
+      governmentIdType: "PASSPORT",
+      governmentIdNumber: "EXAMPLE-1234",
+      governmentIdIssuingCountry: "Example",
+      idDocumentFileName: "identity.pdf",
+      idDocumentMimeType: "application/pdf",
+      idDocumentSize: 10,
+      profilePhotoFileName: "profile.png",
+      profilePhotoMimeType: "image/png",
+      profilePhotoSize: 10,
+    })),
+    agent: { id: createdAgent.id, code: createdAgent.code, status: "APPROVED" },
+  });
+  transaction.agentKycProfile.findUnique.mockResolvedValue({
+    verificationStatus: "APPROVED",
+    agent: { status: "APPROVED" },
+  });
+  return {
+    service: new AgentRegistrationService(prisma as unknown as PrismaClient),
+    prisma,
+    transaction,
+  };
+}
+
 describe("AgentRegistrationService", () => {
   it("stores encrypted KYC and a hashed PIN, returning the PIN only at registration", async () => {
     const { service, prisma, transaction } = createService();
@@ -141,5 +191,72 @@ describe("AgentRegistrationService", () => {
     await expect(service.getPortalProfile(createdAgent.id)).rejects.toMatchObject({
       statusCode: 401,
     });
+  });
+
+  it("limits the agent dashboard transaction query to assigned merchants", async () => {
+    const { service, prisma } = createPortalService();
+    prisma.merchant.findMany.mockResolvedValue([]);
+    prisma.transaction.findMany.mockResolvedValue([]);
+    prisma.transaction.count.mockResolvedValue(0);
+
+    await service.getPortalDashboard(createdAgent.id, 1, 25);
+
+    expect(prisma.transaction.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { merchant: { is: { agentId: createdAgent.id } } },
+      }),
+    );
+    expect(prisma.transaction.count).toHaveBeenCalledWith({
+      where: { merchant: { is: { agentId: createdAgent.id } } },
+    });
+  });
+
+  it("records agent identity and merchant status in the same pause transaction", async () => {
+    const { service, transaction } = createPortalService();
+    transaction.merchant.findFirst.mockResolvedValue({
+      id: "merchant-id",
+      status: "ACTIVE",
+    });
+    transaction.merchant.updateMany.mockResolvedValue({ count: 1 });
+
+    await service.setAssignedMerchantStatus(
+      createdAgent.id,
+      "merchant-id",
+      "pause",
+      "203.0.113.1",
+      "agent-browser",
+    );
+
+    expect(transaction.merchant.updateMany).toHaveBeenCalledWith({
+      where: { id: "merchant-id", agentId: createdAgent.id, status: "ACTIVE" },
+      data: { status: "SUSPENDED" },
+    });
+    expect(transaction.auditLog.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        merchantId: "merchant-id",
+        action: "AGENT_PAUSE_MERCHANT",
+        before: { status: "ACTIVE", changedByAgentId: createdAgent.id },
+        after: expect.objectContaining({
+          status: "SUSPENDED",
+          changedByAgentId: createdAgent.id,
+        }),
+        ipAddress: "203.0.113.1",
+      }),
+    });
+  });
+
+  it("does not allow an agent to pause an unassigned merchant", async () => {
+    const { service, transaction } = createPortalService();
+    transaction.merchant.findFirst.mockResolvedValue(null);
+
+    await expect(
+      service.setAssignedMerchantStatus(
+        createdAgent.id,
+        "other-merchant",
+        "pause",
+      ),
+    ).rejects.toMatchObject({ statusCode: 404 });
+    expect(transaction.merchant.updateMany).not.toHaveBeenCalled();
+    expect(transaction.auditLog.create).not.toHaveBeenCalled();
   });
 });

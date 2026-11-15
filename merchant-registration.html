@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Merchant Registration — PrimeStack Asset Gateway</title>
+<style>
+  :root{
+    --navy:#06101e;--navy2:#0a1829;--blue:#3578f6;--cyan:#55d6e8;--ice:#edf5ff;
+    --paper:#f7f9fc;--white:#fff;--ink:#0c1c31;--muted:#66758a;--line:#dfe7f1;--green:#2fc49a;--danger:#d64545;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--paper);color:var(--ink);font:16px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+  a{color:var(--blue)}
+  .topbar{background:var(--navy);color:var(--white)}
+  .topbar-inner{max-width:1080px;margin:0 auto;padding:14px 20px;display:flex;align-items:center;justify-content:space-between;gap:16px}
+  .brand{display:flex;align-items:center;gap:10px;font-weight:700;letter-spacing:.2px;color:var(--white);text-decoration:none}
+  .brand span{width:26px;height:26px;border-radius:7px;background:linear-gradient(135deg,var(--cyan),var(--blue));display:inline-block}
+  .topbar a.back{color:#c8d6ea;font-size:.86rem;text-decoration:none}
+  .hero{background:radial-gradient(120% 140% at 100% 0%,#123055 0%,var(--navy) 60%);color:var(--white);padding:46px 20px 40px}
+  .hero-inner{max-width:1080px;margin:0 auto}
+  .hero h1{margin:0 0 8px;font-size:clamp(1.6rem,3.4vw,2.2rem)}
+  .hero p{margin:0;color:#b9c8dd;max-width:640px}
+  .wrap{max-width:1080px;margin:-26px auto 60px;padding:0 20px}
+  .panel{background:var(--white);border:1px solid var(--line);border-radius:14px;padding:22px;box-shadow:0 10px 30px rgba(11,30,60,.06)}
+  .panel + .panel{margin-top:18px}
+  .panel h2{margin:0 0 4px;font-size:1.06rem}
+  .panel .sub{margin:0 0 18px;color:var(--muted);font-size:.86rem}
+  .modes{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  .mode{display:block;text-align:left;border:1px solid var(--line);border-radius:12px;padding:16px;background:var(--white);cursor:pointer;transition:.15s;font:inherit}
+  .mode:hover{border-color:#b9cdf1}
+  .mode.active{border-color:var(--blue);box-shadow:0 0 0 3px rgba(53,120,246,.14);background:#f4f8ff}
+  .mode .mode-top{display:flex;justify-content:space-between;align-items:center;gap:10px}
+  .mode .mode-title{font-weight:700}
+  .mode .mode-fee{font-weight:800;color:var(--blue);white-space:nowrap}
+  .mode p{margin:8px 0 0;color:var(--muted);font-size:.83rem}
+  .mode .tag{display:inline-block;margin-top:10px;font-size:.72rem;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:var(--green)}
+  .grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+  .field{display:grid;gap:6px}
+  .field.wide{grid-column:1/-1}
+  .field label{font-size:.8rem;font-weight:600;color:#33445c}
+  .field label .req{color:var(--danger)}
+  input,select,textarea{width:100%;min-height:44px;padding:10px 11px;border:1px solid var(--line);border-radius:9px;background:var(--white);color:var(--ink);font:inherit}
+  textarea{min-height:84px;resize:vertical}
+  input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 3px rgba(53,120,246,.14)}
+  .hint{color:var(--muted);font-size:.74rem}
+  .check{display:flex;gap:10px;align-items:flex-start;font-size:.86rem}
+  .check input{width:auto;min-height:auto;margin-top:3px}
+  .agent-box{border:1px dashed #b9cdf1;background:#f4f8ff;border-radius:11px;padding:14px;grid-column:1/-1}
+  .agent-line{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap}
+  .agent-line .field{flex:1 1 260px}
+  .agent-status{margin-top:8px;font-size:.82rem;font-weight:600;min-height:1.2em}
+  .agent-status.ok{color:var(--green)}
+  .agent-status.bad{color:var(--danger)}
+  .btn{border:0;border-radius:9px;padding:11px 18px;font:inherit;font-weight:650;cursor:pointer}
+  .btn-primary{background:var(--blue);color:#fff}
+  .btn-primary:disabled{opacity:.6;cursor:not-allowed}
+  .btn-ghost{background:#eef3fb;color:var(--ink);border:1px solid var(--line)}
+  .actions{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:6px}
+  .feedback{min-height:1.3em;font-size:.85rem;color:var(--danger);font-weight:600}
+  .notice{background:#eef3fb;border:1px solid var(--line);border-radius:10px;padding:12px 14px;color:#33445c;font-size:.84rem}
+  .result{display:none;border:1px solid #b7ead6;background:#eafaf3;border-radius:12px;padding:18px}
+  .result.show{display:block}
+  .result h3{margin:0 0 10px;color:#0d7a56}
+  .result dl{display:grid;grid-template-columns:170px 1fr;gap:6px 14px;margin:0}
+  .result dt{color:var(--muted)}
+  .result dd{margin:0;font-weight:600;overflow-wrap:anywhere}
+  .result code{background:#fff;border:1px solid #b7ead6;border-radius:6px;padding:2px 7px}
+  @media(max-width:760px){.modes{grid-template-columns:1fr}.grid{grid-template-columns:1fr}.result dl{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="/"><span></span>PrimeStack Asset Gateway</a>
+    <a class="back" href="/">← Back to home</a>
+  </div>
+</header>
+
+<section class="hero">
+  <div class="hero-inner">
+    <h1>Merchant Registration</h1>
+    <p>Apply for a merchant account. Complete KYC/AML, upload your company documents and pass personal ID verification. Registrations are reviewed before activation.</p>
+  </div>
+</section>
+
+<div class="wrap">
+  <div class="panel">
+    <h2>Choose your registration plan</h2>
+    <p class="sub">Select how you were referred. The subscription fee is shown for each plan and is collected once your application is approved.</p>
+    <div class="modes">
+      <button type="button" class="mode active" id="mode-agent" data-mode="AGENT_CODE">
+        <div class="mode-top"><span class="mode-title">Register with an Agent Code</span><span class="mode-fee">USD 200</span></div>
+        <p>Enter the agent code issued to your referring agent. The code must match our agent registry or the registration cannot be completed.</p>
+        <span class="tag">Reduced fee</span>
+      </button>
+      <button type="button" class="mode" id="mode-direct" data-mode="DIRECT">
+        <div class="mode-top"><span class="mode-title">Register without an Agent Code</span><span class="mode-fee">USD 500</span></div>
+        <p>Direct registration with no referring agent. Full standard onboarding and compliance review.</p>
+        <span class="tag" style="color:var(--muted)">Standard fee</span>
+      </button>
+    </div>
+  </div>
+
+  <form id="registration-form" novalidate>
+    <div class="panel">
+      <h2>Company details</h2>
+      <p class="sub">Legal entity information as it appears on your registration documents.</p>
+      <div class="grid">
+        <div class="field"><label for="legalName">Legal entity name <span class="req">*</span></label><input id="legalName" name="legalName" maxlength="255" required></div>
+        <div class="field"><label for="dbaName">Trading / DBA name</label><input id="dbaName" name="dbaName" maxlength="255"></div>
+        <div class="field"><label for="registrationNumber">Company registration number <span class="req">*</span></label><input id="registrationNumber" name="registrationNumber" maxlength="100" required></div>
+        <div class="field"><label for="taxId">Tax / VAT ID</label><input id="taxId" name="taxId" maxlength="50"></div>
+        <div class="field"><label for="businessType">Business type <span class="req">*</span></label>
+          <select id="businessType" name="businessType" required>
+            <option value="">Select business type</option>
+            <option>Limited Company</option><option>Partnership</option><option>Sole Trader</option>
+            <option>Corporation</option><option>Non-Profit</option><option>Other</option>
+          </select>
+        </div>
+        <div class="field"><label for="industry">Industry / sector <span class="req">*</span></label><input id="industry" name="industry" maxlength="100" placeholder="e.g. E-commerce, Travel, SaaS" required></div>
+        <div class="field"><label for="country">Country of incorporation <span class="req">*</span></label><input id="country" name="country" maxlength="100" required></div>
+        <div class="field"><label for="website">Website</label><input id="website" name="website" type="url" maxlength="255" placeholder="https://example.com"></div>
+        <div class="field wide"><label for="businessAddress">Registered business address <span class="req">*</span></label><textarea id="businessAddress" name="businessAddress" maxlength="1000" required></textarea></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>Primary contact</h2>
+      <p class="sub">The person we will contact about this application.</p>
+      <div class="grid">
+        <div class="field"><label for="contactName">Contact full name <span class="req">*</span></label><input id="contactName" name="contactName" maxlength="255" required></div>
+        <div class="field"><label for="phone">Contact phone number <span class="req">*</span></label><input id="phone" name="phone" type="tel" maxlength="50" required></div>
+        <div class="field wide"><label for="email">Business email address <span class="req">*</span></label><input id="email" name="email" type="email" maxlength="320" required></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>AML &amp; compliance</h2>
+      <p class="sub">Anti-money-laundering information required to assess the account.</p>
+      <div class="grid">
+        <div class="field"><label for="expectedMonthlyVolume">Expected monthly volume (USD) <span class="req">*</span></label><input id="expectedMonthlyVolume" name="expectedMonthlyVolume" inputmode="decimal" placeholder="e.g. 50000" required></div>
+        <div class="field"><label for="expectedMonthlyTransactions">Expected monthly transactions <span class="req">*</span></label><input id="expectedMonthlyTransactions" name="expectedMonthlyTransactions" inputmode="numeric" placeholder="e.g. 1200" required></div>
+        <div class="field wide"><label for="sourceOfFunds">Source of funds <span class="req">*</span></label><textarea id="sourceOfFunds" name="sourceOfFunds" maxlength="500" required placeholder="Where does the money for this account come from?"></textarea></div>
+        <div class="field wide"><label for="purposeOfAccount">Purpose of account <span class="req">*</span></label><textarea id="purposeOfAccount" name="purposeOfAccount" maxlength="500" required placeholder="How will you use the merchant account?"></textarea></div>
+        <div class="field wide check"><input type="checkbox" id="pepDeclaration" name="pepDeclaration"><label for="pepDeclaration">A director or beneficial owner is a politically exposed person (PEP).</label></div>
+        <div class="field wide check"><input type="checkbox" id="sanctionsDeclaration" name="sanctionsDeclaration" required><label for="sanctionsDeclaration">I confirm that neither the company nor its beneficial owners are subject to sanctions, and that the information provided is accurate. <span class="req">*</span></label></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>Personal ID verification</h2>
+      <p class="sub">Authorised representative. Details are encrypted before storage.</p>
+      <div class="grid">
+        <div class="field"><label for="fullName">Full legal name <span class="req">*</span></label><input id="fullName" name="fullName" maxlength="255" required></div>
+        <div class="field"><label for="dateOfBirth">Date of birth <span class="req">*</span></label><input id="dateOfBirth" name="dateOfBirth" type="date" required></div>
+        <div class="field"><label for="nationality">Nationality <span class="req">*</span></label><input id="nationality" name="nationality" maxlength="100" required></div>
+        <div class="field"><label for="governmentIdType">Government ID type <span class="req">*</span></label>
+          <select id="governmentIdType" name="governmentIdType" required>
+            <option value="">Select document type</option>
+            <option value="PASSPORT">Passport</option>
+            <option value="NATIONAL_ID">National ID</option>
+            <option value="DRIVERS_LICENSE">Driver's license</option>
+            <option value="OTHER">Other government ID</option>
+          </select>
+        </div>
+        <div class="field"><label for="governmentIdNumber">Government ID / passport number <span class="req">*</span></label><input id="governmentIdNumber" name="governmentIdNumber" maxlength="100" required></div>
+        <div class="field"><label for="governmentIdIssuingCountry">ID issuing country <span class="req">*</span></label><input id="governmentIdIssuingCountry" name="governmentIdIssuingCountry" maxlength="100" required></div>
+        <div class="field"><label for="governmentIdExpiry">ID expiry date</label><input id="governmentIdExpiry" name="governmentIdExpiry" type="date"></div>
+        <div class="field wide"><label for="residentialAddress">Residential address <span class="req">*</span></label><textarea id="residentialAddress" name="residentialAddress" maxlength="1000" required></textarea></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>Documents</h2>
+      <p class="sub">PDF, JPEG or PNG. Company documents up to 5&nbsp;MB, profile photo up to 2&nbsp;MB.</p>
+      <div class="grid">
+        <div class="field"><label for="certificateOfIncorporation">Certificate of incorporation <span class="req">*</span></label><input id="certificateOfIncorporation" name="certificateOfIncorporation" type="file" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png" required></div>
+        <div class="field"><label for="tradeLicense">Trade / business license <span class="req">*</span></label><input id="tradeLicense" name="tradeLicense" type="file" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png" required></div>
+        <div class="field"><label for="directorIdDocument">Director government ID document <span class="req">*</span></label><input id="directorIdDocument" name="directorIdDocument" type="file" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png" required></div>
+        <div class="field"><label for="profilePhoto">Representative profile photo <span class="req">*</span></label><input id="profilePhoto" name="profilePhoto" type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" required></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="agent-box" id="agent-box">
+        <div class="agent-line">
+          <div class="field"><label for="agentCode">Agent code <span class="req">*</span></label><input id="agentCode" name="agentCode" placeholder="AGT-XXXXXXXXXXXX" maxlength="50" autocomplete="off"></div>
+          <button type="button" class="btn btn-ghost" id="verify-agent">Verify agent code</button>
+        </div>
+        <div class="agent-status" id="agent-status" aria-live="polite"></div>
+        <p class="hint" style="margin:8px 0 0">The agent code must match a registered agent exactly. If the code is wrong, the registration will not be accepted.</p>
+      </div>
+      <div class="notice" id="fee-notice" style="margin-top:14px">Loading selected plan…</div>
+      <div class="feedback" id="form-feedback" role="alert"></div>
+      <div class="actions">
+        <button type="submit" class="btn btn-primary" id="submit-button">Submit registration</button>
+        <span class="hint">Your application will be reviewed before the account is activated.</span>
+      </div>
+    </div>
+  </form>
+
+  <div class="panel result" id="result-panel" role="status" aria-live="polite">
+    <h3>Registration received</h3>
+    <dl>
+      <dt>Merchant code</dt><dd><code id="r-code"></code></dd>
+      <dt>Registration plan</dt><dd id="r-mode"></dd>
+      <dt>Subscription fee</dt><dd id="r-fee"></dd>
+      <dt>Agent code</dt><dd id="r-agent"></dd>
+      <dt>Status</dt><dd>Pending review — KYC/AML under review</dd>
+    </dl>
+    <p class="hint" style="margin-top:12px">Keep your merchant code. Our team will contact you at the email provided once the review is complete.</p>
+  </div>
+</div>
+
+<script>
+(function () {
+  var API_BASE = '/api/public/merchant-registration';
+  var PLANS = {
+    AGENT_CODE: { label: 'Agent referral (reduced fee)', fee: 'USD 200.00' },
+    DIRECT: { label: 'Direct registration (standard fee)', fee: 'USD 500.00' }
+  };
+  var mode = 'AGENT_CODE';
+
+  var modeButtons = document.querySelectorAll('.mode');
+  var agentBox = document.getElementById('agent-box');
+  var feeNotice = document.getElementById('fee-notice');
+  var agentStatus = document.getElementById('agent-status');
+  var feedback = document.getElementById('form-feedback');
+  var submitButton = document.getElementById('submit-button');
+
+  function renderMode() {
+    modeButtons.forEach(function (btn) {
+      btn.classList.toggle('active', btn.dataset.mode === mode);
+    });
+    var isAgent = mode === 'AGENT_CODE';
+    agentBox.style.display = isAgent ? '' : 'none';
+    feeNotice.innerHTML = 'Selected plan: <strong>' + PLANS[mode].label + '</strong> — subscription fee <strong>' + PLANS[mode].fee + '</strong>.';
+    if (!isAgent) { agentStatus.textContent = ''; agentStatus.className = 'agent-status'; }
+    feedback.textContent = '';
+  }
+
+  modeButtons.forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      mode = btn.dataset.mode;
+      renderMode();
+    });
+  });
+
+  document.getElementById('verify-agent').addEventListener('click', function () {
+    var code = document.getElementById('agentCode').value.trim();
+    if (!code) { agentStatus.textContent = 'Enter an agent code to verify.'; agentStatus.className = 'agent-status bad'; return; }
+    agentStatus.textContent = 'Checking…';
+    agentStatus.className = 'agent-status';
+    fetch(API_BASE + '/validate-agent', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ agentCode: code })
+    }).then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
+      .then(function (res) {
+        var data = res.d && res.d.data;
+        if (res.ok && data && data.valid) {
+          agentStatus.textContent = 'Valid — ' + (data.agentName || 'registered agent') + ' (' + data.agentCode + ')';
+          agentStatus.className = 'agent-status ok';
+        } else {
+          agentStatus.textContent = (data && data.reason) || (res.d.error && res.d.error.message) || 'Agent code is not valid.';
+          agentStatus.className = 'agent-status bad';
+        }
+      })
+      .catch(function () { agentStatus.textContent = 'Could not verify the agent code. Try again.'; agentStatus.className = 'agent-status bad'; });
+  });
+
+  var MIME_BY_EXT = { pdf: 'application/pdf', jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp' };
+
+  function readBase64(file) {
+    return new Promise(function (resolve, reject) {
+      var reader = new FileReader();
+      reader.onload = function () {
+        var result = String(reader.result || '');
+        var comma = result.indexOf(',');
+        resolve(comma === -1 ? '' : result.slice(comma + 1));
+      };
+      reader.onerror = function () { reject(new Error('Could not read ' + file.name)); };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  function filePayload(inputId, maxBytes) {
+    var input = document.getElementById(inputId);
+    var file = input.files && input.files[0];
+    if (!file) return Promise.reject(new Error('Please attach the required document.'));
+    if (file.size > maxBytes) return Promise.reject(new Error(file.name + ' exceeds the ' + Math.round(maxBytes / 1048576) + ' MB limit.'));
+    var ext = (file.name.split('.').pop() || '').toLowerCase();
+    var mime = file.type || MIME_BY_EXT[ext] || '';
+    return readBase64(file).then(function (contentBase64) {
+      return { fileName: file.name, mimeType: mime, contentBase64: contentBase64 };
+    });
+  }
+
+  function value(id) { return document.getElementById(id).value.trim(); }
+
+  document.getElementById('registration-form').addEventListener('submit', function (event) {
+    event.preventDefault();
+    feedback.textContent = '';
+
+    if (mode === 'AGENT_CODE' && !value('agentCode')) {
+      feedback.textContent = 'Enter the agent code issued to your referring agent.';
+      return;
+    }
+    if (!document.getElementById('sanctionsDeclaration').checked) {
+      feedback.textContent = 'You must confirm the sanctions declaration.';
+      return;
+    }
+    var form = event.target;
+    if (!form.checkValidity()) {
+      feedback.textContent = 'Please complete all required fields.';
+      form.reportValidity();
+      return;
+    }
+
+    submitButton.disabled = true;
+    submitButton.textContent = 'Submitting…';
+
+    Promise.all([
+      filePayload('certificateOfIncorporation', 5 * 1048576),
+      filePayload('tradeLicense', 5 * 1048576),
+      filePayload('directorIdDocument', 5 * 1048576),
+      filePayload('profilePhoto', 2 * 1048576)
+    ]).then(function (files) {
+      var payload = {
+        mode: mode,
+        agentCode: mode === 'AGENT_CODE' ? value('agentCode') : undefined,
+        legalName: value('legalName'),
+        dbaName: value('dbaName') || undefined,
+        registrationNumber: value('registrationNumber'),
+        taxId: value('taxId') || undefined,
+        businessType: value('businessType'),
+        industry: value('industry'),
+        country: value('country'),
+        website: value('website') || undefined,
+        businessAddress: value('businessAddress'),
+        contactName: value('contactName'),
+        email: value('email'),
+        phone: value('phone'),
+        expectedMonthlyVolume: value('expectedMonthlyVolume'),
+        expectedMonthlyTransactions: value('expectedMonthlyTransactions'),
+        sourceOfFunds: value('sourceOfFunds'),
+        purposeOfAccount: value('purposeOfAccount'),
+        pepDeclaration: document.getElementById('pepDeclaration').checked,
+        sanctionsDeclaration: true,
+        fullName: value('fullName'),
+        dateOfBirth: value('dateOfBirth'),
+        nationality: value('nationality'),
+        residentialAddress: value('residentialAddress'),
+        governmentIdType: value('governmentIdType'),
+        governmentIdNumber: value('governmentIdNumber'),
+        governmentIdIssuingCountry: value('governmentIdIssuingCountry'),
+        governmentIdExpiry: value('governmentIdExpiry') || undefined,
+        certificateOfIncorporation: files[0],
+        tradeLicense: files[1],
+        directorIdDocument: files[2],
+        profilePhoto: files[3]
+      };
+
+      return fetch(API_BASE, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      }).then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); });
+    }).then(function (res) {
+      if (!res.ok || !res.d || !res.d.success) {
+        var message = (res.d && res.d.error && res.d.error.message) || 'Registration could not be completed. Please review your details.';
+        throw new Error(message);
+      }
+      var data = res.d.data;
+      document.getElementById('r-code').textContent = data.code;
+      document.getElementById('r-mode').textContent = PLANS[data.registrationMode] ? PLANS[data.registrationMode].label : data.registrationMode;
+      document.getElementById('r-fee').textContent = (data.registrationFee && (data.registrationFee.currency + ' ' + data.registrationFee.amount)) || '—';
+      document.getElementById('r-agent').textContent = data.agentCode || 'None (direct registration)';
+      document.getElementById('result-panel').classList.add('show');
+      document.getElementById('registration-form').style.display = 'none';
+      document.getElementById('result-panel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }).catch(function (error) {
+      feedback.textContent = error.message || 'Something went wrong. Please try again.';
+    }).then(function () {
+      submitButton.disabled = false;
+      submitButton.textContent = 'Submit registration';
+    });
+  });
+
+  renderMode();
+})();
+</script>
+</body>
+</html>

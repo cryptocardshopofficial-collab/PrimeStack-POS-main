@@ -35,5 +35,33 @@ export const bulkTransferSchema = z.object({
   metadata: z.record(z.unknown()).optional(),
 });
 
+export const payoutSchema = z.object({
+  type: z.enum(["bank_payout", "crypto_payout"]),
+  amount: z.union([z.string(), z.number()]).transform((v) => String(v)),
+  currency: z.string().min(3).max(3).default("USD"),
+  reference: z.string().max(64).optional(),
+  beneficiaryName: z.string().max(140).optional(),
+  iban: z.string().max(64).optional(),
+  bic: z.string().max(11).optional(),
+  address: z.string().max(140).optional(),
+  asset: z.string().max(16).optional(),
+  network: z.string().max(32).optional(),
+  merchantId: z.string().uuid().optional(),
+  description: z.string().max(500).optional(),
+});
+
+export type PayoutInput = z.infer<typeof payoutSchema>;
+
+export interface CreatePayoutInput {
+  type: "BANK_PAYOUT" | "CRYPTO_PAYOUT";
+  amount: string;
+  currency: string;
+  merchantId: string;
+  /** Beneficiary identifier — IBAN for bank payouts, wallet address for crypto. */
+  destId?: string;
+  description?: string;
+  metadata?: Record<string, unknown>;
+}
+
 export type CreateTransferInput = z.infer<typeof createTransferSchema>;
 export type BulkTransferInput = z.infer<typeof bulkTransferSchema>;

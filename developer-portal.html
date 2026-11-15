@@ -491,27 +491,6 @@ nav{
   position:static;
   z-index:auto;
 }
-.hero-image-spacer{
-  width:100%;
-  height:100vh;
-  flex:0 0 100vh;
-  pointer-events:none;
-}
-.hero-image{
-  position:fixed;
-  top:68px;
-  left:0;
-  width:100%;
-  height:calc(100vh - 68px);
-  z-index:0;
-  margin:0;
-  border-radius:0;
-  overflow:hidden;
-  border:0;
-  background:#07111f url('Designer (1).jpg') center center / cover no-repeat;
-  box-shadow:none;
-  pointer-events:none;
-}
 .hero-content{
   position:relative;
   z-index:2;
@@ -699,13 +678,6 @@ footer p{font-size:12px}
   .nav-ping{display:flex;margin-left:auto;margin-right:8px}
   .nav-btn{display:none}
   .hero{padding:0 16px 56px;text-align:center}
-  .hero-image-spacer{height:calc(100svh - 56px);flex-basis:calc(100svh - 56px)}
-  .hero-image{
-    top:56px;
-    height:calc(100svh - 56px);
-    background-position:center center;
-    background-size:cover;
-  }
   .hero-content{padding:52px 16px 36px;text-align:center}
   .hero-pill{margin-bottom:18px;font-size:10px}
   .hero h1{font-size:clamp(34px,10vw,44px);line-height:1.02}
@@ -764,8 +736,6 @@ footer p{font-size:12px}
   .hero-tags{display:none}
   .hero-btns{flex-direction:column;width:100%}
   .hero-btns button{width:100%;flex:none}
-  .hero-image-spacer{height:calc(100svh - 56px)}
-  .hero-image{height:calc(100svh - 56px)}
   .divider{height:16vh;min-height:120px;max-height:150px}
   section{padding:48px 14px}
   .section-title{font-size:28px}
@@ -784,8 +754,6 @@ footer p{font-size:12px}
 
 @media(max-width:768px) and (orientation:landscape){
   nav{height:52px}
-  .hero-image{top:52px;height:calc(100svh - 52px)}
-  .hero-image-spacer{height:calc(100svh - 52px);flex-basis:calc(100svh - 52px)}
   .hero-content{padding-top:36px}
   .hero-tags{display:none}
   .hero-btns{flex-direction:row}
@@ -850,7 +818,6 @@ nav{background:rgba(7,9,13,.96);border-bottom:1px solid var(--fl-line)}
 .developer-language-picker select{font-family:var(--fl-mono);font-size:11px;background:#0b0e13;border-color:var(--fl-line);color:var(--fl-paper);border-radius:4px}
 
 /* ── hero ── */
-.hero-image{background-color:var(--fl-ink);filter:grayscale(1) brightness(.5) contrast(1.08)}
 .hero-content{background:var(--fl-ink)}
 .hero h1{font-family:var(--fl-serif);font-weight:400;color:var(--fl-paper);letter-spacing:-.03em;font-size:clamp(40px,7.2vw,96px);line-height:1;max-width:none;white-space:nowrap}
 .hero h1 em{font-style:italic;color:var(--fl-lime)}
@@ -1048,7 +1015,7 @@ footer p{color:var(--fl-dim);font-size:11px;letter-spacing:.16em;text-transform:
   .fl-stepnum::before{content:attr(data-step)}
 }
 </style>
-<link rel="stylesheet" href="/developer-ocean.css">
+<link rel="stylesheet" href="/developer-theme.css">
 </head>
 <body>
 
@@ -1116,8 +1083,6 @@ footer p{color:var(--fl-dim);font-size:11px;letter-spacing:.16em;text-transform:
     <span>Go live</span>
   </div>
   <div class="fl-cue" aria-hidden="true">Scroll to trace the integration path</div>
-  <div class="hero-image" role="img" aria-label="PrimeStack Global Server Network office"></div>
-  <div class="hero-image-spacer" aria-hidden="true"></div>
   <div class="hero-content">
     <div class="hero-pill"><span class="hero-pill-dot"></span>Developer Integration Center</div>
     <h1>Build with PrimeStack</h1>
@@ -1765,7 +1730,6 @@ if (!response.ok || !result.data?.whitelisted) {
 <script>
 // Inertia-based scrolling for a controlled, weighty page transition.
 const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-const finePointer = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
 
 let smoothTarget = window.scrollY;
 let smoothCurrent = window.scrollY;
@@ -1777,8 +1741,12 @@ function clampScrollPosition(position) {
   return Math.min(maxScroll, Math.max(0, position));
 }
 
-function animateSmoothScroll() {
-  smoothCurrent += (smoothTarget - smoothCurrent) * 0.085;
+let smoothLastFrame = 0;
+
+function animateSmoothScroll(now) {
+  const elapsed = smoothLastFrame ? Math.min(now - smoothLastFrame, 64) : 16.7;
+  smoothLastFrame = now;
+  smoothCurrent += (smoothTarget - smoothCurrent) * (1 - Math.exp(-elapsed / 340));
 
   if (Math.abs(smoothTarget - smoothCurrent) < 0.5) {
     smoothCurrent = smoothTarget;
@@ -1791,6 +1759,7 @@ function animateSmoothScroll() {
   } else {
     isSmoothing = false;
     smoothFrame = 0;
+    smoothLastFrame = 0;
   }
 }
 
@@ -1805,26 +1774,32 @@ function startSmoothScroll(target) {
 
   if (!isSmoothing) {
     isSmoothing = true;
+    smoothLastFrame = 0;
     smoothFrame = requestAnimationFrame(animateSmoothScroll);
   }
 }
 
-if (finePointer && !prefersReducedMotion) {
+if (!prefersReducedMotion) {
   window.addEventListener('wheel', event => {
     if (event.ctrlKey || event.metaKey || event.altKey) return;
 
     const multiplier = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? window.innerHeight : 1;
-    const delta = event.deltaY * multiplier * 0.82;
+    const delta = event.deltaY * multiplier;
     if (!delta) return;
+
+    const origin = isSmoothing ? smoothTarget : window.scrollY;
+    const nextTarget = clampScrollPosition(origin + delta);
+    if (nextTarget === origin) return;
 
     event.preventDefault();
     if (!isSmoothing) {
       smoothTarget = window.scrollY;
       smoothCurrent = window.scrollY;
       isSmoothing = true;
+      smoothLastFrame = 0;
       smoothFrame = requestAnimationFrame(animateSmoothScroll);
     }
-    smoothTarget = clampScrollPosition(smoothTarget + delta);
+    smoothTarget = nextTarget;
   }, { passive: false });
 }
 
@@ -1937,17 +1912,6 @@ function getResponsiveNavHeight() {
 function updateFixedLayout() {
   const navHeight = getResponsiveNavHeight();
   document.querySelector('nav').style.height = navHeight;
-  const heroImage = document.querySelector('.hero-image');
-  const heroSpacer = document.querySelector('.hero-image-spacer');
-  if (heroImage) {
-    heroImage.style.top = navHeight;
-    heroImage.style.height = `calc(100svh - ${navHeight})`;
-  }
-  if (heroSpacer) {
-    const spacerHeight = `calc(100svh - ${navHeight})`;
-    heroSpacer.style.height = spacerHeight;
-    heroSpacer.style.flexBasis = spacerHeight;
-  }
 }
 
 window.addEventListener('scroll', updateFixedLayout, { passive: true });
@@ -1956,7 +1920,10 @@ window.addEventListener('orientationchange', updateFixedLayout);
 updateFixedLayout();
 
 // Live ping the server
+let pingInFlight = false;
 async function pingServer() {
+  if (pingInFlight) return;
+  pingInFlight = true;
   const start = Date.now();
   const badge = document.getElementById('ping-badge');
   const button = document.getElementById('ping-now');
@@ -1990,11 +1957,13 @@ async function pingServer() {
     }
     if (navPing) navPing.classList.add('offline');
   } finally {
+    pingInFlight = false;
     if (button) button.textContent = 'Ping now';
   }
 }
 pingServer();
-setInterval(pingServer, 15000);
+setInterval(() => { if (!document.hidden) pingServer(); }, 15000);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) pingServer(); });
 
 // Smooth anchor scrolling
 document.querySelectorAll('a[href^="#"]').forEach(a => {
@@ -2101,8 +2070,5 @@ window.googleTranslateElementInit = function () {
   document.body.appendChild(script);
 })();
 </script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r124/three.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/2.1.3/TweenMax.min.js"></script>
-<script src="/developer-ocean.js"></script>
 </body>
 </html>

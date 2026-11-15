@@ -499,6 +499,7 @@
       <div class="nav-item"><a class="nav-link" href="/security">Security & compliance <svg width="8" height="8" viewBox="0 0 8 8"><path d="M1 2.5 4 5.5l3-3" fill="none" stroke="currentColor"/></svg></a><button class="nav-toggle" type="button" aria-label="Show Security and compliance submenu" aria-expanded="false">+</button><div class="mega"><a href="/security"><strong>Security</strong>Authentication and access controls</a><a href="/compliance"><strong>Compliance</strong>Governance and operating controls</a></div></div>
       <div class="nav-item"><a class="nav-link" href="/solutions">Solutions <svg width="8" height="8" viewBox="0 0 8 8"><path d="M1 2.5 4 5.5l3-3" fill="none" stroke="currentColor"/></svg></a><button class="nav-toggle" type="button" aria-label="Show Solutions submenu" aria-expanded="false">+</button><div class="mega"><a href="/merchants"><strong>For merchants</strong>Connect payment experiences</a><a href="/enterprises"><strong>For enterprises</strong>Global treasury operations</a><a href="/partners"><strong>For partners</strong>Build on PrimeStack</a></div></div>
       <div class="nav-item"><a class="nav-link" href="/pricing">Pricing</a></div>
+      <div class="nav-item"><a class="nav-link" href="/merchant-register">Get started</a></div>
       <div class="nav-item"><a class="nav-link" href="/developer">Developers</a></div>
       <div class="nav-item"><a class="nav-link" href="/company">Company <svg width="8" height="8" viewBox="0 0 8 8"><path d="M1 2.5 4 5.5l3-3" fill="none" stroke="currentColor"/></svg></a><button class="nav-toggle" type="button" aria-label="Show Company submenu" aria-expanded="false">+</button><div class="mega"><a href="/about"><strong>About us</strong>Our mission and infrastructure</a><a href="/careers"><strong>Careers</strong>Build the payment future</a><a href="/contact"><strong>Contact</strong>Talk to our team</a></div></div>
       <div class="nav-item"><a class="nav-link" href="/terms">Legal <svg width="8" height="8" viewBox="0 0 8 8"><path d="M1 2.5 4 5.5l3-3" fill="none" stroke="currentColor"/></svg></a><button class="nav-toggle" type="button" aria-label="Show Legal submenu" aria-expanded="false">+</button><div class="mega"><a href="/terms"><strong>Terms & conditions</strong>Website and service terms</a><a href="/privacy"><strong>Privacy policy</strong>Information practices</a><a href="/cookies"><strong>Cookie policy</strong>Website tracking details</a><a href="/acceptable-use"><strong>Acceptable use</strong>Permitted platform use</a></div></div>
@@ -527,7 +528,7 @@
           <option value="vi">Tiếng Việt</option>
         </select>
       </div>
-      <a href="/login" class="nav-button">Sign in</a><button class="menu-button" id="menuButton" aria-label="Open navigation">☰</button>
+      <a href="/merchant-login" class="nav-button">Merchant sign in</a><button class="menu-button" id="menuButton" aria-label="Open navigation">☰</button>
     </div>
   </div></nav>
   <div id="google_translate_element" aria-hidden="true"></div>
@@ -2260,20 +2261,22 @@
       }
     };
     addEventListener("scroll",()=>{if(!flightFrame)flightFrame=requestAnimationFrame(updateFlight)},{passive:true});
-    if(matchMedia("(pointer:fine)").matches&&!matchMedia("(prefers-reduced-motion:reduce)").matches&&typeof requestAnimationFrame==="function"){
-      let targetY=scrollY,currentY=scrollY,scrollFrame=0,lastFrame=performance.now();
+    if(!matchMedia("(prefers-reduced-motion:reduce)").matches&&typeof requestAnimationFrame==="function"){
       const maxScrollY=()=>Math.max(document.documentElement.scrollHeight-innerHeight,0);
+      let targetY=scrollY,currentY=scrollY,scrollFrame=0,lastFrame=0;
       const renderScroll=now=>{
-        const elapsed=Math.min(now-lastFrame,32);
+        const elapsed=lastFrame?Math.min(now-lastFrame,64):16.7;
         lastFrame=now;
         targetY=Math.max(0,Math.min(maxScrollY(),targetY));
-        currentY+=(targetY-currentY)*(1-Math.exp(-elapsed/100));
-        window.scrollTo(0,currentY);
-        if(Math.abs(targetY-currentY)<.6){
+        currentY+=(targetY-currentY)*(1-Math.exp(-elapsed/340));
+        if(Math.abs(targetY-currentY)<.5){
           currentY=targetY;
+          window.scrollTo(0,currentY);
           scrollFrame=0;
+          lastFrame=0;
           return;
         }
+        window.scrollTo(0,currentY);
         scrollFrame=requestAnimationFrame(renderScroll);
       };
       addEventListener("wheel",event=>{
@@ -2282,14 +2285,12 @@
         if(source&&source.closest("input,textarea,select,[contenteditable='true'],.pricing-table-wrap"))return;
         if(!scrollFrame)currentY=targetY=scrollY;
         const unit=event.deltaMode===1?16:event.deltaMode===2?innerHeight:1;
-        const delta=event.deltaY*unit*.65;
-        const nextY=Math.max(0,Math.min(maxScrollY(),targetY+delta));
+        const nextY=Math.max(0,Math.min(maxScrollY(),targetY+event.deltaY*unit));
         if(nextY===targetY)return;
         event.preventDefault();
-        if(!event.defaultPrevented)return;
         targetY=nextY;
         if(!scrollFrame){
-          lastFrame=performance.now();
+          lastFrame=0;
           scrollFrame=requestAnimationFrame(renderScroll);
         }
       },{passive:false});
@@ -2297,9 +2298,11 @@
         if(!scrollFrame)return;
         cancelAnimationFrame(scrollFrame);
         scrollFrame=0;
+        lastFrame=0;
         currentY=targetY=scrollY;
       };
       addEventListener("pointerdown",cancelSmoothScroll,{passive:true});
+      addEventListener("touchstart",cancelSmoothScroll,{passive:true});
       addEventListener("keydown",event=>{
         if(["ArrowDown","ArrowUp","PageDown","PageUp","Home","End"," "].includes(event.key))cancelSmoothScroll();
       },{capture:true});

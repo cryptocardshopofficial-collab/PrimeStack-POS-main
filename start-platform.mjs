@@ -1,22 +1,37 @@
-// start-platform.mjs — single-service launcher.
+// start-platform.mjs — local multi-portal and single-service launcher.
 //
-// Runs the whole platform inside ONE Render web service:
-//   1. the PrimeStack Fastify API (src/ → dist/server.js) on an internal port
-//   2. the operator console (start-dashboard.js) on the public PORT
-//
-// The console proxies every /api/* call to the internal API, signing the
-// request with the console HMAC key and replaying the operator session.
+// Runs the API and supporting services alongside separate website, merchant,
+// and admin HTTP servers when MULTI_PORTAL=true; otherwise it preserves the
+// single dashboard server used by hosted deployments.
+import 'dotenv/config';
+import { spawn } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 import { setTimeout as delay } from 'node:timers/promises';
 
-const PUBLIC_PORT = process.env.PORT || '9005';
-const API_PORT = process.env.API_PORT || '9006';
+const WEBSITE_PORT = process.env.WEBSITE_PORT || '9004';
+const MERCHANT_PORT = process.env.MERCHANT_PORT || process.env.DASHBOARD_PORT || '9005';
+const ADMIN_PORT = process.env.ADMIN_PORT || '9006';
+const API_PORT = process.env.API_PORT || '9009';
+const SINGLE_PORT = process.env.PORT || '9005';
+const MULTI_PORTAL = process.env.MULTI_PORTAL === 'true';
+const MERCHANT_PORTAL_ORIGIN =
+  process.env.MERCHANT_PORTAL_ORIGIN || `http://127.0.0.1:${MERCHANT_PORT}`;
+const children = new Set();
+let shuttingDown = false;
 
-// The console reads these at import time.
+function stopChildren() {
+  shuttingDown = true;
+  for (const child of children) {
+    if (child.exitCode === null) child.kill();
+  }
+}
+
+for (const signal of ['SIGINT', 'SIGTERM']) {
+  process.on(signal, stopChildren);
+}
+
 process.env.API_PORT = API_PORT;
-// This launcher owns the API process, so ignore inherited URLs for retired services.
 process.env.PRIMESTACK_API_URL = `http://127.0.0.1:${API_PORT}`;
-
-// The API resolves its listen port from PORT — set it before importing.
 process.env.PORT = API_PORT;
 await import('./dist/server.js');
 console.log(`[platform] Fastify API starting on internal port ${API_PORT}`);
@@ -50,8 +65,63 @@ console.log(`[platform] ISO 20022 engine on 127.0.0.1:${ISO20022_PORT}`);
 const apiReady = await waitForApi();
 console.log(apiReady
   ? '[platform] API health check passed'
-  : '[platform] WARNING: API did not answer /health — starting console anyway');
+  : '[platform] WARNING: API did not answer /health — starting portals anyway');
 
-// Hand PORT back to the console.
-process.env.PORT = PUBLIC_PORT;
-await import('./start-dashboard.js');
+function startService(name, script, environment) {
+  const child = spawn(
+    process.execPath,
+    [fileURLToPath(new URL(script, import.meta.url))],
+    {
+      env: { ...process.env, ...environment },
+      stdio: 'inherit',
+    },
+  );
+  children.add(child);
+  child.on('error', (error) => {
+    console.error(`[platform] Failed to start ${name}: ${error.message}`);
+    process.exitCode = 1;
+    stopChildren();
+    process.kill(process.pid, 'SIGTERM');
+  });
+  child.on('exit', (code, signal) => {
+    children.delete(child);
+    if (!shuttingDown) {
+      console.error(
+        `[platform] ${name} stopped unexpectedly (code ${code}, signal ${signal})`,
+      );
+      process.exitCode = code || 1;
+      stopChildren();
+      process.kill(process.pid, 'SIGTERM');
+    }
+  });
+  return child;
+}
+
+if (!MULTI_PORTAL) {
+  process.env.PORT = SINGLE_PORT;
+  await import('./start-dashboard.js');
+} else {
+  const apiEnvironment = {
+    API_PORT,
+    PRIMESTACK_API_URL: `http://127.0.0.1:${API_PORT}`,
+    MERCHANT_PORT,
+    ADMIN_PORT,
+    MERCHANT_PORTAL_ORIGIN,
+  };
+
+  startService('merchant dashboard', './start-dashboard.js', {
+    ...apiEnvironment,
+    PORT: MERCHANT_PORT,
+    PORTAL_MODE: 'merchant',
+  });
+  startService('admin dashboard', './start-dashboard.js', {
+    ...apiEnvironment,
+    PORT: ADMIN_PORT,
+    PORTAL_MODE: 'admin',
+  });
+  startService('public website', './start-public-site.js', {
+    WEBSITE_PORT,
+    DASHBOARD_PORT: MERCHANT_PORT,
+    DASHBOARD_ORIGIN: MERCHANT_PORTAL_ORIGIN,
+  });
+}

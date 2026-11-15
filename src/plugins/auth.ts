@@ -61,12 +61,17 @@ export async function hmacAuthPlugin(app: FastifyInstance): Promise<void> {
         request.url.startsWith("/health") ||
         request.url.startsWith("/docs") ||
         request.url.startsWith("/admin/login") ||
+        path === "/merchant-portal" ||
+        path.startsWith("/merchant-portal/") ||
         path === "/network" ||
         path.startsWith("/network/") ||
+        path === "/ledger" ||
+        path.startsWith("/ledger/") ||
         path === "/public/terminal-registration" ||
         path === "/public/agent-portal/login" ||
-        path === "/public/agent-portal/profile" ||
-        path === "/t2t/whitelist"
+        path.startsWith("/public/agent-portal/") ||
+        path === "/t2t/whitelist" ||
+        path.startsWith("/t2t/whitelist/")
       ) {
         return;
       }
@@ -217,6 +222,8 @@ export async function jwtAuthHook(app: FastifyInstance): Promise<void> {
           role: true,
           preferredLang: true,
           isActive: true,
+          merchantId: true,
+          mustChangePassword: true,
         },
       });
       if (!user?.isActive)
@@ -227,6 +234,8 @@ export async function jwtAuthHook(app: FastifyInstance): Promise<void> {
         email: user.email,
         role: user.role,
         lang: user.preferredLang,
+        merchantId: user.merchantId,
+        mustChangePassword: user.mustChangePassword,
       } as never;
     },
   );

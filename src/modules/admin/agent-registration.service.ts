@@ -320,4 +320,131 @@ export class AgentRegistrationService {
       status: profile.verificationStatus,
     };
   }
+
+  async getPortalDashboard(agentId: string, page: number, pageSize: number) {
+    const profile = await this.getPortalProfile(agentId);
+    const assignedMerchantWhere: Prisma.MerchantWhereInput = { agentId };
+    const assignedTransactionWhere: Prisma.TransactionWhereInput = {
+      merchant: { is: { agentId } },
+    };
+
+    const [merchants, transactions, totalTransactions] = await Promise.all([
+      this.prisma.merchant.findMany({
+        where: assignedMerchantWhere,
+        select: {
+          id: true,
+          code: true,
+          legalName: true,
+          displayName: true,
+          country: true,
+          status: true,
+          createdAt: true,
+          _count: { select: { transactions: true, terminals: true } },
+        },
+        orderBy: { createdAt: "desc" },
+      }),
+      this.prisma.transaction.findMany({
+        where: assignedTransactionWhere,
+        select: {
+          id: true,
+          stan: true,
+          rrn: true,
+          type: true,
+          status: true,
+          amount: true,
+          currency: true,
+          responseCode: true,
+          createdAt: true,
+          merchant: {
+            select: { id: true, code: true, displayName: true, legalName: true },
+          },
+        },
+        orderBy: { createdAt: "desc" },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+      this.prisma.transaction.count({ where: assignedTransactionWhere }),
+    ]);
+
+    return {
+      profile,
+      merchants,
+      transactions: transactions.map((transaction) => ({
+        ...transaction,
+        amount: transaction.amount.toString(),
+      })),
+      meta: {
+        page,
+        pageSize,
+        total: totalTransactions,
+        totalPages: Math.ceil(totalTransactions / pageSize),
+      },
+    };
+  }
+
+  async setAssignedMerchantStatus(
+    agentId: string,
+    merchantId: string,
+    action: "pause" | "resume",
+    ipAddress?: string,
+    userAgent?: string,
+  ) {
+    const fromStatus = action === "pause" ? "ACTIVE" : "SUSPENDED";
+    const toStatus = action === "pause" ? "SUSPENDED" : "ACTIVE";
+
+    return this.prisma.$transaction(async (transaction) => {
+      const profile = await transaction.agentKycProfile.findUnique({
+        where: { agentId },
+        select: {
+          verificationStatus: true,
+          agent: { select: { status: true } },
+        },
+      });
+      if (
+        !profile ||
+        profile.verificationStatus !== "APPROVED" ||
+        profile.agent.status !== "APPROVED"
+      ) {
+        throw new UnauthorizedError("Agent KYC approval is required");
+      }
+
+      const current = await transaction.merchant.findFirst({
+        where: { id: merchantId, agentId },
+        select: { id: true, status: true },
+      });
+      if (!current) throw new NotFoundError("Assigned merchant", merchantId);
+      if (current.status !== fromStatus) {
+        throw new ConflictError(
+          `Merchant must be ${fromStatus.toLowerCase()} to ${action}`,
+        );
+      }
+
+      const updated = await transaction.merchant.updateMany({
+        where: { id: merchantId, agentId, status: fromStatus },
+        data: { status: toStatus },
+      });
+      if (updated.count !== 1) {
+        throw new ConflictError("Merchant status changed; refresh and try again");
+      }
+
+      await transaction.auditLog.create({
+        data: {
+          merchantId,
+          action: action === "pause" ? "AGENT_PAUSE_MERCHANT" : "AGENT_RESUME_MERCHANT",
+          entity: "Merchant",
+          entityId: merchantId,
+          before: { status: fromStatus, changedByAgentId: agentId },
+          after: {
+            status: toStatus,
+            changedByAgentId: agentId,
+            source: "AGENT_PORTAL",
+          },
+          ipAddress,
+          userAgent,
+        },
+      });
+
+      return { id: merchantId, status: toStatus };
+    });
+  }
 }

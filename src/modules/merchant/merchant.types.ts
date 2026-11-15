@@ -16,6 +16,11 @@ export const createMerchantSchema = z.object({
   metadata: z.record(z.unknown()).optional(),
 });
 
+export const changeMerchantPortalPasswordSchema = z.object({
+  currentPassword: z.string().min(1).max(200),
+  newPassword: z.string().min(12).max(200),
+});
+
 export const updateMerchantSchema = z.object({
   legalName: z.string().min(1).max(255).optional(),
   displayName: z.string().max(255).optional(),

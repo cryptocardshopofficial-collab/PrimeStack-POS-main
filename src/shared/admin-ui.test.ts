@@ -167,6 +167,7 @@ describe("enhanceAdminHtml", () => {
     const enhanced = enhanceAdminHtml(html);
 
     expect(enhanceAdminHtml(enhanced)).toBe(enhanced);
+    expect(enhanceAdminHtml(enhanced.replace('id="ps-admin-ui-styles"', 'id="ps-admin-ui-script"'))).toBe(enhanced.replace('id="ps-admin-ui-styles"', 'id="ps-admin-ui-script"'));
   });
 
   it("leaves non-page fragments unchanged", () => {

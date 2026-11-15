@@ -92,8 +92,19 @@ function safeFileName(fileName: string): string {
   return safeName || "document";
 }
 
-function decodeUpload(
-  upload: RegisterAgentKycInput["idDocument"],
+export interface KycFileUpload {
+  fileName: string;
+  mimeType: string;
+  contentBase64: string;
+}
+
+/**
+ * Decode and validate an uploaded KYC file. Shared by the agent and merchant
+ * registration flows: the declared MIME type must match the file's magic bytes
+ * and the decoded size must stay within `maxBytes`.
+ */
+export function decodeKycUpload(
+  upload: KycFileUpload,
   allowedTypes: readonly string[],
   maxBytes: number,
 ): AgentKycUpload {
@@ -106,6 +117,14 @@ function decodeUpload(
     throw new ValidationError("KYC file type does not match the file contents");
   }
   return { fileName: safeFileName(upload.fileName), mimeType: detected, bytes };
+}
+
+function decodeUpload(
+  upload: RegisterAgentKycInput["idDocument"],
+  allowedTypes: readonly string[],
+  maxBytes: number,
+): AgentKycUpload {
+  return decodeKycUpload(upload, allowedTypes, maxBytes);
 }
 
 export function decodeAgentKycFiles(input: RegisterAgentKycInput): {

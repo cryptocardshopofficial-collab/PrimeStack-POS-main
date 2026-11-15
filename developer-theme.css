@@ -1,0 +1,95 @@
+/* ============================================================================
+   PrimeStack developer platform — shared dark theme
+   ----------------------------------------------------------------------------
+   One palette and one base look for every /developer* page (integration
+   center, service reference, funds guide, API reference).
+
+   This replaces the former "ocean" cover theme (Three.js canvas + injected
+   full-screen intro), which stacked a second full-viewport hero on top of each
+   page's own content and forced every <body> child back into normal flow.
+
+   It is linked after each page's component styles, so these values win and the
+   pages read as one consistent theme.
+   ========================================================================== */
+
+:root{
+  /* --- canonical palette ------------------------------------------------- */
+  --ps-bg:#0a0f1c;
+  --ps-bg2:#0e1524;
+  --ps-bg3:#121b2e;
+  --ps-surface:#111a2c;
+  --ps-surface2:#16223a;
+  --ps-border:#223049;
+  --ps-text:#e6edf7;
+  --ps-muted:#94a3b8;
+  --ps-dim:#64748b;
+  --ps-accent:#38bdf8;
+  --ps-accent2:#8b5cf6;
+  --ps-green:#34d399;
+  --ps-amber:#fbbf24;
+  --ps-rose:#fb7185;
+
+  /* --- alias: integration center / service reference --------------------- */
+  --bg:var(--ps-bg); --bg2:var(--ps-bg2); --bg3:var(--ps-bg3);
+  --card:rgba(56,189,248,.03);
+  --text:var(--ps-text); --muted:var(--ps-muted); --border:var(--ps-border);
+  --blue:var(--ps-accent); --violet:var(--ps-accent2);
+  --emerald:var(--ps-green); --gold:var(--ps-amber); --rose:var(--ps-rose);
+
+  /* --- alias: funds guide ------------------------------------------------ */
+  --panel:var(--ps-surface); --panel2:var(--ps-surface2);
+  --green:var(--ps-green); --amber:var(--ps-amber); --red:var(--ps-rose);
+
+  /* --- alias: API reference --------------------------------------------- */
+  --surface:var(--ps-surface); --surface2:var(--ps-surface2);
+  --accent:var(--ps-accent); --accent-dim:#1c3a63;
+  --yellow:var(--ps-amber); --purple:var(--ps-accent2); --cyan:var(--ps-accent);
+  --text-muted:var(--ps-muted); --text-dim:var(--ps-dim);
+
+  /* --- alias: flight-log layer ------------------------------------------ */
+  --fl-ink:var(--ps-bg); --fl-ink2:var(--ps-surface); --fl-line:var(--ps-border);
+  --fl-paper:var(--ps-text); --fl-dim:var(--ps-muted);
+  --fl-lime:var(--ps-accent); --fl-amber:var(--ps-amber);
+  --fl-coral:var(--ps-rose); --fl-sky:var(--ps-accent);
+}
+
+html,body{background:var(--ps-bg)}
+body{
+  color:var(--ps-text);
+  font-family:'Outfit','Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+}
+a{color:var(--ps-accent)}
+
+/* ── navigation — one bar across every developer page ── */
+nav{background:rgba(10,15,28,.92);border-bottom:1px solid var(--ps-border)}
+.nav-links a{color:var(--ps-muted)}
+.nav-links a:hover{color:var(--ps-text)}
+.nav-home,.btn-ghost{border-color:var(--ps-border);color:var(--ps-text)}
+.nav-home:hover,.btn-ghost:hover{border-color:var(--ps-accent);color:var(--ps-accent)}
+
+/* ── primary actions ── */
+.nav-btn,.btn-primary,button.btn{background:var(--ps-accent);color:#06121f;border:0}
+.nav-btn:hover,.btn-primary:hover,button.btn:hover{filter:brightness(1.06)}
+
+/* ── surfaces ── */
+.card,.cred-card,.quickstart-card,.integration-card,.onboarding-card,
+.onboarding-summary,.ping-card,.ping-stat,.bank-card,.summary,.flow,.limit{
+  border-color:var(--ps-border);
+}
+
+/* ── decorative orbs follow the shared palette ── */
+.orb1{background:rgba(56,189,248,.08)}
+.orb2{background:rgba(139,92,246,.07)}
+.orb3{background:rgba(52,211,153,.06)}
+
+/* ── code ── */
+pre,code{color:var(--ps-text)}
+
+/* ── footer ── */
+footer{border-top:1px solid var(--ps-border);color:var(--ps-muted)}
+footer span,footer a{color:var(--ps-accent)}
+
+/* ── scrollbar ── */
+::-webkit-scrollbar{width:8px;height:8px}
+::-webkit-scrollbar-track{background:var(--ps-bg)}
+::-webkit-scrollbar-thumb{background:#22304a;border-radius:4px}

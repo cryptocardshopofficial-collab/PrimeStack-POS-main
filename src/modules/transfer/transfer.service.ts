@@ -11,7 +11,12 @@ import { logger } from "../../core/logger.js";
 import { LedgerService } from "../ledger/ledger.service.js";
 import { WalletService } from "../wallet/wallet.service.js";
 import { generateReference } from "../../shared/utils/crypto.js";
-import type { CreateTransferInput, BulkTransferInput } from "./types.js";
+import type { CreateTransferInput, BulkTransferInput, CreatePayoutInput } from "./types.js";
+
+/**
+ * Share of every external payout routed to the platform's saved bank account.
+ */
+const PLATFORM_COMMISSION_RATE = "0.30";
 
 /**
  * Transfer Service — Fund Movement Engine
@@ -194,6 +199,236 @@ export class TransferService {
   }
 
   /**
+   * Submit an external payout (bank account or crypto wallet).
+   *
+   * Payouts always move money out of the platform, so every one of them is held
+   * as PENDING until an administrator approves it. No journal entry is posted
+   * and no balance moves at this point.
+   */
+  async createPayout(input: CreatePayoutInput) {
+    const amount = new Decimal(input.amount);
+
+    if (!amount.isFinite() || amount.lte(0)) {
+      throw new ValidationError("Payout amount must be positive");
+    }
+    if (amount.gt("10000000")) {
+      throw new ValidationError("Payout amount exceeds the maximum limit");
+    }
+
+    const currency = input.currency || "USD";
+    const merchant = await this.prisma.merchant.findUnique({
+      where: { id: input.merchantId },
+    });
+    if (!merchant) {
+      throw new NotFoundError("Merchant", input.merchantId);
+    }
+
+    const sourceAccountCode = await this.ensureAccount(
+      `MERCHANT-${merchant.code}-${currency}`,
+      `Merchant Account: ${merchant.code}`,
+      "LIABILITY",
+      "MERCHANT",
+      currency,
+    );
+    const payoutAccountCode = await this.ensureAccount(
+      `EXTERNAL-PAYOUT-${currency}`,
+      `External payout clearing (${currency})`,
+      "LIABILITY",
+      "PAYOUT_CLEARING",
+      currency,
+    );
+
+    const commission = amount.times(PLATFORM_COMMISSION_RATE);
+    const reference = generateReference("PAY");
+
+    const transfer = await this.prisma.transfer.create({
+      data: {
+        reference,
+        type: input.type,
+        status: "PENDING",
+        approvalStatus: "PENDING",
+        amount: amount.toNumber(),
+        currency,
+        feeAmount: 0,
+        netAmount: amount.minus(commission).toNumber(),
+        commissionAmount: commission.toNumber(),
+        sourceType: "MERCHANT",
+        sourceId: merchant.id,
+        destType: "BANK",
+        destId: input.destId ?? "EXTERNAL",
+        sourceAccountId: sourceAccountCode,
+        destAccountId: payoutAccountCode,
+        merchantId: merchant.id,
+        description: input.description,
+        metadata: input.metadata as Prisma.InputJsonValue | undefined,
+      },
+    });
+
+    logger.info(
+      { reference, amount: amount.toString(), currency, merchantId: merchant.id },
+      "Payout submitted for administrator approval",
+    );
+
+    return transfer;
+  }
+
+  /**
+   * Release a pending payout: post the double-entry journal and route the
+   * platform's 30% share into the saved bank account profile.
+   */
+  async approveTransfer(reference: string, approvedBy: string) {
+    const transfer = await this.prisma.transfer.findUnique({
+      where: { reference },
+    });
+
+    if (!transfer) {
+      throw new NotFoundError("Transfer", reference);
+    }
+    if (transfer.status !== "PENDING" || transfer.approvalStatus !== "PENDING") {
+      throw new ConflictError(
+        `Transfer ${reference} is not awaiting approval (status: ${transfer.status})`,
+      );
+    }
+    if (transfer.type !== "BANK_PAYOUT" && transfer.type !== "CRYPTO_PAYOUT") {
+      throw new ValidationError(
+        "Only external payouts use the approval workflow",
+      );
+    }
+    if (!transfer.sourceAccountId || !transfer.destAccountId) {
+      throw new AppError(
+        "Payout is missing its ledger accounts",
+        500,
+        "PAYOUT_ACCOUNTS_MISSING",
+      );
+    }
+
+    const amount = new Decimal(transfer.amount);
+    const currency = transfer.currency;
+    const commission = amount.times(PLATFORM_COMMISSION_RATE);
+    const { profile, accountCode: commissionAccountCode } =
+      await this.resolveCommissionAccount(currency);
+
+    const journalEntry = await this.ledgerService.postEntry({
+      reference: `JE-${transfer.reference}`,
+      entryType: "TRANSFER",
+      description: `Payout approved: ${transfer.description ?? transfer.reference}`,
+      source: transfer.type,
+      lines: [
+        {
+          accountCode: transfer.sourceAccountId,
+          debit: amount.toString(),
+          credit: "0",
+        },
+        {
+          accountCode: transfer.destAccountId,
+          debit: "0",
+          credit: amount.minus(commission).toString(),
+        },
+        {
+          accountCode: commissionAccountCode,
+          debit: "0",
+          credit: commission.toString(),
+        },
+      ],
+      postedBy: approvedBy,
+    });
+
+    const updated = await this.prisma.transfer.update({
+      where: { id: transfer.id },
+      data: {
+        status: "COMPLETED",
+        approvalStatus: "APPROVED",
+        approvedBy,
+        approvedAt: new Date(),
+        commissionAmount: commission.toNumber(),
+        commissionAccountId: commissionAccountCode,
+        commissionProfileId: profile.id,
+        journalEntryRef: journalEntry.reference,
+        processedAt: new Date(),
+        completedAt: new Date(),
+      },
+    });
+
+    logger.info(
+      {
+        reference,
+        approvedBy,
+        commission: commission.toString(),
+        commissionProfileId: profile.id,
+      },
+      "Payout approved and posted",
+    );
+
+    return updated;
+  }
+
+  /**
+   * Reject a pending payout. Nothing was moved, so nothing is reversed.
+   */
+  async rejectTransfer(reference: string, rejectedBy: string, reason: string) {
+    const transfer = await this.prisma.transfer.findUnique({
+      where: { reference },
+    });
+
+    if (!transfer) {
+      throw new NotFoundError("Transfer", reference);
+    }
+    if (transfer.status !== "PENDING" || transfer.approvalStatus !== "PENDING") {
+      throw new ConflictError(
+        `Transfer ${reference} is not awaiting approval (status: ${transfer.status})`,
+      );
+    }
+
+    const updated = await this.prisma.transfer.update({
+      where: { id: transfer.id },
+      data: {
+        status: "REJECTED",
+        approvalStatus: "REJECTED",
+        rejectedBy,
+        rejectedAt: new Date(),
+        rejectionReason: reason,
+        failureReason: reason,
+        processedAt: new Date(),
+      },
+    });
+
+    logger.info({ reference, rejectedBy, reason }, "Payout rejected");
+    return updated;
+  }
+
+  /**
+   * Pending approval queue — the administrator's inbox.
+   */
+  async listPendingTransfers(filters: {
+    merchantId?: string;
+    page: number;
+    pageSize: number;
+  }) {
+    const where: Prisma.TransferWhereInput = { approvalStatus: "PENDING" };
+    if (filters.merchantId) where.merchantId = filters.merchantId;
+
+    const [transfers, total] = await Promise.all([
+      this.prisma.transfer.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        skip: (filters.page - 1) * filters.pageSize,
+        take: filters.pageSize,
+      }),
+      this.prisma.transfer.count({ where }),
+    ]);
+
+    return {
+      data: transfers,
+      meta: {
+        page: filters.page,
+        pageSize: filters.pageSize,
+        total,
+        totalPages: Math.ceil(total / filters.pageSize),
+      },
+    };
+  }
+
+  /**
    * Bulk transfer — process multiple transfers from a single source.
    * Each item creates its own transfer record and journal entry.
    * Partial completion is possible — some items may fail while others succeed.
@@ -366,6 +601,66 @@ export class TransferService {
   }
 
   // ── Private Helpers ─────────────────────────────
+
+  /**
+   * Ledger accounts are created up front, so any account a transfer needs must
+   * already exist. Payout accounts are provisioned on first use.
+   */
+  private async ensureAccount(
+    code: string,
+    name: string,
+    type: "ASSET" | "LIABILITY" | "EQUITY" | "REVENUE" | "EXPENSE",
+    subtype: string,
+    currency: string,
+  ): Promise<string> {
+    const existing = await this.prisma.account.findUnique({
+      where: { code },
+      select: { code: true },
+    });
+    if (existing) return existing.code;
+
+    try {
+      await this.prisma.account.create({
+        data: { code, name, type, subtype, currency },
+      });
+    } catch (error) {
+      // A concurrent request may have created it first — that is fine.
+      const created = await this.prisma.account.findUnique({
+        where: { code },
+        select: { code: true },
+      });
+      if (!created) throw error;
+    }
+
+    return code;
+  }
+
+  /**
+   * The administrator's saved bank account profile receives the 30% share of
+   * every external payout. The account holding it is named after the profile so
+   * the credit is traceable to a real bank account.
+   */
+  private async resolveCommissionAccount(currency: string) {
+    const profile = await this.prisma.bankAccountProfile.findFirst({
+      orderBy: { createdAt: "desc" },
+    });
+
+    if (!profile) {
+      throw new ValidationError(
+        "No bank account is saved. Add one in Admin → Bank Account Profiles before approving payouts.",
+      );
+    }
+
+    const accountCode = await this.ensureAccount(
+      `BANK-${profile.id}-${currency}`,
+      `Platform bank account: ${profile.bankName} ****${profile.accountLast4}`,
+      "LIABILITY",
+      "BANK_PROFILE",
+      currency,
+    );
+
+    return { profile, accountCode };
+  }
 
   private async resolveAccountCode(
     entityType: string,
