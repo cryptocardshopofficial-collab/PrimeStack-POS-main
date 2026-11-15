@@ -15,6 +15,7 @@ import { enhanceAdminHtml } from "./shared/admin-ui.js";
 import { initI18n } from "./core/i18n.js";
 import { i18nPlugin } from "./plugins/i18n.js";
 import { errorHandlerPlugin } from "./plugins/error-handler.js";
+import { securityShieldPlugin } from "./plugins/security-shield.js";
 import { ipWhitelistPlugin } from "./plugins/ip-whitelist.js";
 import { hmacAuthPlugin, jwtAuthHook } from "./plugins/auth.js";
 import requestLogger from "./plugins/request-logger.js";
@@ -169,6 +170,7 @@ export async function createApp(): Promise<FastifyInstance> {
   // ── Custom Plugins ──────────────────────────────
   await app.register(fp(i18nPlugin));
   await app.register(fp(errorHandlerPlugin));
+  await app.register(fp(securityShieldPlugin));
   await app.register(fp(ipWhitelistPlugin));
   await app.register(fp(hmacAuthPlugin));
   await app.register(fp(jwtAuthHook));

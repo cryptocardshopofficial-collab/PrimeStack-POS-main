@@ -21,10 +21,18 @@ const CINEMATIC_THEME_CSS = readOptional('./cinematic-theme.css', 'utf8');
 const CINEMATIC_THEME_JS = readOptional('./cinematic-theme.js', 'utf8');
 const AGENT_REGISTRATION_CONTENT = readFileSync(new URL('./agent-registration-content.html', import.meta.url), 'utf8');
 const AGENT_PORTAL_HTML = readFileSync(new URL('./agent-portal.html', import.meta.url), 'utf8');
+const MERCHANT_PORTAL_HTML = readFileSync(new URL('./merchant-portal.html', import.meta.url), 'utf8');
+const PORTAL_MODE = process.env.PORTAL_MODE || 'combined';
+if (!['combined', 'admin', 'merchant'].includes(PORTAL_MODE)) {
+  throw new Error('PORTAL_MODE must be combined, admin, or merchant');
+}
+const MERCHANT_PORT = process.env.MERCHANT_PORT || process.env.DASHBOARD_PORT || '9005';
+const MERCHANT_PORTAL_ORIGIN =
+  process.env.MERCHANT_PORTAL_ORIGIN || `http://localhost:${MERCHANT_PORT}`;
 
 // Base URL the browser-side pages call for API requests.
 // Set API_URL on Render to the deployed API service origin.
-const API_URL = process.env.API_URL || 'http://localhost:9006';
+const API_URL = process.env.API_URL || 'http://localhost:9009';
 
 // --- Service Port Map -------------------------------------------------------
 // Display identifiers only — nothing listens on these values. They key the
@@ -55,7 +63,7 @@ const SVC = {
 // PRIMESTACK_API_URL is set by start-platform.mjs for the single-service setup.
 // For a standalone dashboard deploy, fall back to API_URL (the origin documented
 // above) before the localhost default.
-const API_ORIGIN = process.env.PRIMESTACK_API_URL || process.env.INTERNAL_API_URL || process.env.API_URL || 'http://127.0.0.1:9006';
+const API_ORIGIN = process.env.PRIMESTACK_API_URL || process.env.INTERNAL_API_URL || process.env.API_URL || 'http://127.0.0.1:9009';
 
 // Payment rails service (rails-service.js) — runs alongside the API in this service.
 const RAILS_ORIGIN = process.env.RAILS_SERVICE_URL || `http://127.0.0.1:${process.env.RAILS_PORT || 9007}`;
@@ -74,7 +82,12 @@ const HMAC_HEADER_PREFIX = process.env.HMAC_HEADER_PREFIX || 'x-primestack';
 
 // JWT secret shared with the API — verifies the operator session cookie.
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-in-production';
-const SESSION_COOKIE = 'ps_console_token';
+const SESSION_COOKIE =
+  PORTAL_MODE === 'merchant'
+    ? 'ps_merchant_token'
+    : PORTAL_MODE === 'admin'
+      ? 'ps_admin_token'
+      : 'ps_console_token';
 const SESSION_TTL_SECONDS = 60 * 60 * 12;
 
 // Live receiving bank accounts — LOUIS CALTEN INTERNATIONAL LLP
@@ -196,6 +209,8 @@ code,pre,.input-mono,.result{font-family:"JetBrains Mono",ui-monospace,"SFMono-R
 .nav-item.active>a,a.nav-item.active{background:var(--accent-bg);color:var(--accent);font-weight:600}
 .nav-item.active>a svg,a.nav-item.active svg{opacity:1;stroke:var(--accent)}
 .sidebar-footer{padding:10px 14px;font-size:.65rem;color:var(--muted);border-top:1px solid var(--border);margin-top:auto}
+.sidebar-signout{display:inline-flex;margin-top:8px;color:var(--accent);font-size:.72rem;font-weight:700}
+.sidebar-signout:hover{color:var(--danger);text-decoration:underline}
 
 /* Page header */
 .page-header{padding:24px 28px 0}
@@ -387,6 +402,20 @@ function api(method, path, body) {
   }).catch(function(e) { return { ok: false, status: 0, data: { error: e.message } }; });
 }
 
+function apiErrorMessage(data, fallback) {
+  var error = data && data.error;
+  if (typeof error === 'string') return error;
+  if (error && typeof error.message === 'string') return error.message;
+  if (data && typeof data.message === 'string') return data.message;
+  return fallback;
+}
+
+function escapeHtml(value) {
+  return String(value).replace(/[&<>"']/g, function(char) {
+    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char];
+  });
+}
+
 // Show result in pre box
 function showResult(id, data, isOk) {
   var el = document.getElementById(id);
@@ -505,14 +534,17 @@ function sidebar(active) {
     ${link('/platform/s2s-engine','S2S Engine','<svg width="14" height="14" fill="none" viewBox="0 0 16 16"><path d="M2 8h9M8 5l3 3-3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><circle cx="3" cy="8" r="1.5" fill="currentColor"/></svg>', active)}
     ${link('/platform/rails','Payment Rails','<svg width="14" height="14" fill="none" viewBox="0 0 16 16"><path d="M1 4h14M1 12h14M4 1v14M12 1v14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>')}
     ${link('/platform/whitelist','IP Whitelist','<svg width="14" height="14" fill="none" viewBox="0 0 16 16"><path d="M8 1L2 4v4c0 3.5 2.6 6.7 6 7.5C11.4 14.7 14 11.5 14 8V4L8 1z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>')}
+    ${link('/platform/approvals','Payout Approvals','<svg width="14" height="14" fill="none" viewBox="0 0 16 16"><path d="M3 8.5l3 3 7-7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>')}
     ${link('/platform/settlement','Settlement','<svg width="14" height="14" fill="none" viewBox="0 0 16 16"><rect x="2" y="3" width="12" height="10" rx="1.5" stroke="currentColor" stroke-width="1.5"/><path d="M2 7h12M5 3v2M11 3v2" stroke="currentColor" stroke-width="1.5"/></svg>')}
     ${link('/platform/risk','Risk Engine','<svg width="14" height="14" fill="none" viewBox="0 0 16 16"><path d="M8 1.5L1.5 5v6L8 14.5 14.5 11V5L8 1.5z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M8 6v3M8 10.5v.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>')}
     ${link('/platform/monitoring','Monitoring','<svg width="14" height="14" fill="none" viewBox="0 0 16 16"><path d="M1 9l3-4 3 3 3-5 3 3 2-2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>')}
     ${link('/platform/ping','Ping','<svg width="14" height="14" fill="none" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.5" stroke="currentColor" stroke-width="1.5"/><circle cx="8" cy="8" r="2.5" stroke="currentColor" stroke-width="1.5"/><path d="M8 8h6.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>')}
     ${link('/platform/merchants','Merchants','<svg width="14" height="14" fill="none" viewBox="0 0 16 16"><path d="M2 5h12l-1.5 7H3.5L2 5z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M1 5l1-3h12l1 3" stroke="currentColor" stroke-width="1.5"/></svg>')}
+    ${link('/platform/merchant-access','Merchant Portal Access','<svg width="14" height="14" fill="none" viewBox="0 0 16 16"><circle cx="5.5" cy="8" r="3.5" stroke="currentColor" stroke-width="1.5"/><path d="M8.5 8H15M12 6v4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>')}
     ${link('/platform/agents','Register Agent','<svg width="14" height="14" fill="none" viewBox="0 0 16 16"><circle cx="6" cy="5" r="3" stroke="currentColor" stroke-width="1.5"/><path d="M1 14c.4-2.5 2-4 5-4s4.6 1.5 5 4M13 5v6M10 8h6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>')}
   </div>
   <div class="sidebar-section nav-panel" id="nav-merchant" role="tabpanel" aria-labelledby="nav-tab-merchant" data-nav-panel="merchant" hidden>
+    ${link('/merchant-dashboard','Merchant Portal','<svg width="14" height="14" fill="none" viewBox="0 0 16 16"><rect x="1" y="3" width="14" height="10" rx="1.5" stroke="currentColor" stroke-width="1.5"/><path d="M1 6h14" stroke="currentColor" stroke-width="1.5"/></svg>')}
     ${link('/merchant','Dashboard','<svg width="14" height="14" fill="none" viewBox="0 0 16 16"><rect x="1.5" y="1.5" width="5.5" height="5.5" rx="1" stroke="currentColor" stroke-width="1.5"/><rect x="9" y="1.5" width="5.5" height="5.5" rx="1" stroke="currentColor" stroke-width="1.5"/><rect x="1.5" y="9" width="5.5" height="5.5" rx="1" stroke="currentColor" stroke-width="1.5"/><rect x="9" y="9" width="5.5" height="5.5" rx="1" stroke="currentColor" stroke-width="1.5"/></svg>')}
     ${link('/merchant/send','Send Money','<svg width="14" height="14" fill="none" viewBox="0 0 16 16"><path d="M2 8h12M10 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>')}
     ${link('/merchant/t2t','T2T Engine','<svg width="14" height="14" fill="none" viewBox="0 0 16 16"><rect x="1" y="4" width="5" height="8" rx="1" stroke="currentColor" stroke-width="1.5"/><rect x="10" y="4" width="5" height="8" rx="1" stroke="currentColor" stroke-width="1.5"/><path d="M6 8h4M8 6l2 2-2 2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>')}
@@ -561,7 +593,10 @@ function sidebar(active) {
     activate(selected,false);
   })();
   <\/script>
-  <div class="sidebar-footer">PrimeStack Global Server Network v201.3 — <a href="/platform/monitoring" style="color:var(--accent);text-decoration:none">14 services</a> · <a href="/platform/guide" style="color:var(--accent);text-decoration:none">Instructions</a></div>
+  <div class="sidebar-footer">
+    <div>PrimeStack Global Server Network v201.3 — <a href="/platform/monitoring" style="color:var(--accent);text-decoration:none">14 services</a> · <a href="/platform/guide" style="color:var(--accent);text-decoration:none">Instructions</a></div>
+    <a class="sidebar-signout" href="/logout" aria-label="Sign out of this dashboard">Sign out</a>
+  </div>
 </nav>`;
 }
 
@@ -673,11 +708,11 @@ ${JS}
 }
 
 // --- Platform Overview -------------------------------------------------------
-function platformOverview() {
-  return page('Platform Overview', '/platform', `
+function platformOverview(title = 'Platform Overview') {
+  return page(title, '/platform', `
 <div class="page-header">
   <div class="breadcrumb"><a href="/">Home</a><span>/</span>Platform</div>
-  <h1>Platform Overview</h1>
+  <h1>${title}</h1>
   <p>System health, quick stats, and navigation across all platform modules.</p>
 </div>
 <div class="grid-4" style="margin-bottom:24px">
@@ -730,6 +765,56 @@ document.addEventListener('DOMContentLoaded', function() {
 
 function platformAgentRegistration() {
   return page('Register Agent', '/platform/agents', AGENT_REGISTRATION_CONTENT);
+}
+
+function platformMerchantPortalAccess() {
+  return page('Merchant Portal Access', '/platform/merchant-access', `
+<div class="page-header">
+  <div class="breadcrumb"><a href="/admin">Admin</a><span>/</span>Merchant Portal Access</div>
+  <h1>Merchant Portal Access</h1>
+  <p>Provision or rotate a merchant’s temporary browser sign-in. Credentials are shown once and must be changed on first sign-in.</p>
+</div>
+<div class="card" style="max-width:680px">
+  <div class="form-group">
+    <label for="portal-merchant">Merchant</label>
+    <select id="portal-merchant"><option value="">Loading merchants…</option></select>
+  </div>
+  <button class="btn btn-primary" type="button" id="portal-provision">Create / reset temporary credentials</button>
+  <p class="muted" style="margin-top:12px">Resetting credentials immediately replaces the prior portal password and issues a new access PIN. Give the merchant the email, password and PIN.</p>
+  <div id="portal-credentials" class="result" role="status" aria-live="polite"></div>
+  <div id="portal-error" class="error" role="alert"></div>
+</div>
+<script>
+(function(){
+  var select=document.getElementById('portal-merchant');
+  var result=document.getElementById('portal-credentials');
+  var error=document.getElementById('portal-error');
+  function loadMerchants(){
+    api('GET','/merchants?pageSize=100').then(function(response){
+      var merchants=response.data&&Array.isArray(response.data.data)?response.data.data:[];
+      select.replaceChildren();
+      if(!merchants.length){select.add(new Option('No merchants available',''));return;}
+      merchants.forEach(function(merchant){
+        select.add(new Option((merchant.displayName||merchant.legalName)+' ('+merchant.code+')',merchant.id));
+      });
+    }).catch(function(cause){select.replaceChildren(new Option('Unable to load merchants',''));error.textContent=cause.message;});
+  }
+  document.getElementById('portal-provision').addEventListener('click',function(){
+    error.textContent='';
+    result.textContent='';
+    if(!select.value){error.textContent='Select a merchant first.';return;}
+    var button=this;
+    button.disabled=true;
+    api('POST','/merchants/'+encodeURIComponent(select.value)+'/portal-credentials',{}).then(function(response){
+      var credentials=response.data&&response.data.data||response.data;
+      if(!response.ok||!credentials||!credentials.temporaryPassword){throw new Error(response.error||'Unable to create merchant credentials.');}
+      result.textContent='Sign-in: '+credentials.email+' | Temporary password: '+credentials.temporaryPassword+' | Access PIN: '+(credentials.portalPin||'—')+' | Give the merchant this PIN to enter alongside the password at sign-in.';
+    }).catch(function(cause){error.textContent=cause.message;}).finally(function(){button.disabled=false;});
+  });
+  loadMerchants();
+})();
+<\/script>
+`);
 }
 
 // --- Platform Banks ----------------------------------------------------------
@@ -1079,25 +1164,25 @@ function platformWhitelist() {
 function ipApiError(result){var body=result&&result.data;return body&&body.error&&body.error.message||body&&body.message||'IP Whitelist request failed (HTTP '+(result&&result.status||'unknown')+').';}
 function loadIps() {
   var body=document.getElementById('ip-tbody');
-  api('GET','/ipwhitelist/entries').then(function(r){
+  api('GET','/network/ip-whitelist').then(function(r){
     if(!r.ok||!r.data||r.data.success===false)throw new Error(ipApiError(r));
     var entries=Array.isArray(r.data.data)?r.data.data:[];
     body.replaceChildren();
     if(!entries.length){body.innerHTML='<tr><td colspan="4" style="text-align:center;color:var(--muted)">No entries</td></tr>';return;}
     entries.forEach(function(entry){
-      var row=document.createElement('tr');var ipCell=document.createElement('td');var code=document.createElement('code');code.textContent=entry.ip_range;ipCell.appendChild(code);
+      var row=document.createElement('tr');var ipCell=document.createElement('td');var code=document.createElement('code');code.textContent=entry.ipAddress;ipCell.appendChild(code);
       var labelCell=document.createElement('td');labelCell.textContent=entry.label||'—';
-      var expiryCell=document.createElement('td');expiryCell.textContent=entry.expires_at?new Date(entry.expires_at).toLocaleString():'Never';
+      var expiryCell=document.createElement('td');expiryCell.textContent=entry.expiresAt?new Date(entry.expiresAt).toLocaleString():'Never';
       var actionCell=document.createElement('td');var remove=document.createElement('button');remove.type='button';remove.className='btn btn-danger btn-sm';remove.textContent='Delete';remove.addEventListener('click',function(){deleteIp(entry.id);});actionCell.appendChild(remove);
       row.append(ipCell,labelCell,expiryCell,actionCell);body.appendChild(row);
     });
   }).catch(function(error){body.replaceChildren();var row=document.createElement('tr');var cell=document.createElement('td');cell.colSpan=4;cell.textContent=error.message;row.appendChild(cell);body.appendChild(row);toast(error.message,'err');});
 }
 function addIp() {
-  var ipRange=document.getElementById('ip-addr').value.trim();var label=document.getElementById('ip-label').value.trim();
-  if(!ipRange){showResult('ip-add-result',{error:'Enter an IP address or CIDR range.'},false);return;}
+  var ipAddress=document.getElementById('ip-addr').value.trim();var label=document.getElementById('ip-label').value.trim();
+  if(!ipAddress){showResult('ip-add-result',{error:'Enter an IP address or CIDR range.'},false);return;}
   var date=document.getElementById('ip-exp').value;
-  api('POST','/ipwhitelist/entries',{ipRange:ipRange,label:label||undefined,expiresAt:date?new Date(date).toISOString():undefined}).then(function(r){
+  api('POST','/network/ip-whitelist',{ipAddress:ipAddress,label:label||undefined,expiresAt:date?new Date(date).toISOString():undefined}).then(function(r){
     showResult('ip-add-result',r.data,r.ok&&r.data&&r.data.success!==false);
     if(!r.ok||!r.data||r.data.success===false){toast(ipApiError(r),'err');return;}
     toast('IP range added','ok');document.getElementById('ip-addr').value='';document.getElementById('ip-label').value='';document.getElementById('ip-exp').value='';loadIps();
@@ -1108,7 +1193,7 @@ function checkIp() {
   api('POST','/ipwhitelist/check',{ip:ip}).then(function(r){showResult('ip-check-result',r.data,r.ok&&r.data&&r.data.success!==false);if(!r.ok||!r.data||r.data.success===false)toast(ipApiError(r),'err');}).catch(function(error){showResult('ip-check-result',{error:error.message},false);toast(error.message,'err');});
 }
 function deleteIp(id) {
-  api('DELETE','/ipwhitelist/entries/'+encodeURIComponent(id)).then(function(r){if(!r.ok||!r.data||r.data.success===false){toast(ipApiError(r),'err');return;}toast('IP entry deactivated','ok');loadIps();}).catch(function(error){toast(error.message,'err');});
+  api('DELETE','/network/ip-whitelist/'+encodeURIComponent(id)).then(function(r){if(!r.ok||!r.data||r.data.success===false){toast(ipApiError(r),'err');return;}toast('IP entry deactivated','ok');loadIps();}).catch(function(error){toast(error.message,'err');});
 }
 function purgeIps() {
   if(!window.confirm('Deactivate all expired IP whitelist entries?'))return;
@@ -1119,6 +1204,79 @@ function purgeIps() {
   }).catch(function(error){showResult('ip-purge-result',{error:error.message},false);toast(error.message,'err');});
 }
 document.addEventListener('DOMContentLoaded', loadIps);
+<\/script>
+`);
+}
+
+// --- Platform Payout Approvals ----------------------------------------------
+function platformApprovals() {
+  return page('Payout Approvals', '/platform/approvals', `
+<div class="page-header">
+  <div class="breadcrumb"><a href="/">Home</a><span>/</span><a href="/platform">Platform</a><span>/</span>Approvals</div>
+  <h1>Payout Approvals</h1>
+  <p>Merchants submit payouts here for release. Approving a payout moves the funds and credits the platform's 30% commission to your saved bank account.</p>
+</div>
+<div class="card">
+  <div class="card-header">
+    <div class="card-title">Awaiting Approval</div>
+    <button class="btn btn-ghost btn-sm" onclick="loadApprovals()">${svgIcon("refresh")} Refresh</button>
+  </div>
+  <div class="table-wrap">
+    <table><thead><tr><th>Reference</th><th>Type</th><th>Amount</th><th>Commission (30%)</th><th>Merchant</th><th>Destination</th><th>Submitted</th><th>Actions</th></tr></thead>
+    <tbody id="appr-tbody"><tr><td colspan="8" style="text-align:center;color:var(--muted)">Click refresh to load</td></tr></tbody></table>
+  </div>
+  <div id="appr-result" class="result"></div>
+</div>
+<script>
+function apprApiError(result){var body=result&&result.data;return body&&body.error&&body.error.message||body&&body.message||'Payout approval request failed (HTTP '+(result&&result.status||'unknown')+').';}
+function loadApprovals(){
+  var body=document.getElementById('appr-tbody');
+  api('GET','/transfers/pending').then(function(r){
+    if(!r.ok||!r.data||r.data.success===false)throw new Error(apprApiError(r));
+    var rows=Array.isArray(r.data.data)?r.data.data:[];
+    body.replaceChildren();
+    if(!rows.length){body.innerHTML='<tr><td colspan="8" style="text-align:center;color:var(--muted)">No payouts awaiting approval</td></tr>';return;}
+    rows.forEach(function(t){
+      var row=document.createElement('tr');
+      function cell(text,mono){var td=document.createElement('td');if(mono){var code=document.createElement('code');code.textContent=text;td.appendChild(code);}else{td.textContent=text;}return td;}
+      var actions=document.createElement('td');
+      var approve=document.createElement('button');approve.type='button';approve.className='btn btn-success btn-sm';approve.textContent='Approve';
+      approve.addEventListener('click',function(){approveTransfer(t.reference);});
+      var reject=document.createElement('button');reject.type='button';reject.className='btn btn-danger btn-sm';reject.textContent='Reject';reject.style.marginLeft='6px';
+      reject.addEventListener('click',function(){rejectTransfer(t.reference);});
+      actions.append(approve,reject);
+      row.append(
+        cell(t.reference,true),
+        cell(t.type),
+        cell(t.amount+' '+t.currency),
+        cell((t.commissionAmount||'0')+' '+t.currency),
+        cell(t.sourceId||'—'),
+        cell(t.destId||'—'),
+        cell(t.createdAt?new Date(t.createdAt).toLocaleString():'—'),
+        actions
+      );
+      body.appendChild(row);
+    });
+  }).catch(function(error){body.replaceChildren();var row=document.createElement('tr');var td=document.createElement('td');td.colSpan=8;td.textContent=error.message;row.appendChild(td);body.appendChild(row);toast(error.message,'err');});
+}
+function approveTransfer(reference){
+  if(!window.confirm('Approve '+reference+'? Funds will be released and the 30% commission booked to your bank account.'))return;
+  api('POST','/transfers/'+encodeURIComponent(reference)+'/approve').then(function(r){
+    showResult('appr-result',r.data,r.ok&&r.data&&r.data.success!==false);
+    if(!r.ok||!r.data||r.data.success===false){toast(apprApiError(r),'err');return;}
+    toast('Payout approved and released','ok');loadApprovals();
+  }).catch(function(error){showResult('appr-result',{error:error.message},false);toast(error.message,'err');});
+}
+function rejectTransfer(reference){
+  var reason=window.prompt('Reason for rejecting '+reference+'?');if(reason===null)return;reason=reason.trim();
+  if(!reason){toast('A rejection reason is required','err');return;}
+  api('POST','/transfers/'+encodeURIComponent(reference)+'/reject',{reason:reason}).then(function(r){
+    showResult('appr-result',r.data,r.ok&&r.data&&r.data.success!==false);
+    if(!r.ok||!r.data||r.data.success===false){toast(apprApiError(r),'err');return;}
+    toast('Payout rejected','ok');loadApprovals();
+  }).catch(function(error){showResult('appr-result',{error:error.message},false);toast(error.message,'err');});
+}
+document.addEventListener('DOMContentLoaded', loadApprovals);
 <\/script>
 `);
 }
@@ -1840,7 +1998,7 @@ function merchantPayout() {
 <div class="page-header">
   <div class="breadcrumb"><a href="/">Home</a><span>/</span><a href="/merchant">Merchant</a><span>/</span>Payout</div>
   <h1>Payout</h1>
-  <p>Send funds to bank accounts or crypto wallets.</p>
+  <p>Send funds to bank accounts or crypto wallets. Every payout is held as <strong>Pending approval</strong> until an administrator releases it.</p>
 </div>
 <div class="tabs">
   <div class="tab active" data-g="payout" data-t="pay-bank">Bank Transfer</div>
@@ -1881,13 +2039,13 @@ function merchantPayout() {
 </div>
 <div id="pay-history" class="tab-pane" data-g="payout">
   <div class="card"><div class="card-header"><div class="card-title">Payout History</div><button class="btn btn-ghost btn-sm" onclick="loadPayHistory()">${svgIcon("refresh")} Refresh</button></div>
-  <div class="table-wrap"><table><thead><tr><th>ID</th><th>Type</th><th>Amount</th><th>Recipient</th><th>Status</th><th>Date</th></tr></thead>
-  <tbody id="pay-hist-tbody"><tr><td colspan="6" style="text-align:center;color:var(--muted)">Click refresh</td></tr></tbody></table></div></div>
+  <div class="table-wrap"><table><thead><tr><th>Reference</th><th>Type</th><th>Amount</th><th>Commission</th><th>Recipient</th><th>Status</th><th>Date</th></tr></thead>
+  <tbody id="pay-hist-tbody"><tr><td colspan="7" style="text-align:center;color:var(--muted)">Click refresh</td></tr></tbody></table></div></div>
 </div>
 <script>
-function payBank(){api('POST','/transfers',{type:'bank_payout',beneficiaryName:document.getElementById('pb-name').value,iban:document.getElementById('pb-iban').value,bic:document.getElementById('pb-bic').value,amount:document.getElementById('pb-amount').value,currency:document.getElementById('pb-cur').value,reference:document.getElementById('pb-ref').value}).then(function(r){showResult('pay-bank-result',r.data,r.ok);if(r.ok)toast('Payout sent','ok');});}
-function payCrypto(){api('POST','/transfers',{type:'crypto_payout',address:document.getElementById('pc-addr').value,amount:document.getElementById('pc-amount').value,asset:document.getElementById('pc-asset').value,network:document.getElementById('pc-net').value}).then(function(r){showResult('pay-crypto-result',r.data,r.ok);if(r.ok)toast('Crypto payout sent','ok');});}
-function loadPayHistory(){api('GET','/transfers').then(function(r){var rows=(r.data.data||r.data||[]).slice(0,30).map(function(t){return '<tr><td><code>'+t.id+'</code></td><td>'+t.type+'</td><td>'+t.amount+'</td><td>'+(t.beneficiaryName||t.address||'')+'</td><td><span class="badge '+(t.status==='completed'?'badge-green':t.status==='pending'?'badge-yellow':'badge-gray')+'">'+t.status+'</span></td><td>'+new Date(t.created_at).toLocaleDateString()+'</td></tr>';}).join('');document.getElementById('pay-hist-tbody').innerHTML=rows||'<tr><td colspan="6" style="text-align:center;color:var(--muted)">No payouts</td></tr>';});}
+function payBank(){api('POST','/merchant-portal/payouts',{type:'bank_payout',beneficiaryName:document.getElementById('pb-name').value,iban:document.getElementById('pb-iban').value,bic:document.getElementById('pb-bic').value,amount:document.getElementById('pb-amount').value,currency:document.getElementById('pb-cur').value,reference:document.getElementById('pb-ref').value}).then(function(r){showResult('pay-bank-result',r.data,r.ok);if(r.ok){toast('Payout submitted — awaiting admin approval','ok');loadPayHistory();}});}
+function payCrypto(){api('POST','/merchant-portal/payouts',{type:'crypto_payout',address:document.getElementById('pc-addr').value,amount:document.getElementById('pc-amount').value,currency:'USD',asset:document.getElementById('pc-asset').value,network:document.getElementById('pc-net').value}).then(function(r){showResult('pay-crypto-result',r.data,r.ok);if(r.ok){toast('Crypto payout submitted — awaiting admin approval','ok');loadPayHistory();}});}
+function loadPayHistory(){api('GET','/merchant-portal/payouts').then(function(r){var rows=(r.data.data||r.data||[]).slice(0,50).map(function(t){var badge=t.approvalStatus==='PENDING'?'badge-yellow':t.status==='COMPLETED'?'badge-green':t.status==='REJECTED'?'badge-red':'badge-gray';return '<tr><td><code>'+t.reference+'</code></td><td>'+t.type+'</td><td>'+t.amount+' '+t.currency+'</td><td>'+(t.commissionAmount||'0')+' '+t.currency+'</td><td>'+escapeHtml(t.destId||'')+'</td><td><span class="badge '+badge+'">'+(t.approvalStatus==='PENDING'?'AWAITING APPROVAL':t.status)+'</span></td><td>'+(t.createdAt?new Date(t.createdAt).toLocaleDateString():'')+'</td></tr>';}).join('');document.getElementById('pay-hist-tbody').innerHTML=rows||'<tr><td colspan="7" style="text-align:center;color:var(--muted)">No payouts</td></tr>';});}
 document.addEventListener('DOMContentLoaded', function(){initTabs('payout');});
 <\/script>
 `);
@@ -3525,15 +3683,28 @@ var _holdings = {BTC:0,ETH:0,USDT:0,USDC:0,BNB:0};
 
 function fmtAmt(n) { return parseFloat(n||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}); }
 function fmtUSD(n) { return '$'+fmtAmt(n); }
+function formatCurrencyTotals(accounts, field) {
+  var totals = {};
+  accounts.forEach(function(a) {
+    var amount = parseFloat(a[field] || 0);
+    if (!Number.isFinite(amount)) return;
+    var currency = a.currency || 'USD';
+    totals[currency] = (totals[currency] || 0) + amount;
+  });
+  var currencies = Object.keys(totals).sort();
+  return currencies.length
+    ? currencies.map(function(currency) { return fmtAmt(totals[currency]) + ' ' + currency; }).join(' · ')
+    : '0.00 USD';
+}
 
 // ── Load fiat accounts from live ledger ────────────────────────────────────
 function loadFiatAccounts() {
   api('GET','/accounts').then(function(r) {
     if (!r.ok) {
-      var message = (r.data && (r.data.error || r.data.message)) || 'Could not load ledger accounts';
+      var message = apiErrorMessage(r.data, 'Could not load ledger accounts');
       document.getElementById('ws-fiat').textContent = 'Unavailable';
       document.getElementById('ws-pending').textContent = 'Unavailable';
-      document.getElementById('fiat-accounts-tbody').innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--danger);padding:24px">'+message+' <button class="btn btn-ghost btn-sm" onclick="loadFiatAccounts()">Retry</button></td></tr>';
+      document.getElementById('fiat-accounts-tbody').innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--danger);padding:24px">'+escapeHtml(message)+' <button class="btn btn-ghost btn-sm" onclick="loadFiatAccounts()">Retry</button></td></tr>';
       toast(message,'err');
       return;
     }
@@ -3557,14 +3728,12 @@ function loadFiatAccounts() {
       };
     });
 
-    var totalBal = _accounts.reduce(function(s,a){ return s + Math.max(0,parseFloat(a.available_balance||0)); },0);
-    var totalHeld = _accounts.reduce(function(s,a){ return s + parseFloat(a.held_balance||0); },0);
-    document.getElementById('ws-fiat').textContent = fmtUSD(totalBal) + ' USD';
-    document.getElementById('ws-pending').textContent = fmtUSD(totalHeld) + ' USD';
+    document.getElementById('ws-fiat').textContent = formatCurrencyTotals(_accounts, 'available_balance');
+    document.getElementById('ws-pending').textContent = formatCurrencyTotals(_accounts, 'held_balance');
 
     // Fill account dropdowns
     var opts = _accounts.map(function(a){
-      return '<option value="'+a.account_number+'">'+a.account_number+' — '+a.name+' ('+fmtUSD(a.available_balance)+' '+a.currency+')</option>';
+      return '<option value="'+a.account_number+'">'+a.account_number+' — '+a.name+' ('+fmtAmt(a.available_balance)+' '+a.currency+')</option>';
     }).join('');
     ['credit-debit-acct','credit-credit-acct','send-from-acct'].forEach(function(id){
       var el = document.getElementById(id);
@@ -3580,8 +3749,8 @@ function loadFiatAccounts() {
         '<td><strong>'+a.name+'</strong></td>'+
         '<td><span class="badge badge-'+(a.account_type==='ASSET'?'blue':'green')+'">'+a.account_type+'</span></td>'+
         '<td>'+a.currency+'</td>'+
-        '<td style="text-align:right;font-weight:700;color:'+balColor+'">'+fmtUSD(a.available_balance)+'</td>'+
-        '<td style="text-align:right;color:var(--warn)">'+fmtUSD(a.held_balance)+'</td>'+
+        '<td style="text-align:right;font-weight:700;color:'+balColor+'">'+fmtAmt(a.available_balance)+'</td>'+
+        '<td style="text-align:right;color:var(--warn)">'+fmtAmt(a.held_balance)+'</td>'+
         '<td><span class="badge '+(a.status==='ACTIVE'?'badge-green':'badge-gray')+'">'+a.status+'</span></td>'+
       '</tr>';
     }).join('');
@@ -3604,18 +3773,26 @@ function postCreditEntry() {
 
   if (!debitAcct||!creditAcct||!amount||!desc) { toast('Fill all required fields','err'); return; }
   if (debitAcct === creditAcct) { toast('Debit and credit accounts must differ','err'); return; }
+  var amountValue = Number(amount);
+  if (!Number.isFinite(amountValue) || amountValue <= 0) { toast('Amount must be greater than zero','err'); return; }
+  var debitAccount = _accounts.find(function(a) { return a.account_number === debitAcct; });
+  var creditAccount = _accounts.find(function(a) { return a.account_number === creditAcct; });
+  if (!debitAccount || !creditAccount || debitAccount.currency !== ccy || creditAccount.currency !== ccy) {
+    toast('Both accounts must use the selected currency','err');
+    return;
+  }
 
   var reference = ref || ('WALLET-' + Date.now().toString(36).toUpperCase());
 
   api('POST','/entries',{
     reference: reference,
-    entryType: 'WALLET_CREDIT',
+    entryType: 'ADJUSTMENT',
     description: desc,
-    currency: ccy,
-    metadata: { sourceType: source, initiatedBy: 'PRIMESTACK-WALLET-UI', entity: 'LOUIS CALTEN INTERNATIONAL LLP' },
+    source: source,
+    metadata: { sourceType: source, initiatedBy: 'PRIMESTACK-WALLET-UI' },
     lines: [
-      { accountNumber: debitAcct,  type: 'DEBIT',  amount: parseFloat(amount), currency: ccy, description: desc },
-      { accountNumber: creditAcct, type: 'CREDIT', amount: parseFloat(amount), currency: ccy, description: desc },
+      { accountCode: debitAcct, debit: amountValue, credit: 0 },
+      { accountCode: creditAcct, debit: 0, credit: amountValue },
     ]
   }).then(function(r) {
     showResult('credit-result', r.data, r.ok);
@@ -3629,10 +3806,10 @@ function postCreditEntry() {
 
 // ── Recent credits from live transactions ────────────────────────────────
 function loadRecentCredits() {
-  api('GET','/transactions?limit=10').then(function(r) {
+  api('GET','/admin/transactions?pageSize=10').then(function(r) {
     var txns = Array.isArray(r.data.data) ? r.data.data : Array.isArray(r.data) ? r.data : [];
     if (!r.ok) {
-      document.getElementById('recent-credits').innerHTML = '<div style="color:var(--danger);font-size:.82rem;padding:8px">Transactions unavailable — '+((r.data && (r.data.message || r.data.error)) || 'please retry')+'</div>';
+      document.getElementById('recent-credits').innerHTML = '<div style="color:var(--danger);font-size:.82rem;padding:8px">Transactions unavailable — '+escapeHtml(apiErrorMessage(r.data, 'please retry'))+'</div>';
       document.getElementById('ws-in').textContent = 'Unavailable';
       return;
     }
@@ -3655,17 +3832,21 @@ function loadRecentCredits() {
         '<div><div style="font-weight:600;font-size:.82rem">' + txType + '</div>' +
         '<div style="font-size:10px;color:var(--muted)">' + (receivedAt ? new Date(receivedAt).toLocaleString() : '-') + '</div>' +
         '<div style="font-size:10px;color:var(--muted);font-family:monospace">' + txRef + '</div></div>' +
-        '<div style="font-weight:700;color:var(--success)">+' + fmtUSD(t.amount) + ' ' + t.currency + '</div>' +
+        '<div style="font-weight:700;color:var(--success)">+' + fmtAmt(t.amount) + ' ' + t.currency + '</div>' +
         '</div>';
     }).join('');
     document.getElementById('recent-credits').innerHTML = html;
 
     // Update incoming 24h stat from real data
-    var today = new Date().toDateString();
-    var inToday = approvedTxns
-      .filter(function(t){ var date = t.received_at || t.receivedAt || t.created_at || t.createdAt || t.postedAt; return date && new Date(date).toDateString() === today; })
-      .reduce(function(s,t){ return s + parseFloat(t.amount||0); }, 0);
-    document.getElementById('ws-in').textContent = fmtUSD(inToday) + ' USD';
+    var cutoff = Date.now() - 24 * 60 * 60 * 1000;
+    var incoming24h = approvedTxns.filter(function(t) {
+      var date = t.received_at || t.receivedAt || t.created_at || t.createdAt || t.postedAt;
+      var timestamp = date ? new Date(date).getTime() : NaN;
+      return Number.isFinite(timestamp) && timestamp >= cutoff && timestamp <= Date.now();
+    }).map(function(t) {
+      return { available_balance: t.amount, currency: t.currency || 'USD' };
+    });
+    document.getElementById('ws-in').textContent = formatCurrencyTotals(incoming24h, 'available_balance');
   });
 }
 
@@ -3675,10 +3856,10 @@ function loadFundHistory() {
   var dirFilter    = document.getElementById('hist-dir-filter').value;
 
   // Pull real transactions from switch core
-  api('GET','/transactions?limit=50').then(function(r) {
+  api('GET','/admin/transactions?pageSize=50').then(function(r) {
     var txns = Array.isArray(r.data.data)?r.data.data:Array.isArray(r.data)?r.data:[];
     if (!r.ok) {
-      document.getElementById('fund-history-tbody').innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--danger);padding:24px">Transactions unavailable — '+((r.data && (r.data.message || r.data.error)) || 'please retry')+'</td></tr>';
+      document.getElementById('fund-history-tbody').innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--danger);padding:24px">Transactions unavailable — '+escapeHtml(apiErrorMessage(r.data, 'please retry'))+'</td></tr>';
       document.getElementById('fund-history-meta').textContent = 'Balance history could not be loaded';
       return;
     }
@@ -3695,11 +3876,11 @@ function loadFundHistory() {
         SWIFT_GPI:'badge-blue',SEPA_INSTANT:'badge-green',CRYPTO:'badge-blue',MANUAL:'badge-gray'
       }[source]||'badge-gray';
       return '<tr>'+
-        '<td style="font-size:11px">'+new Date(t.received_at).toLocaleString()+'</td>'+
+        '<td style="font-size:11px">'+new Date(t.received_at||t.receivedAt||t.created_at||t.createdAt||Date.now()).toLocaleString()+'</td>'+
         '<td><span class="badge '+(dir==='IN'?'badge-green':'badge-red')+'">'+dir+'</span></td>'+
         '<td><span class="badge '+srcBadge+'">'+source.replace(/_/g,' ')+'</span></td>'+
-        '<td><code style="font-size:10px">'+(t.terminal_id||t.merchant_id||'PLATFORM')+'</code></td>'+
-        '<td style="text-align:right;font-weight:700;color:'+dirColor+'">'+(dir==='IN'?'+':'-')+fmtUSD(t.amount)+' '+t.currency+'</td>'+
+        '<td><code style="font-size:10px">'+(t.terminal_id||t.terminalId||t.terminal&&t.terminal.tid||t.merchant_id||t.merchantId||'PLATFORM')+'</code></td>'+
+        '<td style="text-align:right;font-weight:700;color:'+dirColor+'">'+(dir==='IN'?'+':'-')+fmtAmt(t.amount)+' '+t.currency+'</td>'+
         '<td><code style="font-size:10px">'+t.tx_ref+'</code></td>'+
         '<td style="font-size:11px">'+t.tx_type+' — '+t.status+'</td>'+
       '</tr>';
@@ -4456,16 +4637,16 @@ function adminIpWhitelist() {
 function ipWhitelistError(result){var body=result&&result.data;return body&&body.error&&body.error.message||body&&body.message||'IP Whitelist request failed (HTTP '+(result&&result.status||'unknown')+').';}
 function loadIpList(){
   var body=document.getElementById('ipwl-tbody');
-  api('GET','/ipwhitelist/entries').then(function(r){
+  api('GET','/network/ip-whitelist').then(function(r){
     if(!r.ok||!r.data||r.data.success===false)throw new Error(ipWhitelistError(r));
     var entries=Array.isArray(r.data.data)?r.data.data:[];
     body.replaceChildren();
     if(!entries.length){body.innerHTML='<tr><td colspan="4" style="text-align:center;color:var(--muted)">No entries</td></tr>';return;}
     entries.forEach(function(entry){
       var row=document.createElement('tr');
-      var ipCell=document.createElement('td');var code=document.createElement('code');code.textContent=entry.ip_range;ipCell.appendChild(code);
+      var ipCell=document.createElement('td');var code=document.createElement('code');code.textContent=entry.ipAddress;ipCell.appendChild(code);
       var labelCell=document.createElement('td');labelCell.textContent=entry.label||'—';
-      var expiryCell=document.createElement('td');expiryCell.textContent=entry.expires_at?new Date(entry.expires_at).toLocaleString():'Never';
+      var expiryCell=document.createElement('td');expiryCell.textContent=entry.expiresAt?new Date(entry.expiresAt).toLocaleString():'Never';
       var actionCell=document.createElement('td');var remove=document.createElement('button');remove.type='button';remove.className='btn btn-danger btn-sm';remove.textContent='Delete';remove.addEventListener('click',function(){delIpEntry(entry.id);});actionCell.appendChild(remove);
       row.append(ipCell,labelCell,expiryCell,actionCell);body.appendChild(row);
     });
@@ -4475,12 +4656,12 @@ function loadIpList(){
   });
 }
 function addIpEntry(){
-  var ipRange=document.getElementById('iwa-ip').value.trim();
+  var ipAddress=document.getElementById('iwa-ip').value.trim();
   var label=document.getElementById('iwa-label').value.trim();
-  if(!ipRange||!label){showResult('iwa-result',{error:'Enter both an IP address/CIDR range and a label.'},false);return;}
+  if(!ipAddress||!label){showResult('iwa-result',{error:'Enter both an IP address/CIDR range and a label.'},false);return;}
   var expiresInput=document.getElementById('iwa-exp').value;
   var expiresAt=expiresInput?new Date(expiresInput).toISOString():undefined;
-  api('POST','/ipwhitelist/entries',{ipRange:ipRange,label:label,expiresAt:expiresAt}).then(function(r){
+  api('POST','/network/ip-whitelist',{ipAddress:ipAddress,label:label,expiresAt:expiresAt}).then(function(r){
     showResult('iwa-result',r.data,r.ok);
     if(!r.ok||!r.data||r.data.success===false){toast(ipWhitelistError(r),'err');return;}
     toast('IP range added','ok');document.getElementById('iwa-ip').value='';document.getElementById('iwa-label').value='';document.getElementById('iwa-exp').value='';loadIpList();
@@ -4495,7 +4676,7 @@ function checkIpEntry(){
   }).catch(function(error){showResult('iwc-result',{error:error.message},false);toast(error.message,'err');});
 }
 function delIpEntry(id){
-  api('DELETE','/ipwhitelist/entries/'+encodeURIComponent(id)).then(function(r){
+  api('DELETE','/network/ip-whitelist/'+encodeURIComponent(id)).then(function(r){
     if(!r.ok||!r.data||r.data.success===false){toast(ipWhitelistError(r),'err');return;}
     toast('IP entry deactivated','ok');loadIpList();
   }).catch(function(error){toast(error.message,'err');});
@@ -5879,6 +6060,81 @@ function resolveProxy(reqPath) {
   return { origin: API_ORIGIN, path: mapApiPath(reqPath) };
 }
 
+function isAdministratorRole(role) {
+  return role === 'ADMIN' || role === 'SUPER_ADMIN';
+}
+
+function dashboardHome(role) {
+  if (PORTAL_MODE === 'merchant') {
+    return role === 'MERCHANT' ? '/merchant-dashboard' : '/merchant-login';
+  }
+  if (PORTAL_MODE === 'admin' && role === 'MERCHANT') return '/login';
+  if (isAdministratorRole(role)) return '/admin';
+  if (role === 'MERCHANT') return '/merchant-dashboard';
+  if (['OPERATOR', 'REVIEWER', 'READONLY'].includes(role)) return '/ops';
+  return '/login';
+}
+
+function roleAllowedByPortal(role) {
+  if (PORTAL_MODE === 'merchant') return role === 'MERCHANT';
+  if (PORTAL_MODE === 'admin') {
+    return isAdministratorRole(role) ||
+      ['OPERATOR', 'REVIEWER', 'READONLY'].includes(role);
+  }
+  return true;
+}
+
+function loginPath() {
+  return PORTAL_MODE === 'merchant' ? '/merchant-login' : '/login';
+}
+
+function canAccessDashboard(role, path) {
+  if (PORTAL_MODE === 'merchant') {
+    return role === 'MERCHANT' && path === '/merchant-dashboard';
+  }
+  if (PORTAL_MODE === 'admin' && (role === 'MERCHANT' || path === '/merchant-dashboard')) {
+    return false;
+  }
+  if (isAdministratorRole(role)) return true;
+  if (role === 'MERCHANT') {
+    return path === '/merchant-dashboard' ||
+      path === '/merchant' ||
+      path.startsWith('/merchant/');
+  }
+  if (['OPERATOR', 'REVIEWER', 'READONLY'].includes(role)) {
+    return ['/ops', '/ops/terminals', '/ops/iso8583'].includes(path);
+  }
+  return false;
+}
+
+function canProxyDashboardApi(role, method, targetPath) {
+  if (!roleAllowedByPortal(role)) return false;
+  if (isAdministratorRole(role)) return true;
+  const path = targetPath.split('?')[0];
+  const verb = method.toUpperCase();
+  if (role === 'MERCHANT') {
+    // Merchant fund-movement surfaces: T2T engine + payouts (which are held for
+    // administrator approval) and the JWT merchant-portal endpoints.
+    if (path.startsWith('/t2t/')) return true;
+    if (path === '/merchant-portal/payouts') return verb === 'GET' || verb === 'POST';
+    if (verb === 'POST') return path === '/merchant-portal/change-password';
+    if (verb !== 'GET') return false;
+    return [
+      '/merchant-portal/me',
+      '/merchant-portal/merchants',
+    ].includes(path) ||
+      /^\/merchant-portal\/merchants\/[^/]+(?:\/transactions|\/terminals)?$/.test(path);
+  }
+  if (!['OPERATOR', 'REVIEWER', 'READONLY'].includes(role)) return false;
+  if (verb === 'GET') {
+    return ['/terminals', '/terminals/groups', '/terminals/firmware',
+      '/terminals/parameters', '/terminals/fleet'].includes(path) ||
+      ['/iso8583/hosts', '/iso8583/messages', '/iso8583/metrics'].includes(path);
+  }
+  return verb === 'POST' &&
+    ['/iso8583/parse', '/iso8583/build'].includes(path);
+}
+
 // --- Operator Session --------------------------------------------------------
 // The console hosts a sign-in gate that reuses the API's /admin/login. The JWT it
 // returns is stored in an HttpOnly cookie and replayed to the API as a bearer
@@ -5979,8 +6235,8 @@ function proxyRequest(req, res, targetOrigin, targetPath) {
   delete headers['cookie'];         // console-internal cookie is not for the API
   headers.host = base.host;
 
-  const isAgentPortalProfile = targetPath.split('?')[0] === '/public/agent-portal/profile';
-  const session = isAgentPortalProfile ? null : readSession(req);
+  const isAgentPortalRequest = targetPath.split('?')[0].startsWith('/public/agent-portal/');
+  const session = isAgentPortalRequest ? null : readSession(req);
   if (session) headers.authorization = `Bearer ${session.token}`;
 
   const body = [];
@@ -7229,15 +7485,6 @@ function t2tEnginePage() {
 </div>
 
 <div id="t2e-setup" class="tab-pane active" data-g="t2e">
-  <div id="t2e-login-panel" class="card" style="margin-bottom:16px;padding:14px 16px;border:1px solid #b45309;background:rgba(180,83,9,.07)">
-    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-      <span style="font-size:.82rem;font-weight:600">⚠️ Admin login required for IP whitelist:</span>
-      <input id="t2e-login-email" type="email" placeholder="admin@primestack.io" style="width:190px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;background:var(--surf2);color:var(--fg);font-size:.82rem">
-      <input id="t2e-login-pw" type="password" placeholder="Password" style="width:130px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;background:var(--surf2);color:var(--fg);font-size:.82rem">
-      <button class="btn btn-primary btn-sm" onclick="t2eLogin()">Login</button>
-      <span id="t2e-login-status" style="font-size:.78rem"></span>
-    </div>
-  </div>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px">
     <div class="card">
       <div class="card-title" style="margin-bottom:12px">Your Receiving Details</div>
@@ -7350,8 +7597,8 @@ function t2tEnginePage() {
 
 <script>
 (function(){
-var _t2eJwt='';async function t2eLogin(){const email=document.getElementById('t2e-login-email').value.trim(),pw=document.getElementById('t2e-login-pw').value.trim();if(!email||!pw){toast('Enter email and password','err');return;}try{const r=await fetch('/api/admin/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password:pw}),signal:AbortSignal.timeout(10000)});const d=await r.json();if(r.ok&&d.data&&d.data.token){_t2eJwt=d.data.token;document.getElementById('t2e-login-status').innerHTML='<span style="color:var(--success)">✅ Logged in</span>';document.getElementById('t2e-login-panel').style.display='none';toast('Admin login successful','ok');t2eWlLoad();}else{document.getElementById('t2e-login-status').innerHTML='<span style="color:var(--danger)">❌ '+(d.error&&d.error.message||d.message||'Login failed')+'</span>';}}catch(e){document.getElementById('t2e-login-status').innerHTML='<span style="color:var(--danger)">❌ '+e.message+'</span>';}}async function go(m,p,b){try{const headers={'Content-Type':'application/json'};if(m==='POST'&&p==='/t2t/transfer'){headers['x-primestack-idempotency-key']=crypto.randomUUID?crypto.randomUUID():Math.random().toString(36).slice(2)+Date.now().toString(36);}if((p==='/t2t/whitelist'||p.startsWith('/t2t/whitelist'))&&_t2eJwt){headers['Authorization']='Bearer '+_t2eJwt;}const r=await fetch('/api'+p,{method:m,headers,body:b?JSON.stringify(b):undefined,credentials:'same-origin',signal:AbortSignal.timeout(12000)});return{ok:r.ok,d:await r.json()};}catch(e){return{ok:false,d:{error:{message:e.message}}};}}
-function err(d){return '<span style="color:var(--danger);font-size:.82rem">'+JSON.stringify(d.error||d)+'</span>';}
+async function go(m,p,b){try{const headers={'Content-Type':'application/json'};if(m==='POST'&&p==='/t2t/transfer'){headers['x-primestack-idempotency-key']=crypto.randomUUID?crypto.randomUUID():Math.random().toString(36).slice(2)+Date.now().toString(36);}const r=await fetch('/api'+p,{method:m,headers,body:b?JSON.stringify(b):undefined,credentials:'same-origin',signal:AbortSignal.timeout(12000)});return{ok:r.ok,d:await r.json()};}catch(e){return{ok:false,d:{error:{message:e.message}}};}}
+function err(d){return '<span style="color:var(--danger);font-size:.82rem">'+escapeHtml(apiErrorMessage(d,'Request failed'))+'</span>';}
 window.t2eAdd=async function(){const ip=document.getElementById('t2e-ip-in').value.trim();if(!ip){toast('Enter an IP','err');return;}const r=await go('POST','/t2t/whitelist',{ip,action:'add'});if(r.ok){toast('IP '+ip+' whitelisted','ok');document.getElementById('t2e-ip-in').value='';t2eWlLoad();}else{document.getElementById('t2e-wl-msg').innerHTML=err(r.d);}};
 window.t2eWlLoad=async function(){const r=await go('GET','/t2t/whitelist',null);const el=document.getElementById('t2e-wl-list');if(r.ok&&r.d.data){const ips=r.d.data.whitelistedIps||[];el.innerHTML=ips.length?ips.map(x=>'<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border)"><span style="font-family:monospace">'+x.ip+'</span><span style="color:var(--muted);font-size:.72rem">'+(x.note||'')+'</span><button class="btn btn-danger btn-sm" onclick="t2eRm(\''+x.ip+'\')">Remove</button></div>').join(''):'<span style="color:var(--muted)">No IPs whitelisted yet</span>';}else{el.innerHTML=err(r.d);}};
 window.t2eRm=async function(ip){const r=await go('POST','/t2t/whitelist',{ip,action:'remove'});if(r.ok){toast('Removed','ok');t2eWlLoad();}};
@@ -8055,14 +8302,14 @@ function bankIntegrationGuidePage() {
 </div>
 `);
 }
-// --- Operator Sign-in --------------------------------------------------------
+// --- Dashboard Sign-in -------------------------------------------------------
 function loginPage(errorMessage) {
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Operator Sign-in — PrimeStack</title>
+<title>Dashboard Sign-in — PrimeStack</title>
 ${CSS}
 <style>
 .login-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
@@ -8081,7 +8328,7 @@ ${CSS}
 <div class="login-wrap">
   <form class="login-card" method="POST" action="/login" id="loginForm">
     <div class="login-mark">${svgIcon('grid')}<span>PrimeStack Global Server Network</span></div>
-    <div class="login-sub">Operator console — authorised personnel only</div>
+    <div class="login-sub">Secure sign-in — your role opens the appropriate workspace</div>
     <label for="email">Username</label>
     <input id="email" name="email" type="text" autocomplete="username" required autofocus>
     <label for="password">Password</label>
@@ -8100,8 +8347,66 @@ document.getElementById('loginForm').addEventListener('submit', function () {
 </html>`;
 }
 
+function merchantLoginPage(errorMessage) {
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Merchant Portal Sign-in — PrimeStack</title>
+${CSS}
+<style>
+.login-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
+.login-card{width:100%;max-width:420px;background:var(--surf);border:1px solid var(--border);border-radius:var(--radius);padding:28px;box-shadow:0 18px 60px rgba(0,0,0,.35)}
+.login-mark{display:flex;align-items:center;gap:10px;font-weight:700;font-size:.95rem}
+.login-sub{font-size:.78rem;color:var(--muted);margin:4px 0 20px}
+.login-card label{display:block;font-size:.72rem;font-weight:700;color:var(--muted);margin:14px 0 6px;text-transform:uppercase;letter-spacing:.05em}
+.login-card input{width:100%;padding:11px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg);color:var(--text);font-size:.9rem;font-family:inherit}
+.login-card input:focus{outline:none;border-color:var(--accent)}
+.login-card button{width:100%;margin-top:22px;padding:12px;border:none;border-radius:var(--radius-sm);background:var(--accent);color:#fff;font-weight:700;font-size:.9rem;cursor:pointer;font-family:inherit}
+.login-card button:disabled{opacity:.6;cursor:default}
+.login-err{margin-top:16px;padding:10px 12px;border-radius:var(--radius-sm);background:rgba(220,38,38,.12);border:1px solid rgba(220,38,38,.4);color:#c0392b;font-size:.8rem}
+</style>
+</head>
+<body>
+<div class="login-wrap">
+  <form class="login-card" method="POST" action="/merchant-login" id="merchantLoginForm">
+    <div class="login-mark">${svgIcon('wallet')}<span>PrimeStack Merchant Portal</span></div>
+    <div class="login-sub">Enter the merchant email, password and access PIN issued by your administrator.</div>
+    <label for="email">Merchant email</label>
+    <input id="email" name="email" type="text" autocomplete="username" required autofocus>
+    <label for="password">Password</label>
+    <input id="password" name="password" type="password" autocomplete="current-password" required>
+    <label for="pin">Access PIN</label>
+    <input id="pin" name="pin" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="one-time-code" placeholder="6-digit PIN" required>
+    ${errorMessage ? `<div class="login-err">${errorMessage}</div>` : ''}
+    <button type="submit" id="merchantLoginBtn">Enter merchant portal</button>
+    ${PORTAL_MODE === 'merchant' ? '' : `<p style="text-align:center;font-size:.75rem;color:var(--muted);margin:16px 0 0">Agent? <a href="/agent-portal" style="color:var(--accent);font-weight:600">Sign in to the Agent Portal</a></p>`}
+  </form>
+</div>
+<script>
+document.getElementById('merchantLoginForm').addEventListener('submit', function () {
+  document.getElementById('merchantLoginBtn').disabled = true;
+  document.getElementById('merchantLoginBtn').textContent = 'Signing in…';
+});
+<\/script>
+</body>
+</html>`;
+}
+
 function handleLogin(req, res) {
   if (req.method === 'GET') {
+    const existing = readSession(req);
+    if (existing) {
+      const location = roleAllowedByPortal(existing.claims.role)
+        ? dashboardHome(existing.claims.role)
+        : existing.claims.role === 'MERCHANT'
+          ? `${MERCHANT_PORTAL_ORIGIN}/merchant-dashboard`
+          : '/login';
+      res.writeHead(302, { Location: location });
+      res.end();
+      return;
+    }
     const pageHeaders = {
       'Content-Type': 'text/html; charset=utf-8',
       'Cache-Control': 'no-store',
@@ -8141,6 +8446,7 @@ function handleLogin(req, res) {
         headers: {
           'Content-Type': 'application/json',
           'Content-Length': Buffer.byteLength(payload),
+          'User-Agent': 'PrimeStack-Dashboard/1.0',
           host: base.host,
         },
       },
@@ -8149,15 +8455,23 @@ function handleLogin(req, res) {
         upstream.on('data', c => chunks.push(c));
         upstream.on('end', () => {
           let token = null;
+          let role = null;
           try {
             const parsed = JSON.parse(Buffer.concat(chunks).toString('utf8'));
             token = parsed && parsed.data ? parsed.data.token : null;
+            role = parsed && parsed.data && parsed.data.user ? parsed.data.user.role : null;
           } catch { /* not JSON */ }
 
           const status = upstream.statusCode || 0;
 
+          if (status === 200 && token && !roleAllowedByPortal(role)) {
+            res.writeHead(403, { 'Content-Type': 'text/html; charset=utf-8' });
+            res.end(loginPage('This account cannot access the admin portal. Use the portal assigned to your role.'));
+            return;
+          }
+
           if (status === 200 && token) {
-            res.writeHead(302, { 'Set-Cookie': sessionCookie(token), Location: '/' });
+            res.writeHead(302, { 'Set-Cookie': sessionCookie(token), Location: dashboardHome(role) });
             res.end();
             return;
           }
@@ -8183,6 +8497,110 @@ function handleLogin(req, res) {
     loginReq.on('error', () => {
       res.writeHead(502, { 'Content-Type': 'text/html; charset=utf-8' });
       res.end(loginPage('Authentication service unavailable. Please try again shortly.'));
+    });
+    loginReq.write(payload);
+    loginReq.end();
+  });
+}
+
+function handleMerchantLogin(req, res) {
+  if (req.method === 'GET') {
+    const existing = readSession(req);
+    if (existing) {
+      const destination = existing.claims.role === 'MERCHANT' ? '/merchant-dashboard' : dashboardHome(existing.claims.role);
+      res.writeHead(302, { Location: destination });
+      res.end();
+      return;
+    }
+    const pageHeaders = {
+      'Content-Type': 'text/html; charset=utf-8',
+      'Cache-Control': 'no-store',
+    };
+    res.writeHead(200, pageHeaders);
+    res.end(merchantLoginPage());
+    return;
+  }
+  if (req.method !== 'POST') {
+    res.writeHead(405, { 'Content-Type': 'text/plain' });
+    res.end('Method Not Allowed');
+    return;
+  }
+
+  const body = [];
+  req.on('data', c => body.push(c));
+  req.on('end', () => {
+    const params = new URLSearchParams(Buffer.concat(body).toString('utf8'));
+    const email = (params.get('email') || '').trim();
+    const password = params.get('password') || '';
+    const pin = (params.get('pin') || '').trim();
+
+    if (!email || !password || !pin) {
+      res.writeHead(400, { 'Content-Type': 'text/html; charset=utf-8' });
+      res.end(merchantLoginPage('Merchant email, password and access PIN are required.'));
+      return;
+    }
+
+    const payload = JSON.stringify({ email, password, pin });
+    const base = new URL(API_ORIGIN);
+    const useTls = base.protocol === 'https:';
+    const loginReq = (useTls ? httpsRequest : httpRequest)(
+      {
+        hostname: base.hostname,
+        port: base.port || (useTls ? 443 : 80),
+        path: '/admin/login',
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Content-Length': Buffer.byteLength(payload),
+          'User-Agent': 'PrimeStack-Dashboard/1.0',
+          host: base.host,
+        },
+      },
+      (upstream) => {
+        const chunks = [];
+        upstream.on('data', c => chunks.push(c));
+        upstream.on('end', () => {
+          let token = null;
+          let role = null;
+          try {
+            const parsed = JSON.parse(Buffer.concat(chunks).toString('utf8'));
+            token = parsed && parsed.data ? parsed.data.token : null;
+            role = parsed && parsed.data && parsed.data.user ? parsed.data.user.role : null;
+          } catch { /* not JSON */ }
+
+          const status = upstream.statusCode || 0;
+
+          if (status === 200 && token && role === 'MERCHANT') {
+            res.writeHead(302, { 'Set-Cookie': sessionCookie(token), Location: '/merchant-dashboard' });
+            res.end();
+            return;
+          }
+
+          if (status === 200 && token && role !== 'MERCHANT') {
+            res.writeHead(403, { 'Content-Type': 'text/html; charset=utf-8' });
+            res.end(merchantLoginPage('This portal is for merchant accounts only. Use the correct admin or agent login for other roles.'));
+            return;
+          }
+
+          if (status === 429) {
+            res.writeHead(429, { 'Content-Type': 'text/html; charset=utf-8' });
+            res.end(merchantLoginPage('Too many sign-in attempts. Please wait 15 minutes and try again.'));
+            return;
+          }
+          if (status >= 500 || status === 0) {
+            res.writeHead(502, { 'Content-Type': 'text/html; charset=utf-8' });
+            res.end(merchantLoginPage(`Authentication service is unavailable (API returned HTTP ${status || 'no response'}). Please try again shortly.`));
+            return;
+          }
+
+          res.writeHead(401, { 'Content-Type': 'text/html; charset=utf-8' });
+          res.end(merchantLoginPage('Incorrect merchant email, password, or access PIN.'));
+        });
+      }
+    );
+    loginReq.on('error', () => {
+      res.writeHead(502, { 'Content-Type': 'text/html; charset=utf-8' });
+      res.end(merchantLoginPage('Authentication service unavailable. Please try again shortly.'));
     });
     loginReq.write(payload);
     loginReq.end();
@@ -8219,17 +8637,28 @@ const server = createServer((req, res) => {
     res.end(CINEMATIC_THEME_JS);
     return;
   }
+  if (
+    PORTAL_MODE === 'merchant' &&
+    (path === '/agent-portal' ||
+      path === '/agent-dashboard' ||
+      path === '/api/public/agent-portal' ||
+      path.startsWith('/api/public/agent-portal/'))
+  ) {
+    res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
+    res.end('Not Found');
+    return;
+  }
+  if (path.startsWith('/api/public/agent-portal/') && ['GET', 'POST'].includes(req.method)) {
+    const target = resolveProxy(url);
+    proxyRequest(req, res, target.origin, target.path);
+    return;
+  }
   if (req.method === 'POST' && path.startsWith('/api/public/')) {
     const target = resolveProxy(url);
     proxyRequest(req, res, target.origin, target.path);
     return;
   }
-  if (req.method === 'GET' && path === '/api/public/agent-portal/profile') {
-    const target = resolveProxy(url);
-    proxyRequest(req, res, target.origin, target.path);
-    return;
-  }
-  if (req.method === 'GET' && path === '/agent-portal') {
+  if (req.method === 'GET' && (path === '/agent-portal' || path === '/agent-dashboard')) {
     res.writeHead(200, {
       'Content-Type': 'text/html; charset=utf-8',
       'Cache-Control': 'no-store',
@@ -8248,13 +8677,33 @@ const server = createServer((req, res) => {
     return;
   }
 
+  if (path === '/merchant-login') {
+    if (PORTAL_MODE === 'admin') {
+      res.writeHead(302, {
+        Location: `${MERCHANT_PORTAL_ORIGIN}/merchant-login`,
+      });
+      res.end();
+      return;
+    }
+    handleMerchantLogin(req, res);
+    return;
+  }
+
   // -- Operator sign-in / sign-out (public) --
   if (path === '/login') {
+    if (PORTAL_MODE === 'merchant') {
+      res.writeHead(302, { Location: '/merchant-login' });
+      res.end();
+      return;
+    }
     handleLogin(req, res);
     return;
   }
   if (path === '/logout') {
-    res.writeHead(302, { 'Set-Cookie': clearedSessionCookie(), Location: '/login' });
+    res.writeHead(302, {
+      'Set-Cookie': clearedSessionCookie(),
+      Location: loginPath(),
+    });
     res.end();
     return;
   }
@@ -8264,11 +8713,35 @@ const server = createServer((req, res) => {
   if (!session) {
     if (path.startsWith('/api/')) {
       res.writeHead(401, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: 'Unauthorized', message: 'Operator sign-in required' }));
+      res.end(JSON.stringify({ error: 'Unauthorized', message: 'Portal sign-in required' }));
     } else {
-      res.writeHead(302, { Location: '/login' });
+      res.writeHead(302, { Location: loginPath() });
       res.end();
     }
+    return;
+  }
+
+  const role = session.claims.role;
+  if (!path.startsWith('/api/')) {
+    if (path === '/') {
+      res.writeHead(302, { Location: dashboardHome(role) });
+      res.end();
+      return;
+    }
+    if (!canAccessDashboard(role, path)) {
+      res.writeHead(302, { Location: dashboardHome(role) });
+      res.end();
+      return;
+    }
+  }
+
+  if (req.method === 'GET' && path === '/merchant-dashboard') {
+    res.writeHead(200, {
+      'Content-Type': 'text/html; charset=utf-8',
+      'Cache-Control': 'no-store',
+      'X-Content-Type-Options': 'nosniff',
+    });
+    res.end(MERCHANT_PORTAL_HTML);
     return;
   }
 
@@ -8276,6 +8749,11 @@ const server = createServer((req, res) => {
   if (path.startsWith('/api/')) {
     // health-all
     if (path === '/api/health-all') {
+      if (!isAdministratorRole(role) && !['OPERATOR', 'REVIEWER', 'READONLY'].includes(role)) {
+        res.writeHead(403, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Forbidden', message: 'Your role cannot access service health.' }));
+        return;
+      }
       checkAllHealth().then(result => {
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify(result));
@@ -8284,20 +8762,40 @@ const server = createServer((req, res) => {
     }
     // bank store
     if (path.startsWith('/api/platform/banks')) {
+      if (!isAdministratorRole(role)) {
+        res.writeHead(403, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Forbidden', message: 'Administrator access is required.' }));
+        return;
+      }
       handleBankApi(req, res);
       return;
     }
     // payment rails (separate in-process service)
     if (path === '/api/rails/health') {
+      if (!isAdministratorRole(role)) {
+        res.writeHead(403, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Forbidden', message: 'Administrator access is required.' }));
+        return;
+      }
       proxyRequest(req, res, RAILS_ORIGIN, '/health');
       return;
     }
     if (path.startsWith('/api/rails/')) {
+      if (!isAdministratorRole(role)) {
+        res.writeHead(403, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Forbidden', message: 'Administrator access is required.' }));
+        return;
+      }
       proxyRequest(req, res, RAILS_ORIGIN, path.slice('/api'.length));
       return;
     }
     // resolve and proxy
     const target = resolveProxy(url);
+    if (!canProxyDashboardApi(role, req.method, target.path)) {
+      res.writeHead(403, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Forbidden', message: 'Your role cannot access this API operation.' }));
+      return;
+    }
     proxyRequest(req, res, target.origin, target.path);
     return;
   }
@@ -8334,15 +8832,18 @@ const server = createServer((req, res) => {
   
 switch (path) {
     case '/':                      html = landingPage();         break;
+    case '/admin':                 html = platformOverview('Admin Dashboard'); break;
     case '/platform':              html = platformOverview();    break;
     case '/platform/banks':        html = platformBanks();       break;
     case '/platform/funding':      html = platformFunding();     break;
     case '/platform/whitelist':    html = platformWhitelist();   break;
+    case '/platform/approvals':    html = platformApprovals();    break;
     case '/platform/settlement':   html = platformSettlement();  break;
     case '/platform/risk':         html = platformRisk();        break;
     case '/platform/monitoring':   html = platformMonitoring();  break;
     case '/platform/ping':         html = platformPing();        break;
     case '/platform/merchants':    html = platformMerchants();   break;
+    case '/platform/merchant-access': html = platformMerchantPortalAccess(); break;
     case '/platform/agents':       html = platformAgentRegistration(); break;
     case '/platform/receive-funds': html = receiveFundsPage();  break;
     case '/platform/server-funds':  html = serverFundsPage();   break;
@@ -8390,10 +8891,28 @@ switch (path) {
       return;
   }
 
-  const pageHeaders = { 'Content-Type': 'text/html; charset=utf-8' };
-  if (path === '/platform/agents') pageHeaders['Cache-Control'] = 'no-store';
+  const pageHeaders = {
+    'Content-Type': 'text/html; charset=utf-8',
+    'Cache-Control': 'no-store',
+  };
   res.writeHead(200, pageHeaders);
-  const output = html.replace('</body>', `${dashboardLocalizationScript()}</body>`);
+  const safeRole = String(role || '').replace(/[^A-Z_]/g, '');
+  // Merchants keep the Merchant workspace panel; staff see only the Ops panel.
+  const roleHidden = role === 'MERCHANT'
+    ? ['#nav-tab-platform', '#nav-tab-ops', '#nav-platform', '#nav-ops']
+    : ['#nav-tab-platform', '#nav-tab-merchant', '#nav-platform', '#nav-merchant', '.sidebar-footer'];
+  const roleNavigationStyles = isAdministratorRole(role) ? '' : `<style>
+${roleHidden.map(selector => `body[data-dashboard-role="${safeRole}"] ${selector}`).join(',\n')},
+body[data-dashboard-role="${safeRole}"] a[href="/ops/network"],
+body[data-dashboard-role="${safeRole}"] a.card[href^="/admin/"],
+body[data-dashboard-role="${safeRole}"] a.card[href^="/platform/"],
+body[data-dashboard-role="${safeRole}"] .tab[data-t="iso-sim"],
+body[data-dashboard-role="${safeRole}"] #iso-sim { display:none!important; }
+</style>`;
+  const roleHtml = html
+    .replace('<body>', `<body data-dashboard-role="${safeRole}">`)
+    .replace('</head>', `${roleNavigationStyles}</head>`);
+  const output = roleHtml.replace('</body>', `${dashboardLocalizationScript()}</body>`);
   res.end(output);
 });
 
@@ -8404,11 +8923,16 @@ if (!Number.isInteger(PORT) || PORT < 1 || PORT > 65535) {
   throw new Error('PORT must be an integer between 1 and 65535');
 }
 server.listen(PORT, '0.0.0.0', () => {
-  console.log(`PrimeStack Dashboard running at http://localhost:${PORT}`);
-  console.log(`  Landing:    http://localhost:${PORT}/`);
-  console.log(`  Developer:  http://localhost:${PORT}/developer`);
-  console.log(`  Platform:   http://localhost:${PORT}/platform`);
-  console.log(`  Merchant:   http://localhost:${PORT}/merchant`);
-  console.log(`  Ops:        http://localhost:${PORT}/ops`);
-  console.log(`  Monitoring: http://localhost:${PORT}/platform/monitoring`);
+  const portalName = PORTAL_MODE === 'merchant'
+    ? 'Merchant dashboard'
+    : PORTAL_MODE === 'admin'
+      ? 'Admin dashboard'
+      : 'Dashboard';
+  console.log(`PrimeStack ${portalName} running at http://localhost:${PORT}`);
+  console.log(`  Sign-in:    http://localhost:${PORT}${loginPath()}`);
+  if (PORTAL_MODE !== 'merchant') {
+    console.log(`  Agent:      http://localhost:${PORT}/agent-portal`);
+    console.log(`  Platform:   http://localhost:${PORT}/platform`);
+    console.log(`  Ops:        http://localhost:${PORT}/ops`);
+  }
 });

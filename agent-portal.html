@@ -4,30 +4,83 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="robots" content="noindex,nofollow">
-  <title>Agent Dashboard | PrimeStack</title>
+  <title>Agent Portal | PrimeStack</title>
   <style>
-    :root{color-scheme:dark;font:16px/1.5 Inter,system-ui,sans-serif;background:#0b1020;color:#eef4ff}
+    :root{color-scheme:light;font:14px/1.5 Inter,"Segoe UI",system-ui,sans-serif;color:#14243a;background:#eef3f8}
     *{box-sizing:border-box}
-    body{margin:0;min-height:100vh;display:grid;place-items:center;padding:24px}
-    main{width:min(100%,520px)}
-    .card{padding:26px;border:1px solid #26334c;border-radius:14px;background:#121a2b;box-shadow:0 20px 60px #0005}
-    h1{margin:0 0 6px;font-size:1.7rem}
-    p{color:#aeb6c4}
-    label{display:grid;gap:6px;margin:15px 0;color:#c5cfdd;font-size:.9rem}
-    input{height:46px;padding:0 12px;border:1px solid #33425d;border-radius:8px;background:#0b1220;color:#fff;font:inherit}
-    button{min-height:44px;padding:0 14px;border:1px solid #087c9a;border-radius:8px;background:#083747;color:#dffaff;font:inherit;font-weight:650;cursor:pointer}
-    button:disabled{opacity:.6;cursor:wait}
-    .error{min-height:1.5em;color:#ff9da5}
-    .profile[hidden],.login[hidden]{display:none}
-    .profile-code{font-family:ui-monospace,monospace;color:#85eaff}
-    .status{display:inline-block;padding:3px 9px;border-radius:99px;background:#10281f;color:#73e5a2;font-size:.82rem;font-weight:700}
+    body{margin:0;min-height:100vh;background:radial-gradient(50% 40% at 8% 12%,rgba(0,94,162,.06),transparent 70%),linear-gradient(90deg,rgba(17,46,81,.025) 1px,transparent 1px),linear-gradient(rgba(17,46,81,.025) 1px,transparent 1px),#eef3f8;background-size:auto,32px 32px,32px 32px,auto}
+    body::before{content:"";position:fixed;inset:0 0 auto;height:6px;z-index:10;background:linear-gradient(90deg,#112e51 0 25%,#fff 25% 50%,#b50909 50% 75%,#061529 75%)}
+    button,input{font:inherit}
+    button{min-height:40px;padding:0 14px;border:1px solid #005ea2;border-radius:7px;background:#005ea2;color:#fff;font-weight:650;cursor:pointer;transition:background .15s,border-color .15s}
+    button:hover{background:#17496c;border-color:#17496c}
+    button:disabled{opacity:.55;cursor:wait}
+    [hidden]{display:none!important}
+    .wrap{width:min(1480px,100%);margin:auto;padding:24px}
+    .brand{display:flex;align-items:center;gap:10px;font-weight:750;letter-spacing:-.02em;color:#14243a}
+    .brand small{display:block;color:#526174;font-size:.76rem;font-weight:500}
+    .brand-mark{width:34px;height:34px;display:grid;place-items:center;flex:none;border-radius:8px;background:#005ea2;color:#fff}
+    .brand-mark svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+    h1{margin:0;font-size:1.75rem;letter-spacing:-.03em}
+    h2{margin:0;font-size:1rem}
+    p{color:#526174}
+    .card{padding:20px;background:#fff;border:1px solid #d5e0e9;border-radius:10px;box-shadow:0 2px 6px #163c5a0a}
+    .login{width:min(100%,520px);margin:9vh auto;padding:30px}
+    .login-brand{margin-bottom:28px}
+    .eyebrow{margin-bottom:5px;color:#005ea2;font-size:.7rem;font-weight:750;text-transform:uppercase;letter-spacing:.09em}
+    .login h1{font-size:1.65rem}
+    .login-copy{margin:8px 0 20px}
+    label{display:grid;gap:6px;margin:14px 0;color:#34465a;font-size:.86rem;font-weight:600}
+    input{width:100%;height:42px;padding:0 10px;border:1px solid #b9c9d8;border-radius:7px;background:#fff;color:#14243a}
+    input:focus{outline:2px solid rgba(0,94,162,.2);border-color:#005ea2}
+    .login form button{width:100%;margin-top:8px}
+    .dashboard-shell{display:grid;grid-template-columns:250px minmax(0,1fr);min-height:calc(100vh - 48px);overflow:hidden;background:#fff;border:1px solid #d5e0e9;border-radius:12px;box-shadow:0 2px 8px #163c5a0a}
+    .sidebar{display:flex;flex-direction:column;padding:26px 18px;background:#102b49;color:#fff}
+    .sidebar .brand{color:#fff}
+    .sidebar .brand small{color:#c1d5e8}
+    .sidebar .brand-mark{background:#fff;color:#005ea2}
+    .sidebar nav{display:grid;gap:7px;margin-top:32px}
+    .sidebar nav a{padding:9px 10px;border-radius:7px;color:#c5d5e6;font-size:.84rem;text-decoration:none}
+    .sidebar nav a:hover,.sidebar nav a:focus-visible{background:#1b4268;color:#fff;outline:none}
+    .sidebar-note{margin-top:auto;padding-top:20px;color:#c1d5e8;font-size:.76rem}
+    .main{min-width:0;padding:30px;background:#f7f9fb}
+    .topbar{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:22px}
+    .topbar h1{font-size:1.7rem}
+    .identity-line{margin-top:6px;font-size:.84rem}
+    .profile-code{font-family:ui-monospace,monospace;color:#17496c}
+    .tag{display:inline-block;padding:3px 9px;border-radius:20px;background:#e8f2f9;color:#17496c;font-size:.75rem;font-weight:650}
+    .grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin:18px 0}
+    .metric{padding:18px;background:#fff;border:1px solid #d5e0e9;border-radius:10px;box-shadow:0 2px 6px #163c5a0a}
+    .metric span{display:block;color:#526174;font-size:.8rem}
+    .metric strong{display:block;margin-top:8px;color:#14243a;font-size:1.45rem}
+    .content-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.35fr);gap:16px;margin-top:18px}
+    .card-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px}
+    .button-secondary{background:#e8f2f9;border-color:#d5e0e9;color:#17496c}
+    .button-secondary:hover{background:#d9eaf5;border-color:#b9d1e2}
+    .table-wrap{overflow:auto}
+    table{width:100%;border-collapse:collapse;min-width:620px}
+    th,td{padding:11px 9px;border-bottom:1px solid #e1e8ef;text-align:left;font-size:.82rem}
+    th{color:#526174;font-weight:650}
+    td{color:#26394d}
+    code{font-family:ui-monospace,SFMono-Regular,Consolas,monospace}
+    .muted{color:#647487}
+    .error{min-height:1.5em;color:#b42318}
+    .error:empty{min-height:0}
+    .actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+    @media(max-width:1050px){.grid{grid-template-columns:repeat(2,minmax(0,1fr))}.content-grid{grid-template-columns:1fr}}
+    @media(max-width:800px){.wrap{padding:16px}.dashboard-shell{grid-template-columns:1fr}.sidebar{padding:16px 20px}.sidebar nav{display:flex;flex-wrap:wrap;margin-top:16px}.sidebar-note{display:none}.main{padding:22px}}
+    @media(max-width:520px){.login{margin:6vh auto;padding:22px}.grid{grid-template-columns:1fr 1fr}.topbar{align-items:flex-start}.topbar h1{font-size:1.4rem}.topbar button{padding:0 10px}.main{padding:16px}}
   </style>
 </head>
 <body>
-  <main>
+  <div class="wrap">
     <section class="card login" id="agent-login-panel">
-      <h1>Agent Dashboard</h1>
-      <p>Sign in with the agent code and one-time PIN provided by your administrator. Access is enabled after KYC approval.</p>
+      <div class="login-brand brand">
+        <span class="brand-mark"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h7v7h-7z"/></svg></span>
+        <span>PrimeStack<small>Agent Operations Portal</small></span>
+      </div>
+      <div class="eyebrow">Agent portal</div>
+      <h1>Sign in</h1>
+      <p class="login-copy">Use the agent code and PIN provided by your administrator. Access is enabled after KYC approval.</p>
       <form id="agent-login-form">
         <label>Agent code<input name="code" autocomplete="username" required maxlength="50"></label>
         <label>12-digit login PIN<input name="pin" type="password" inputmode="numeric" pattern="[0-9]{12}" autocomplete="current-password" required maxlength="12"></label>
@@ -35,40 +88,145 @@
       </form>
       <div class="error" id="agent-login-error" role="alert"></div>
     </section>
-    <section class="card profile" id="agent-profile-panel" hidden>
-      <h1>Agent Dashboard</h1>
-      <p>Welcome, <strong id="agent-name"></strong>.</p>
-      <p>Agent code: <span class="profile-code" id="agent-code"></span></p>
-      <p>KYC status: <span class="status" id="agent-status"></span></p>
-      <p>Your dashboard access is limited to your own agent account.</p>
-      <button type="button" id="agent-sign-out">Sign out</button>
+
+    <section class="dashboard" id="agent-dashboard" hidden>
+      <div class="dashboard-shell">
+        <aside class="sidebar">
+          <div class="brand">
+            <span class="brand-mark"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h7v7h-7z"/></svg></span>
+            <span>PrimeStack<small>Agent Workspace</small></span>
+          </div>
+          <nav aria-label="Agent dashboard">
+            <a href="#agent-overview">Overview</a>
+            <a href="#assigned-merchants">Assigned merchants</a>
+            <a href="#assigned-transactions">Transactions</a>
+          </nav>
+          <div class="sidebar-note">Your view is limited to merchants assigned to your agent account.</div>
+        </aside>
+        <main class="main">
+          <header class="topbar">
+            <div>
+              <div class="eyebrow">Agent operations</div>
+              <h1>Welcome, <span id="agent-name"></span></h1>
+              <p class="identity-line">Agent code: <span class="profile-code" id="agent-code"></span> · KYC: <span id="agent-status" class="tag"></span></p>
+            </div>
+            <button type="button" id="agent-sign-out" hidden>Sign out</button>
+          </header>
+          <div class="error" id="agent-dashboard-error" role="alert"></div>
+          <section id="agent-overview" aria-label="Agent overview">
+            <div class="grid">
+              <div class="metric"><span>Assigned merchants</span><strong id="merchant-count">0</strong></div>
+              <div class="metric"><span>Transactions shown</span><strong id="transaction-count">0</strong></div>
+              <div class="metric"><span>Active merchants</span><strong id="active-count">0</strong></div>
+              <div class="metric"><span>Transaction pages</span><strong id="transaction-pages">1</strong></div>
+            </div>
+          </section>
+          <div class="content-grid">
+            <section class="card" id="assigned-merchants">
+              <div class="card-heading"><h2>Assigned Merchants</h2><button class="button-secondary" type="button" id="refresh-agent-dashboard">Refresh</button></div>
+              <div class="table-wrap">
+                <table><thead><tr><th>Merchant</th><th>Status</th><th>Transactions</th><th>Activity</th></tr></thead>
+                  <tbody id="agent-merchants"><tr><td colspan="4" class="muted">Loading…</td></tr></tbody>
+                </table>
+              </div>
+            </section>
+            <section class="card" id="assigned-transactions">
+              <div class="card-heading"><h2>Assigned Merchant Transactions</h2></div>
+              <div class="table-wrap">
+                <table><thead><tr><th>Created</th><th>Merchant</th><th>STAN / RRN</th><th>Type</th><th>Amount</th><th>Status</th></tr></thead>
+                  <tbody id="agent-transactions"><tr><td colspan="6" class="muted">Loading…</td></tr></tbody>
+                </table>
+              </div>
+              <p class="muted" id="transaction-meta"></p>
+            </section>
+          </div>
+        </div>
+      </div>
     </section>
   </main>
   <script>
   (() => {
     const tokenKey = "primeStackAgentPortalToken";
     const loginPanel = document.getElementById("agent-login-panel");
-    const profilePanel = document.getElementById("agent-profile-panel");
-    const error = document.getElementById("agent-login-error");
-    async function loadProfile(token) {
-      const response = await fetch("/api/public/agent-portal/profile", {
-        headers: { Accept: "application/json", Authorization: "Bearer " + token },
+    const dashboard = document.getElementById("agent-dashboard");
+    const loginError = document.getElementById("agent-login-error");
+    const dashboardError = document.getElementById("agent-dashboard-error");
+    const signOut = document.getElementById("agent-sign-out");
+
+    function escapeHtml(value) {
+      return String(value ?? "").replace(/[&<>"']/g, (character) => ({
+        "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+      })[character]);
+    }
+
+    async function request(path, method = "GET") {
+      const token = sessionStorage.getItem(tokenKey);
+      const response = await fetch("/api/public/agent-portal/" + path, {
+        method,
+        headers: {
+          Accept: "application/json",
+          ...(token ? { Authorization: "Bearer " + token } : {})
+        },
         cache: "no-store"
       });
       const payload = await response.json().catch(() => ({}));
-      if (!response.ok || payload.success !== true) throw new Error("Session expired. Sign in again.");
-      document.getElementById("agent-name").textContent = payload.data.fullName;
-      document.getElementById("agent-code").textContent = payload.data.code;
-      document.getElementById("agent-status").textContent = payload.data.status;
-      loginPanel.hidden = true;
-      profilePanel.hidden = false;
+      if (!response.ok || payload.success !== true) {
+        throw new Error(payload.error?.message || payload.message || "Agent request failed.");
+      }
+      return payload.data;
     }
+
+    async function loadDashboard() {
+      dashboardError.textContent = "";
+      const data = await request("dashboard?page=1&pageSize=50");
+      document.getElementById("agent-name").textContent = data.profile.fullName;
+      document.getElementById("agent-code").textContent = data.profile.code;
+      document.getElementById("agent-status").textContent = data.profile.status;
+      document.getElementById("merchant-count").textContent = data.merchants.length;
+      document.getElementById("transaction-count").textContent = data.meta.total;
+      document.getElementById("active-count").textContent =
+        data.merchants.filter((merchant) => merchant.status === "ACTIVE").length;
+      document.getElementById("transaction-pages").textContent = data.meta.totalPages || 1;
+      document.getElementById("transaction-meta").textContent =
+        `Page ${data.meta.page} of ${data.meta.totalPages || 1} · ${data.meta.total} transactions`;
+
+      document.getElementById("agent-merchants").innerHTML = data.merchants.length
+        ? data.merchants.map((merchant) => {
+            const action = merchant.status === "ACTIVE" ? "pause"
+              : merchant.status === "SUSPENDED" ? "resume" : "";
+            const label = action === "pause" ? "Pause" : action === "resume" ? "Resume" : "Unavailable";
+            return `<tr>
+              <td><strong>${escapeHtml(merchant.displayName || merchant.legalName)}</strong><br><span class="muted">${escapeHtml(merchant.code)}</span></td>
+              <td><span class="tag">${escapeHtml(merchant.status)}</span></td>
+              <td>${escapeHtml(merchant._count.transactions)}</td>
+              <td>${action
+                ? `<button type="button" data-merchant-action="${action}" data-merchant-id="${escapeHtml(merchant.id)}">${label}</button>`
+                : `<span class="muted">${label}</span>`}</td>
+            </tr>`;
+          }).join("")
+        : '<tr><td colspan="4" class="muted">No merchants are assigned to this agent.</td></tr>';
+
+      document.getElementById("agent-transactions").innerHTML = data.transactions.length
+        ? data.transactions.map((transaction) => `<tr>
+            <td>${escapeHtml(new Date(transaction.createdAt).toLocaleString())}</td>
+            <td>${escapeHtml(transaction.merchant.displayName || transaction.merchant.legalName)}</td>
+            <td><code>${escapeHtml(transaction.stan)}${transaction.rrn ? ` / ${escapeHtml(transaction.rrn)}` : ""}</code></td>
+            <td>${escapeHtml(transaction.type)}</td>
+            <td>${escapeHtml(transaction.amount)} ${escapeHtml(transaction.currency)}</td>
+            <td>${escapeHtml(transaction.status)}</td>
+          </tr>`).join("")
+        : '<tr><td colspan="6" class="muted">No transactions found for assigned merchants.</td></tr>';
+
+      loginPanel.hidden = true;
+      dashboard.hidden = false;
+      signOut.hidden = false;
+    }
+
     document.getElementById("agent-login-form").addEventListener("submit", async (event) => {
       event.preventDefault();
-      error.textContent = "";
+      loginError.textContent = "";
       const button = document.getElementById("agent-login-button");
       const form = event.currentTarget;
-      const formData = new FormData(form);
       const pinInput = form.elements.namedItem("pin");
       button.disabled = true;
       button.textContent = "Signing in…";
@@ -76,31 +234,61 @@
         const response = await fetch("/api/public/agent-portal/login", {
           method: "POST",
           headers: { "Content-Type": "application/json", Accept: "application/json" },
-          body: JSON.stringify(Object.fromEntries(formData)),
+          body: JSON.stringify(Object.fromEntries(new FormData(form))),
           cache: "no-store"
         });
         const payload = await response.json().catch(() => ({}));
-        if (!response.ok || payload.success !== true) throw new Error(payload.error?.message || "Invalid credentials or KYC is not approved.");
+        if (!response.ok || payload.success !== true) {
+          throw new Error(payload.error?.message || "Invalid credentials or KYC is not approved.");
+        }
         sessionStorage.setItem(tokenKey, payload.data.token);
         pinInput.value = "";
-        await loadProfile(payload.data.token);
+        await loadDashboard();
       } catch (cause) {
-        pinInput.value = "";
-        error.textContent = cause instanceof Error ? cause.message : "Sign-in failed.";
+        loginError.textContent = cause instanceof Error ? cause.message : "Sign-in failed.";
+        sessionStorage.removeItem(tokenKey);
       } finally {
         button.disabled = false;
         button.textContent = "Sign in";
       }
     });
-    document.getElementById("agent-sign-out").addEventListener("click", () => {
+
+    document.getElementById("refresh-agent-dashboard").addEventListener("click", () => {
+      loadDashboard().catch((cause) => { dashboardError.textContent = cause.message; });
+    });
+
+    document.getElementById("agent-merchants").addEventListener("click", async (event) => {
+      const button = event.target.closest("button[data-merchant-action]");
+      if (!button) return;
+      const action = button.dataset.merchantAction;
+      if (!window.confirm(`${action === "pause" ? "Pause" : "Resume"} this merchant's activity?`)) return;
+      button.disabled = true;
+      dashboardError.textContent = "";
+      try {
+        await request(`merchants/${encodeURIComponent(button.dataset.merchantId)}/${action}`, "POST");
+        await loadDashboard();
+      } catch (cause) {
+        dashboardError.textContent = cause instanceof Error ? cause.message : "Merchant update failed.";
+        button.disabled = false;
+      }
+    });
+
+    signOut.addEventListener("click", () => {
       sessionStorage.removeItem(tokenKey);
-      profilePanel.hidden = true;
+      dashboard.hidden = true;
+      signOut.hidden = true;
       loginPanel.hidden = false;
       document.getElementById("agent-login-form").reset();
-      error.textContent = "";
+      loginError.textContent = "";
+      dashboardError.textContent = "";
     });
-    const existingToken = sessionStorage.getItem(tokenKey);
-    if (existingToken) loadProfile(existingToken).catch(() => sessionStorage.removeItem(tokenKey));
+
+    if (sessionStorage.getItem(tokenKey)) {
+      loadDashboard().catch(() => {
+        sessionStorage.removeItem(tokenKey);
+        loginPanel.hidden = false;
+      });
+    }
   })();
   </script>
 </body>

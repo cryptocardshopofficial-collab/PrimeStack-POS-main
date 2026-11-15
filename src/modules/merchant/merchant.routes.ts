@@ -1,5 +1,10 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 import { MerchantService } from "./merchant.service.js";
+import { MerchantRegistrationService } from "./merchant-registration.service.js";
+import {
+  registerMerchantPublicSchema,
+  validateAgentCodeSchema,
+} from "./merchant-registration.types.js";
 import {
   assignAgentSchema,
   assignMerchantWalletSchema,
@@ -20,7 +25,11 @@ import {
   sendPaginated,
   parsePagination,
 } from "../../shared/utils/response.js";
-import { UnauthorizedError, ValidationError } from "../../core/errors.js";
+import {
+  ForbiddenError,
+  UnauthorizedError,
+  ValidationError,
+} from "../../core/errors.js";
 
 /**
  * Merchant REST routes.
@@ -119,6 +128,32 @@ export function registerMerchantRoutes(
       const { id } = request.params as { id: string };
       const merchant = await merchantService.reactivateMerchant(id);
       return sendSuccess(reply, merchant);
+    },
+  );
+
+  // Provision (or reset) the merchant's portal login. The one-time password is
+  // returned exactly once and must never be cached.
+  app.post(
+    "/merchants/:id/portal-credentials",
+    { preHandler: app.authenticate },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const user = portalUser(request);
+      if (user.role !== "SUPER_ADMIN" && user.role !== "ADMIN") {
+        throw new ForbiddenError(
+          "Only administrators can provision merchant portal access",
+        );
+      }
+      const { id } = request.params as { id: string };
+      const credentials = await merchantService.createPortalCredentials(
+        id,
+        user.id,
+        request.ip,
+        typeof request.headers["user-agent"] === "string"
+          ? request.headers["user-agent"]
+          : "unknown",
+      );
+      reply.header("cache-control", "no-store");
+      return sendCreated(reply, credentials);
     },
   );
 
@@ -286,6 +321,48 @@ function merchantContext(request: FastifyRequest): string {
   return request.merchant.id;
 }
 
+interface PortalUser {
+  id: string;
+  role: string;
+  merchantId: string | null;
+  mustChangePassword: boolean;
+}
+
+/** Read the JWT-authenticated portal user attached by app.authenticate. */
+function portalUser(request: FastifyRequest): PortalUser {
+  const user = request.user as
+    | {
+        id?: string;
+        role?: string;
+        merchantId?: string | null;
+        mustChangePassword?: boolean;
+      }
+    | undefined;
+  if (!user?.id) throw new UnauthorizedError("Authentication is required");
+  return {
+    id: user.id,
+    role: user.role ?? "",
+    merchantId: user.merchantId ?? null,
+    mustChangePassword: user.mustChangePassword === true,
+  };
+}
+
+/** Merchants may only touch their own account; staff roles may pick any. */
+function assertMerchantScope(user: PortalUser, merchantId: string): void {
+  if (user.role === "MERCHANT" && user.merchantId !== merchantId) {
+    throw new ForbiddenError("You cannot access another merchant account");
+  }
+}
+
+/** Force a password change before any merchant data is disclosed. */
+function assertPasswordChanged(user: PortalUser): void {
+  if (user.mustChangePassword) {
+    throw new ForbiddenError(
+      "Change your password before accessing merchant data",
+    );
+  }
+}
+
 export function registerMerchantPortalRoutes(
   app: FastifyInstance,
   merchantService: MerchantService,
@@ -434,4 +511,170 @@ export function registerMerchantPortalRoutes(
       }),
     );
   });
+
+  // ── JWT portal routes (/merchant-portal/*) ─────────────────────
+  // Used by merchant-portal.html. Authenticated with the dashboard JWT.
+
+  app.get(
+    "/merchant-portal/me",
+    { preHandler: app.authenticate },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const user = portalUser(request);
+      return sendSuccess(reply, {
+        id: user.id,
+        role: user.role,
+        merchantId: user.merchantId,
+        mustChangePassword: user.mustChangePassword,
+      });
+    },
+  );
+
+  app.get(
+    "/merchant-portal/merchants",
+    { preHandler: app.authenticate },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const user = portalUser(request);
+      assertPasswordChanged(user);
+      if (user.role === "MERCHANT") {
+        if (!user.merchantId)
+          throw new ForbiddenError("No merchant account is linked to this login");
+        return sendSuccess(
+          reply,
+          [await merchantService.getPortalProfile(user.merchantId)],
+        );
+      }
+      const { page, pageSize } = parsePagination(
+        request.query as Record<string, unknown>,
+      );
+      const result = await merchantService.listMerchants({ page, pageSize });
+      return sendPaginated(reply, result.data, result.meta);
+    },
+  );
+
+  app.get(
+    "/merchant-portal/merchants/:id",
+    { preHandler: app.authenticate },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const user = portalUser(request);
+      assertPasswordChanged(user);
+      const { id } = request.params as { id: string };
+      assertMerchantScope(user, id);
+      return sendSuccess(reply, await merchantService.getPortalProfile(id));
+    },
+  );
+
+  app.get(
+    "/merchant-portal/merchants/:id/transactions",
+    { preHandler: app.authenticate },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const user = portalUser(request);
+      assertPasswordChanged(user);
+      const { id } = request.params as { id: string };
+      assertMerchantScope(user, id);
+      const { page, pageSize } = parsePagination(
+        request.query as Record<string, unknown>,
+      );
+      const result = await merchantService.listMerchantTransactions(
+        id,
+        page,
+        pageSize,
+      );
+      return sendPaginated(reply, result.data, result.meta);
+    },
+  );
+
+  app.get(
+    "/merchant-portal/merchants/:id/terminals",
+    { preHandler: app.authenticate },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const user = portalUser(request);
+      assertPasswordChanged(user);
+      const { id } = request.params as { id: string };
+      assertMerchantScope(user, id);
+      return sendSuccess(
+        reply,
+        await merchantService.listMerchantTerminals(id),
+      );
+    },
+  );
+
+  app.post(
+    "/merchant-portal/change-password",
+    { preHandler: app.authenticate },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const user = portalUser(request);
+      const body = request.body as {
+        currentPassword?: string;
+        newPassword?: string;
+      };
+      if (
+        typeof body?.currentPassword !== "string" ||
+        typeof body?.newPassword !== "string" ||
+        body.newPassword.length < 12
+      ) {
+        throw new ValidationError(
+          "A current password and a new password of at least 12 characters are required",
+        );
+      }
+      await merchantService.changePortalPassword(
+        user.id,
+        body.currentPassword,
+        body.newPassword,
+        request.ip,
+        typeof request.headers["user-agent"] === "string"
+          ? request.headers["user-agent"]
+          : "unknown",
+      );
+      return sendSuccess(reply, { mustChangePassword: false });
+    },
+  );
+}
+/**
+ * Public merchant self-registration.
+ * Base path: /public/merchant-registration
+ *
+ * Merchants complete KYC/AML, upload company documents and personal ID
+ * verification themselves. Registrations that reference an agent code are only
+ * accepted when that code matches a registered agent — a wrong agent number
+ * cannot complete.
+ */
+export function registerMerchantPublicRoutes(
+  app: FastifyInstance,
+  registrationService: MerchantRegistrationService,
+): void {
+  app.post(
+    "/public/merchant-registration/validate-agent",
+    { config: { rateLimit: { max: 10, timeWindow: "15 minutes" } } },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const parsed = validateAgentCodeSchema.safeParse(request.body);
+      if (!parsed.success) {
+        throw new ValidationError("Invalid agent code", {
+          errors: parsed.error.errors,
+        });
+      }
+      reply.header("Cache-Control", "no-store");
+      return sendSuccess(
+        reply,
+        await registrationService.validateAgentCode(parsed.data.agentCode),
+      );
+    },
+  );
+
+  app.post(
+    "/public/merchant-registration",
+    {
+      bodyLimit: 24 * 1024 * 1024,
+      config: { rateLimit: { max: 5, timeWindow: "15 minutes" } },
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const parsed = registerMerchantPublicSchema.safeParse(request.body);
+      if (!parsed.success) {
+        throw new ValidationError("Invalid merchant registration", {
+          errors: parsed.error.errors,
+        });
+      }
+      reply.header("Cache-Control", "no-store");
+      return sendCreated(reply, await registrationService.register(parsed.data));
+    },
+  );
 }

@@ -61,6 +61,19 @@ export class NetworkService {
     return { id, removed: true };
   }
 
+  async purgeExpiredIps() {
+    const result = await this.prisma.ipWhitelistEntry.updateMany({
+      where: { status: "ACTIVE", expiresAt: { lt: new Date() } },
+      data: { status: "INACTIVE" },
+    });
+
+    if (result.count > 0) {
+      await invalidateIpWhitelistCache();
+      logger.info({ purged: result.count }, "Expired IP whitelist entries deactivated");
+    }
+    return { purged: result.count };
+  }
+
   async listIps(filters: {
     merchantId?: string;
     status?: string;

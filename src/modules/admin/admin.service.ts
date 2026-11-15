@@ -19,7 +19,7 @@ export class AdminService {
 
   // ── Authentication ──────────────────────────────
 
-  async login(email: string, password: string, reply?: FastifyReply) {
+  async login(email: string, password: string, reply?: FastifyReply, pin?: string) {
     const user = await this.prisma.user.findFirst({
       where: { OR: [{ email }, { username: email }] },
     });
@@ -31,6 +31,18 @@ export class AdminService {
     const valid = await verifyPassword(password, user.passwordHash);
     if (!valid) {
       throw new UnauthorizedError("Invalid credentials");
+    }
+
+    // Merchant accounts additionally require the administrator-issued PIN.
+    if (user.role === "MERCHANT") {
+      if (!user.portalPinHash) {
+        throw new UnauthorizedError(
+          "Merchant access PIN is not configured; ask an administrator to re-issue portal credentials",
+        );
+      }
+      if (!pin || !(await verifyPassword(pin, user.portalPinHash))) {
+        throw new UnauthorizedError("Invalid credentials");
+      }
     }
 
     // Update last login
@@ -46,6 +58,8 @@ export class AdminService {
           email: user.email,
           role: user.role,
           lang: user.preferredLang,
+          merchantId: user.merchantId,
+          mustChangePassword: user.mustChangePassword,
         })
       : undefined;
 
@@ -59,6 +73,8 @@ export class AdminService {
         username: user.username,
         fullName: user.fullName,
         role: user.role,
+        merchantId: user.merchantId,
+        mustChangePassword: user.mustChangePassword,
         preferredLang: user.preferredLang,
       },
     };

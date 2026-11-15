@@ -1,6 +1,7 @@
 import { createServer, request as httpRequest } from 'node:http';
 import { request as httpsRequest } from 'node:https';
 import { readFileSync } from 'node:fs';
+import { buildReferenceGuide, REFERENCE_BASE_PATH } from './src/public-site/reference-guide.mjs';
 
 const WEBSITE_PORT = Number(process.env.WEBSITE_PORT || process.env.PORT || 9004);
 const WEBSITE_HOST = process.env.WEBSITE_HOST || '127.0.0.1';
@@ -16,68 +17,11 @@ const DEVELOPER_FUNDS_GUIDE_HTML = readFileSync(new URL('./developer-funds.html'
 const PUBLIC_BRAND_IMAGE = readFileSync(new URL('./Designer (1).jpg', import.meta.url));
 const CINEMATIC_THEME_CSS = readFileSync(new URL('./cinematic-theme.css', import.meta.url));
 const CINEMATIC_THEME_JS = readFileSync(new URL('./cinematic-theme.js', import.meta.url));
-const OCEAN_THEME_CSS = readFileSync(new URL('./developer-ocean.css', import.meta.url));
-const OCEAN_THEME_JS = readFileSync(new URL('./developer-ocean.js', import.meta.url));
+const DEVELOPER_THEME_CSS = readFileSync(new URL('./developer-theme.css', import.meta.url));
+const MERCHANT_REGISTRATION_HTML = readFileSync(new URL('./merchant-registration.html', import.meta.url));
 // ─── API reference guide — one page per TOC section ─────────────────────────
-// docs/usage-guide.html is authored as a single document. It is sliced once at
-// startup into a directory page (/developer/reference) plus one standalone page
-// per TOC section (/developer/reference/<slug>) so each entry opens its own URL
-// in the same tab.
-const REFERENCE_BASE_PATH = '/developer/reference';
-
-function buildReferenceGuide(source) {
-  const at = needle => {
-    const index = source.indexOf(needle);
-    if (index === -1) throw new Error(`usage-guide.html is missing the marker: ${needle}`);
-    return index;
-  };
-
-  const navAt = at('<!-- ═══ NAV ═══ -->');
-  const mainAt = at('<!-- ═══ MAIN ═══ -->');
-  const heroAt = at('<!-- HERO -->');
-  const flightAt = at('<!-- ─── FLIGHT LOG — integration path timeline ─── -->');
-  const tocAt = at('<!-- ─── TABLE OF CONTENTS ─── -->');
-  const firstSectionAt = source.search(/<!-- ─── \d+\./);
-  const footerAt = at('<footer>');
-  if (firstSectionAt === -1) throw new Error('usage-guide.html is missing its numbered sections');
-
-  const prologue = source.slice(0, navAt);
-  const nav = source.slice(navAt, mainAt);
-  const mainOpen = source.slice(mainAt, heroAt);
-  const hero = source.slice(heroAt, flightAt);
-  const flight = source.slice(flightAt, tocAt);
-  const toc = source.slice(tocAt, firstSectionAt);
-  const tail = source.slice(footerAt);
-
-  const sections = new Map();
-  const sectionPattern = /<section id="([a-z0-9-]+)">[\s\S]*?<\/section>/g;
-  for (let match = sectionPattern.exec(source); match; match = sectionPattern.exec(source)) {
-    sections.set(match[1], match[0]);
-  }
-  if (sections.size === 0) throw new Error('usage-guide.html contains no <section id="..."> blocks');
-
-  // Section entries stop being in-page anchors — each one becomes its own URL.
-  const toPageLink = html => html.replace(/href="#([a-z0-9-]+)"/g, (full, slug) =>
-    sections.has(slug) ? `href="${REFERENCE_BASE_PATH}/${slug}"` : full
-  );
-
-  const directory = toPageLink(prologue + nav + mainOpen + hero + flight + toc + tail);
-
-  const pages = new Map();
-  for (const [slug, block] of sections) {
-    const url = `${REFERENCE_BASE_PATH}/${slug}`;
-    const brandClose = nav.indexOf('</div>');
-    const backLink = `<a href="${REFERENCE_BASE_PATH}">← All Sections</a>`;
-    const spacedNav = brandClose === -1
-      ? nav.replace('</nav>', `  ${backLink}\n</nav>`)
-      : `${nav.slice(0, brandClose + 6)}\n  ${backLink}${nav.slice(brandClose + 6)}`;
-    const navForSection = toPageLink(spacedNav)
-      .replace(`<a href="${url}">`, `<a class="active" href="${url}">`);
-    pages.set(slug, prologue + navForSection + mainOpen + block + tail);
-  }
-
-  return { directory, pages };
-}
+// Slicing lives in src/public-site/reference-guide.mjs so the Netlify build and
+// this server emit byte-identical pages.
 
 const REFERENCE_GUIDE = buildReferenceGuide(DEVELOPER_API_REFERENCE_HTML.toString('utf8'));
 
@@ -99,7 +43,8 @@ const hopByHopHeaders = [
 ];
 
 function respond(res, status, contentType, body, headers = {}) {
-  res.writeHead(status, { 'Content-Type': contentType, ...headers });
+  const cache = contentType.startsWith('text/html') ? { 'Cache-Control': 'no-store' } : {};
+  res.writeHead(status, { 'Content-Type': contentType, ...cache, ...headers });
   res.end(body);
 }
 
@@ -134,14 +79,41 @@ function proxyToDashboard(req, res, requestUrl) {
   req.pipe(request);
 }
 
-const server = createServer((req, res) => {
+// Content-Security-Policy is delivered in REPORT-ONLY mode first. The site's
+// pages are built from inline scripts/styles, so an enforcing policy has to be
+// validated against real traffic before it is switched on.
+const CSP_REPORT_ONLY = [
+  "default-src 'self'",
+  "script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com",
+  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+  "font-src 'self' data: https://fonts.gstatic.com",
+  "img-src 'self' data:",
+  "connect-src 'self'",
+  "frame-ancestors 'none'",
+  "base-uri 'self'",
+  "form-action 'self'",
+  "object-src 'none'"
+].join('; ');
+
+function applySecurityHeaders(res) {
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'DENY');
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
-  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=(), usb=()');
+  res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
+  res.setHeader('Cross-Origin-Resource-Policy', 'same-origin');
+  res.setHeader('X-Permitted-Cross-Domain-Policies', 'none');
+  res.setHeader('X-DNS-Prefetch-Control', 'off');
+  res.setHeader('Origin-Agent-Cluster', '?1');
+  res.setHeader('Content-Security-Policy-Report-Only', CSP_REPORT_ONLY);
+  res.removeHeader('X-Powered-By');
   if (process.env.NODE_ENV === 'production') {
-    res.setHeader('Strict-Transport-Security', 'max-age=31536000');
+    res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
   }
+}
+
+const server = createServer((req, res) => {
+  applySecurityHeaders(res);
 
   let requestUrl;
   try {
@@ -152,6 +124,13 @@ const server = createServer((req, res) => {
   }
 
   const path = requestUrl.pathname;
+
+  // Never serve dotfiles (.env, .git, .ssh, …) or directory listings.
+  if (path !== '/' && /(^|\/)\.[^/]/.test(path)) {
+    respond(res, 404, 'text/plain; charset=utf-8', 'Not Found');
+    return;
+  }
+
   if (req.method === 'GET' && path === '/health') {
     respond(res, 200, 'application/json; charset=utf-8', JSON.stringify({
       ok: true,
@@ -161,8 +140,9 @@ const server = createServer((req, res) => {
     return;
   }
 
-  if (path === '/login' || path === '/logout') {
-    const target = new URL(`${path}${requestUrl.search}`, DASHBOARD_ORIGIN);
+  if (path === '/login' || path === '/logout' || path === '/merchant-login') {
+    const targetPath = path === '/logout' ? '/logout' : '/merchant-login';
+    const target = new URL(`${targetPath}${requestUrl.search}`, DASHBOARD_ORIGIN);
     res.writeHead(302, { Location: target.href });
     res.end();
     return;
@@ -192,6 +172,11 @@ const server = createServer((req, res) => {
 
   if (path === '/developer') {
     respond(res, 200, 'text/html; charset=utf-8', req.method === 'HEAD' ? '' : DEVELOPER_PORTAL_HTML);
+    return;
+  }
+
+  if (path === '/merchant-register' || path === '/register') {
+    respond(res, 200, 'text/html; charset=utf-8', req.method === 'HEAD' ? '' : MERCHANT_REGISTRATION_HTML);
     return;
   }
 
@@ -250,15 +235,8 @@ const server = createServer((req, res) => {
     return;
   }
 
-  if (path === '/developer-ocean.css') {
-    respond(res, 200, 'text/css; charset=utf-8', req.method === 'HEAD' ? '' : OCEAN_THEME_CSS, {
-      'Cache-Control': 'no-cache'
-    });
-    return;
-  }
-
-  if (path === '/developer-ocean.js') {
-    respond(res, 200, 'text/javascript; charset=utf-8', req.method === 'HEAD' ? '' : OCEAN_THEME_JS, {
+  if (path === '/developer-theme.css') {
+    respond(res, 200, 'text/css; charset=utf-8', req.method === 'HEAD' ? '' : DEVELOPER_THEME_CSS, {
       'Cache-Control': 'no-cache'
     });
     return;

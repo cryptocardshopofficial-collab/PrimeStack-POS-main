@@ -82,6 +82,8 @@ enum TransferType {
   WALLET
   MERCHANT
   BULK
+  BANK_PAYOUT
+  CRYPTO_PAYOUT
 }
 
 enum TransferStatus {
@@ -92,6 +94,16 @@ enum TransferStatus {
   FAILED
   REVERSED
   PARTIAL
+  REJECTED
+}
+
+// Merchant-initiated transfers are held until an administrator approves them.
+// Transfers created by staff (admin/operator) are NOT_REQUIRED and post immediately.
+enum TransferApprovalStatus {
+  NOT_REQUIRED
+  PENDING
+  APPROVED
+  REJECTED
 }
 
 enum PagAssetType {
@@ -221,6 +233,7 @@ enum UserRole {
   OPERATOR
   REVIEWER
   READONLY
+  MERCHANT
 }
 
 enum KycStatus {
@@ -365,6 +378,7 @@ model Merchant {
   auditLogs       AuditLog[]
   notifications    Notification[]
   s2sConnections   S2sConnection[] @relation("S2sMerchantConnections")
+  portalUser      User?
 
   @@index([status])
   @@index([country])
@@ -568,6 +582,22 @@ model Transfer {
 
   description     String?
   failureReason   String?
+
+  // Approval workflow — merchant-initiated transfers are held here until an
+  // administrator approves (funds move) or rejects (nothing moves) them.
+  approvalStatus      TransferApprovalStatus @default(NOT_REQUIRED)
+  approvalRequestedBy String?
+  approvedBy          String?
+  approvedAt          DateTime?
+  rejectedBy          String?
+  rejectedAt          DateTime?
+  rejectionReason     String?
+
+  // Commission paid to the platform's saved bank account (external payouts only).
+  commissionAmount    Decimal @default(0) @db.Decimal(20, 4)
+  commissionAccountId String?
+  commissionProfileId String?
+
   metadata        Json?
   initiatedAt     DateTime        @default(now())
   processedAt     DateTime?
@@ -578,6 +608,7 @@ model Transfer {
 
   @@index([type])
   @@index([status])
+  @@index([approvalStatus])
   @@index([merchantId])
   @@index([createdAt])
   @@index([sourceType, sourceId])
@@ -1026,10 +1057,14 @@ model HmacNonce {
 }
 
 model T2tIpWhitelist {
-  ip      String   @id
-  note    String?
-  addedAt DateTime @default(now()) @map("added_at") @db.Timestamptz(6)
+  id         String   @id @default(uuid())
+  ip         String
+  note       String?
+  merchantId String?  @map("merchant_id")
+  addedAt    DateTime @default(now()) @map("added_at") @db.Timestamptz(6)
 
+  @@unique([merchantId, ip], map: "T2tIpWhitelist_merchant_ip_key")
+  @@index([ip], map: "T2tIpWhitelist_ip_idx")
   @@index([addedAt(sort: Desc)], map: "T2tIpWhitelist_added_at_idx")
 }
 
@@ -1330,8 +1365,14 @@ model User {
   email       String   @unique
   username    String   @unique
   passwordHash String
+  // Admin-issued numeric PIN required for merchant portal sign-in. Null for
+  // staff accounts, which authenticate with password only.
+  portalPinHash String?
   fullName    String
   role        UserRole  @default(READONLY)
+  merchantId  String?  @unique
+  merchant    Merchant? @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  mustChangePassword Boolean @default(false)
   preferredLang String @default("en")
   isActive    Boolean  @default(true)
   lastLoginAt DateTime?

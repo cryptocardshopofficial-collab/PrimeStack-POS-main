@@ -1,12 +1,14 @@
 import { Prisma, type PrismaClient } from "@prisma/client";
-import { randomUUID } from "crypto";
+import { randomBytes, randomInt, randomUUID } from "crypto";
 import { Decimal } from "../../core/decimal.js";
 import {
   ConflictError,
   NotFoundError,
+  UnauthorizedError,
   ValidationError,
 } from "../../core/errors.js";
 import { logger } from "../../core/logger.js";
+import { hashPassword, verifyPassword } from "../../shared/utils/crypto.js";
 import type {
   CreateMerchantInput,
   UpdateMerchantInput,
@@ -145,6 +147,173 @@ export class MerchantService {
     });
     if (!merchant) throw new NotFoundError("Merchant", code);
     return merchant;
+  }
+
+  async getPortalProfile(merchantId: string) {
+    const merchant = await this.prisma.merchant.findUnique({
+      where: { id: merchantId },
+      select: {
+        id: true,
+        code: true,
+        legalName: true,
+        displayName: true,
+        email: true,
+        phone: true,
+        country: true,
+        status: true,
+        createdAt: true,
+        _count: { select: { terminals: true, transactions: true } },
+      },
+    });
+    if (!merchant) throw new NotFoundError("Merchant", merchantId);
+    return merchant;
+  }
+
+  async createPortalCredentials(
+    merchantId: string,
+    createdBy: string,
+    ipAddress?: string,
+    userAgent?: string,
+  ) {
+    const temporaryPassword = randomBytes(18).toString("base64url");
+    const passwordHash = await hashPassword(temporaryPassword);
+    // Numeric PIN the merchant must enter alongside the password. Issued by the
+    // administrator and rotated whenever credentials are (re)provisioned.
+    const portalPin = String(randomInt(0, 1_000_000)).padStart(6, "0");
+    const portalPinHash = await hashPassword(portalPin);
+
+    const user = await this.prisma.$transaction(async (tx) => {
+      const merchant = await tx.merchant.findUnique({
+        where: { id: merchantId },
+        select: { id: true, legalName: true, email: true },
+      });
+      if (!merchant) throw new NotFoundError("Merchant", merchantId);
+
+      const existing = await tx.user.findUnique({ where: { merchantId } });
+      if (existing && existing.role !== "MERCHANT") {
+        throw new ConflictError("The linked portal account is not a merchant account");
+      }
+
+      const conflictingUser = await tx.user.findFirst({
+        where: {
+          OR: [{ email: merchant.email }, { username: merchant.email }],
+        },
+        select: { id: true },
+      });
+      if (conflictingUser && conflictingUser.id !== existing?.id) {
+        throw new ConflictError(
+          "A user already uses the merchant's email address; resolve that account before provisioning portal access",
+        );
+      }
+
+      const credentials = {
+        email: merchant.email,
+        username: merchant.email,
+        passwordHash,
+        portalPinHash,
+        fullName: merchant.legalName,
+        role: "MERCHANT" as const,
+        merchantId: merchant.id,
+        mustChangePassword: true,
+        isActive: true,
+      };
+      const portalUser = existing
+        ? await tx.user.update({
+            where: { id: existing.id },
+            data: credentials,
+            select: { id: true, email: true, role: true },
+          })
+        : await tx.user.create({
+            data: credentials,
+            select: { id: true, email: true, role: true },
+          });
+
+      await tx.auditLog.create({
+        data: {
+          userId: createdBy,
+          merchantId,
+          action: existing
+            ? "RESET_MERCHANT_PORTAL_CREDENTIALS"
+            : "CREATE_MERCHANT_PORTAL_CREDENTIALS",
+          entity: "User",
+          entityId: portalUser.id,
+          before: existing
+            ? {
+                email: existing.email,
+                role: existing.role,
+                mustChangePassword: existing.mustChangePassword,
+              }
+            : undefined,
+          after: {
+            email: portalUser.email,
+            role: portalUser.role,
+            mustChangePassword: true,
+          },
+          ipAddress,
+          userAgent,
+        },
+      });
+
+      return portalUser;
+    });
+
+    return {
+      userId: user.id,
+      email: user.email,
+      temporaryPassword,
+      portalPin,
+      requirePasswordChange: true,
+    };
+  }
+
+  async changePortalPassword(
+    userId: string,
+    currentPassword: string,
+    newPassword: string,
+    ipAddress?: string,
+    userAgent?: string,
+  ) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user || !user.isActive || user.role !== "MERCHANT" || !user.merchantId) {
+      throw new UnauthorizedError("Merchant portal account is unavailable");
+    }
+    if (!(await verifyPassword(currentPassword, user.passwordHash))) {
+      throw new UnauthorizedError("Current password is incorrect");
+    }
+    if (currentPassword === newPassword) {
+      throw new ValidationError("New password must differ from the current password");
+    }
+
+    const passwordHash = await hashPassword(newPassword);
+    await this.prisma.$transaction(async (tx) => {
+      const changed = await tx.user.updateMany({
+        where: {
+          id: userId,
+          passwordHash: user.passwordHash,
+          isActive: true,
+          role: "MERCHANT",
+        },
+        data: { passwordHash, mustChangePassword: false },
+      });
+      if (changed.count !== 1) {
+        throw new ConflictError("Account credentials changed; sign in and try again");
+      }
+      await tx.auditLog.create({
+        data: {
+          userId,
+          merchantId: user.merchantId,
+          action: "CHANGE_MERCHANT_PORTAL_PASSWORD",
+          entity: "User",
+          entityId: userId,
+          before: { mustChangePassword: user.mustChangePassword },
+          after: { mustChangePassword: false },
+          ipAddress,
+          userAgent,
+        },
+      });
+    });
+
+    return { mustChangePassword: false };
   }
 
   async listMerchants(filters: {

@@ -128,4 +128,60 @@ export function registerAgentRegistrationRoutes(
       return sendSuccess(reply, await service.getPortalProfile(agentId));
     },
   );
+
+  app.get(
+    "/public/agent-portal/dashboard",
+    { preHandler: authenticateAgentPortal },
+    async (request, reply) => {
+      const agentId = (request.user as { agentId: string }).agentId;
+      const { page, pageSize } = parsePagination(
+        request.query as Record<string, unknown>,
+      );
+      reply.header("Cache-Control", "no-store");
+      return sendSuccess(
+        reply,
+        await service.getPortalDashboard(agentId, page, pageSize),
+      );
+    },
+  );
+
+  app.post(
+    "/public/agent-portal/merchants/:id/pause",
+    { preHandler: authenticateAgentPortal },
+    async (request, reply) => {
+      const agentId = (request.user as { agentId: string }).agentId;
+      const { id } = request.params as { id: string };
+      reply.header("Cache-Control", "no-store");
+      return sendSuccess(
+        reply,
+        await service.setAssignedMerchantStatus(
+          agentId,
+          id,
+          "pause",
+          request.ip,
+          request.headers["user-agent"],
+        ),
+      );
+    },
+  );
+
+  app.post(
+    "/public/agent-portal/merchants/:id/resume",
+    { preHandler: authenticateAgentPortal },
+    async (request, reply) => {
+      const agentId = (request.user as { agentId: string }).agentId;
+      const { id } = request.params as { id: string };
+      reply.header("Cache-Control", "no-store");
+      return sendSuccess(
+        reply,
+        await service.setAssignedMerchantStatus(
+          agentId,
+          id,
+          "resume",
+          request.ip,
+          request.headers["user-agent"],
+        ),
+      );
+    },
+  );
 }

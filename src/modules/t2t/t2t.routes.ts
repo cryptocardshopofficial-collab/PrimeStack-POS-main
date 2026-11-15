@@ -70,12 +70,74 @@ type T2tTransferResult =
       jeRef: string;
     };
 
-async function isAllowed(ip: string): Promise<boolean> {
-  const rows: { allowed: boolean }[] = await prisma.$queryRawUnsafe(
-    `SELECT EXISTS (SELECT 1 FROM "T2tIpWhitelist" WHERE ip = $1) AS allowed`,
-    ip,
-  );
+async function isAllowed(
+  ip: string,
+  merchantId?: string | null,
+): Promise<boolean> {
+  // A merchant may be reached from an IP on the global (administrator) list or
+  // on its own list. Without a merchant context only the global list applies.
+  const rows: { allowed: boolean }[] = merchantId
+    ? await prisma.$queryRawUnsafe(
+        `SELECT EXISTS (
+           SELECT 1 FROM "T2tIpWhitelist"
+           WHERE ip = $1 AND (merchant_id IS NULL OR merchant_id = $2)
+         ) AS allowed`,
+        ip,
+        merchantId,
+      )
+    : await prisma.$queryRawUnsafe(
+        `SELECT EXISTS (
+           SELECT 1 FROM "T2tIpWhitelist"
+           WHERE ip = $1 AND merchant_id IS NULL
+         ) AS allowed`,
+        ip,
+      );
   return rows[0]?.allowed === true;
+}
+
+type WhitelistScope =
+  | { kind: "global"; merchantId: null }
+  | { kind: "merchant"; merchantId: string };
+
+const GLOBAL_WHITELIST_ROLES = ["SUPER_ADMIN", "ADMIN"];
+const READ_WHITELIST_ROLES = ["SUPER_ADMIN", "ADMIN", "OPERATOR"];
+
+// Resolves the whitelist the caller is allowed to manage. Administrators work on
+// the shared global list; merchants work only on their own entries.
+function writableWhitelistScope(
+  user: { role?: string; merchantId?: string | null } | undefined,
+): WhitelistScope {
+  const role = user?.role;
+  if (role && GLOBAL_WHITELIST_ROLES.includes(role)) {
+    return { kind: "global", merchantId: null };
+  }
+  if (role === "MERCHANT") {
+    if (!user?.merchantId) {
+      throw new ForbiddenError("Merchant context is required to manage T2T IP whitelists");
+    }
+    return { kind: "merchant", merchantId: user.merchantId };
+  }
+  throw new ForbiddenError(
+    "Only administrators or merchants can manage T2T IP whitelists",
+  );
+}
+
+// Read/ping scope: administrators and operators see the global list, merchants
+// see their own.
+function readableWhitelistScope(
+  user: { role?: string; merchantId?: string | null } | undefined,
+): WhitelistScope {
+  const role = user?.role;
+  if (role && READ_WHITELIST_ROLES.includes(role)) {
+    return { kind: "global", merchantId: null };
+  }
+  if (role === "MERCHANT") {
+    if (!user?.merchantId) {
+      throw new ForbiddenError("Merchant context is required to view T2T IP whitelists");
+    }
+    return { kind: "merchant", merchantId: user.merchantId };
+  }
+  throw new ForbiddenError("Your role cannot view T2T IP whitelists");
 }
 
 type PingResult = {
@@ -161,14 +223,16 @@ export function registerT2tRoutes(app: FastifyInstance): void {
       preHandler: app.authenticate,
     },
     async (req: FastifyRequest, reply: FastifyReply) => {
-      const user = req.user as { id?: string; role?: string } | undefined;
+      const user = req.user as
+        | { id?: string; role?: string; merchantId?: string | null }
+        | undefined;
       const userId = user?.id;
-      const role = user?.role;
-      if (!userId || !role || !["SUPER_ADMIN", "ADMIN"].includes(role)) {
+      if (!userId) {
         throw new ForbiddenError(
-          "Only administrators can manage T2T IP whitelists",
+          "Only administrators or merchants can manage T2T IP whitelists",
         );
       }
+      const scope = writableWhitelistScope(user);
       const parsedBody = t2tWhitelistSchema.safeParse(req.body);
       if (!parsedBody.success) {
         throw new ValidationError("Invalid T2T IP whitelist data", {
@@ -183,17 +247,20 @@ export function registerT2tRoutes(app: FastifyInstance): void {
         );
       }
       await prisma.$transaction(async (tx) => {
-        if (b.action === "remove") {
-          await tx.$executeRaw`DELETE FROM "T2tIpWhitelist" WHERE ip = ${ip}`;
-        } else {
+        // Idempotent add/remove: clear the caller's own row for this IP first so
+        // the unique (merchant_id, ip) pair is never violated.
+        await tx.$executeRaw`
+          DELETE FROM "T2tIpWhitelist"
+          WHERE ip = ${ip} AND merchant_id IS NOT DISTINCT FROM ${scope.merchantId}`;
+        if (b.action !== "remove") {
           await tx.$executeRaw`
-          INSERT INTO "T2tIpWhitelist" (ip, note)
-          VALUES (${ip}, ${b.note || null})
-          ON CONFLICT (ip) DO UPDATE SET note = EXCLUDED.note`;
+          INSERT INTO "T2tIpWhitelist" (id, ip, note, merchant_id)
+          VALUES (${randomUUID()}, ${ip}, ${b.note || null}, ${scope.merchantId})`;
         }
         await tx.auditLog.create({
           data: {
             userId,
+            merchantId: scope.merchantId ?? undefined,
             action:
               b.action === "remove"
                 ? "T2T_IP_WHITELIST_REMOVED"
@@ -201,13 +268,21 @@ export function registerT2tRoutes(app: FastifyInstance): void {
             entity: "T2tIpWhitelist",
             entityId: ip,
             ipAddress: req.ip,
-            after: { ip, note: b.action === "add" ? (b.note ?? null) : null },
+            after: {
+              ip,
+              note: b.action === "add" ? (b.note ?? null) : null,
+              merchantId: scope.merchantId,
+            },
           },
         });
       });
-      logger.info({ ip, action: b.action, userId }, "T2T IP whitelist updated");
+      logger.info(
+        { ip, action: b.action, userId, scope: scope.kind },
+        "T2T IP whitelist updated",
+      );
       return sendSuccess(reply, {
         ip,
+        scope: scope.kind,
         action: b.action === "remove" ? "removed" : "added",
         message:
           b.action === "remove"
@@ -223,15 +298,26 @@ export function registerT2tRoutes(app: FastifyInstance): void {
       preHandler: app.authenticate,
     },
     async (req: FastifyRequest, reply: FastifyReply) => {
-      const role = (req.user as { role?: string } | undefined)?.role;
-      if (!role || !["SUPER_ADMIN", "ADMIN", "OPERATOR"].includes(role)) {
-        throw new ForbiddenError("Your role cannot view T2T IP whitelists");
-      }
-      const rows: { ip: string; note: string | null; added_at: Date }[] =
-        await prisma.$queryRawUnsafe(
-          `SELECT ip, note, added_at FROM "T2tIpWhitelist" ORDER BY added_at DESC`,
-        );
-      return sendSuccess(reply, { whitelistedIps: rows, count: rows.length });
+      // Administrators/operators read the global list; merchants read their own.
+      const scope = readableWhitelistScope(
+        req.user as { role?: string; merchantId?: string | null } | undefined,
+      );
+      const rows: {
+        ip: string;
+        note: string | null;
+        merchant_id: string | null;
+        added_at: Date;
+      }[] = await prisma.$queryRawUnsafe(
+        `SELECT ip, note, merchant_id, added_at FROM "T2tIpWhitelist"
+         WHERE merchant_id IS NOT DISTINCT FROM $1::text
+         ORDER BY added_at DESC`,
+        scope.merchantId,
+      );
+      return sendSuccess(reply, {
+        whitelistedIps: rows,
+        scope: scope.kind,
+        count: rows.length,
+      });
     },
   );
 
@@ -242,10 +328,9 @@ export function registerT2tRoutes(app: FastifyInstance): void {
       preHandler: app.authenticate,
     },
     async (req: FastifyRequest, reply: FastifyReply) => {
-      const role = (req.user as { role?: string } | undefined)?.role;
-      if (!role || !["SUPER_ADMIN", "ADMIN", "OPERATOR"].includes(role)) {
-        throw new ForbiddenError("Your role cannot ping T2T sender IPs");
-      }
+      const scope = readableWhitelistScope(
+        req.user as { role?: string; merchantId?: string | null } | undefined,
+      );
       const parsed = t2tPingSchema.safeParse(req.body ?? {});
       if (!parsed.success) {
         throw new ValidationError("Invalid ping request", {
@@ -259,13 +344,18 @@ export function registerT2tRoutes(app: FastifyInstance): void {
       if (parsed.data.ip) {
         const ip = normalizeIp(parsed.data.ip);
         targets = await prisma.$queryRawUnsafe(
-          `SELECT ip, note FROM "T2tIpWhitelist" WHERE ip = $1 LIMIT 1`,
+          `SELECT ip, note FROM "T2tIpWhitelist"
+           WHERE ip = $1 AND merchant_id IS NOT DISTINCT FROM $2::text LIMIT 1`,
           ip,
+          scope.merchantId,
         );
         if (!targets.length) throw new NotFoundError("Sender IP", ip);
       } else {
         targets = await prisma.$queryRawUnsafe(
-          `SELECT ip, note FROM "T2tIpWhitelist" ORDER BY added_at DESC`,
+          `SELECT ip, note FROM "T2tIpWhitelist"
+           WHERE merchant_id IS NOT DISTINCT FROM $1::text
+           ORDER BY added_at DESC`,
+          scope.merchantId,
         );
       }
 
@@ -305,7 +395,7 @@ export function registerT2tRoutes(app: FastifyInstance): void {
   app.post("/t2t/ping", async (req: FastifyRequest, reply: FastifyReply) => {
     const b = req.body as { terminalId?: string };
     const ip = normalizeIp(req.ip);
-    const ok = await isAllowed(ip);
+    const ok = await isAllowed(ip, req.merchant?.id);
     if (!ok) {
       return sendSuccess(reply, {
         reachable: false,
@@ -342,7 +432,7 @@ export function registerT2tRoutes(app: FastifyInstance): void {
         typeof req.headers["user-agent"] === "string"
           ? req.headers["user-agent"]
           : undefined;
-      const ok = await isAllowed(ip);
+      const ok = await isAllowed(ip, req.merchant?.id);
       if (!ok)
         throw new ForbiddenError(
           `IP ${ip} not whitelisted. Call POST /t2t/whitelist first.`,

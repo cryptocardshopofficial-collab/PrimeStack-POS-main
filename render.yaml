@@ -36,7 +36,10 @@ services:
           name: primestack-postgres
           property: connectionString
       - key: REDIS_URL
-        sync: false
+        fromService:
+          type: keyvalue
+          name: primestack-redis
+          property: connectionString
       # Set the exact browser origins allowed by the API in production.
       - key: CORS_ORIGINS
         sync: false
@@ -132,6 +135,15 @@ services:
     staticPublishPath: ./docs
     buildCommand: echo done
     pullRequestPreviewsEnabled: false
+
+  # Managed Key Value (Redis-compatible) — backs rate limiting, caching and queues.
+  # Internal-only (empty ipAllowList): reachable from services in the same region.
+  - type: keyvalue
+    name: primestack-redis
+    plan: free
+    region: oregon
+    maxmemoryPolicy: allkeys-lru
+    ipAllowList: []
 
 databases:
   - name: primestack-postgres

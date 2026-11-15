@@ -2,6 +2,7 @@ import { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 import { NetworkService } from "./network.service.js";
 import { sendSuccess, sendCreated, sendPaginated, parsePagination } from "../../shared/utils/response.js";
 import { ForbiddenError, UnauthorizedError, ValidationError } from "../../core/errors.js";
+import { isIpWhitelisted } from "../../plugins/ip-whitelist.js";
 
 /**
  * Network REST routes — IP whitelist, HMAC keys, API keys, certificates.
@@ -59,6 +60,26 @@ export function registerNetworkRoutes(
         expiresAt: body.expiresAt ? new Date(body.expiresAt) : undefined,
       });
       return sendCreated(reply, entry);
+    },
+  );
+
+  app.post(
+    "/network/ip-whitelist/check",
+    { preHandler: authenticateNetworkAdmin },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const body = request.body as { ip?: string };
+      if (!body?.ip) throw new ValidationError("ip is required");
+      const whitelisted = await isIpWhitelisted(body.ip);
+      return sendSuccess(reply, { ip: body.ip, whitelisted });
+    },
+  );
+
+  app.post(
+    "/network/ip-whitelist/purge",
+    { preHandler: authenticateNetworkAdmin },
+    async (_request: FastifyRequest, reply: FastifyReply) => {
+      const result = await networkService.purgeExpiredIps();
+      return sendSuccess(reply, result);
     },
   );
 

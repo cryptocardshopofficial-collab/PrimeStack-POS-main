@@ -1,0 +1,274 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Merchant Dashboard | PrimeStack</title>
+  <style>
+    :root{font:15px/1.5 Inter,system-ui,sans-serif;color:#14243a;background:#eef3f8}
+    *{box-sizing:border-box}
+    body{margin:0;min-height:100vh}
+    button,input,select{font:inherit}
+    button{min-height:40px;padding:0 14px;border:1px solid #005ea2;border-radius:7px;background:#005ea2;color:#fff;font-weight:650;cursor:pointer}
+    button:disabled{opacity:.55;cursor:wait}
+    .shell{min-height:100vh;display:grid;grid-template-columns:250px 1fr}
+    aside{padding:26px 18px;background:#102b49;color:#fff}
+    .brand{font-weight:750;font-size:1.04rem}.brand small{display:block;color:#c1d5e8;font-size:.76rem;font-weight:500}
+    nav{display:grid;gap:8px;margin-top:32px}
+    nav button{border:0;background:transparent;text-align:left;color:#c5d5e6}
+    nav button.active,nav button:hover{background:#1b4268;color:#fff}
+    .main{width:min(1200px,100%);padding:30px}
+    header{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:24px}
+    h1{margin:0;font-size:1.7rem}h2{font-size:1.05rem;margin:0 0 16px}
+    .sub{margin:5px 0;color:#526174}
+    .grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin:18px 0}
+    .card{padding:20px;background:#fff;border:1px solid #d5e0e9;border-radius:10px;box-shadow:0 2px 6px #163c5a0a}
+    .metric span{display:block;color:#526174;font-size:.82rem}.metric strong{display:block;margin-top:8px;font-size:1.35rem}
+    .toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+    select,input{height:42px;padding:0 10px;border:1px solid #b9c9d8;border-radius:7px;background:#fff;color:#14243a}
+    .table-wrap{overflow:auto}table{width:100%;border-collapse:collapse;min-width:650px}
+    th,td{padding:11px 9px;border-bottom:1px solid #e1e8ef;text-align:left;font-size:.84rem}
+    th{color:#526174;font-weight:650}
+    .tag{display:inline-block;padding:3px 9px;border-radius:20px;background:#e8f2f9;color:#17496c;font-size:.76rem}
+    .muted{color:#647487}.error{color:#b42318;min-height:1.4em}
+    .panel[hidden],.login[hidden],.dashboard[hidden]{display:none}
+    .password-card{width:min(540px,100%);margin:8vh auto}
+    label{display:grid;gap:6px;margin:14px 0;font-size:.86rem}
+    .status{color:#176b3a}
+    @media(max-width:800px){.shell{grid-template-columns:1fr}aside{padding:15px 20px}nav{display:flex;flex-wrap:wrap;margin-top:14px}.main{padding:20px}.grid{grid-template-columns:1fr 1fr}}
+    @media(max-width:520px){header{display:block}.grid{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+  <section class="login card password-card" id="password-panel" hidden>
+    <h1>Set your new password</h1>
+    <p class="sub">Your administrator-issued temporary password must be changed before accessing merchant data.</p>
+    <form id="password-form">
+      <label>Temporary/current password<input name="currentPassword" type="password" autocomplete="current-password" required></label>
+      <label>New password (at least 12 characters)<input name="newPassword" type="password" minlength="12" autocomplete="new-password" required></label>
+      <label>Confirm new password<input name="confirmPassword" type="password" minlength="12" autocomplete="new-password" required></label>
+      <button type="submit" id="password-submit">Update password</button>
+    </form>
+    <p class="error" id="password-error" role="alert"></p>
+  </section>
+
+  <div class="shell dashboard" id="merchant-dashboard" hidden>
+    <aside>
+      <div class="brand">PrimeStack <small>Merchant Workspace</small></div>
+      <nav aria-label="Merchant dashboard">
+        <button type="button" class="active" data-panel="overview">Overview</button>
+        <button type="button" data-panel="transactions">Transactions</button>
+        <button type="button" data-panel="terminals">Terminals</button>
+      </nav>
+    </aside>
+    <main class="main">
+      <header>
+        <div><h1>Merchant Dashboard</h1><p class="sub" id="merchant-subtitle">Loading account…</p></div>
+        <div class="toolbar">
+          <label id="merchant-picker-wrap" hidden>Merchant account
+            <select id="merchant-picker"></select>
+          </label>
+          <button type="button" onclick="location.href='/logout'">Sign out</button>
+        </div>
+      </header>
+      <p class="error" id="merchant-error" role="alert"></p>
+      <section class="panel" id="panel-overview">
+        <div class="grid">
+          <div class="card metric"><span>Account status</span><strong id="merchant-status">—</strong></div>
+          <div class="card metric"><span>Transactions</span><strong id="merchant-transactions-total">—</strong></div>
+          <div class="card metric"><span>Terminals</span><strong id="merchant-terminals-total">—</strong></div>
+        </div>
+        <div class="card">
+          <h2>Business profile</h2>
+          <div id="merchant-profile" class="muted">Loading…</div>
+        </div>
+      </section>
+      <section class="panel" id="panel-transactions" hidden>
+        <div class="card">
+          <div class="toolbar"><h2>Recent transactions</h2><button type="button" id="refresh-transactions">Refresh</button></div>
+          <div class="table-wrap"><table><thead><tr><th>Date</th><th>STAN / RRN</th><th>Type</th><th>Amount</th><th>Status</th></tr></thead>
+            <tbody id="merchant-transaction-rows"><tr><td colspan="5" class="muted">Loading…</td></tr></tbody>
+          </table></div>
+        </div>
+      </section>
+      <section class="panel" id="panel-terminals" hidden>
+        <div class="card">
+          <div class="toolbar"><h2>Registered terminals</h2><button type="button" id="refresh-terminals">Refresh</button></div>
+          <div class="table-wrap"><table><thead><tr><th>Terminal ID</th><th>Serial</th><th>Status</th><th>Health</th><th>Location</th></tr></thead>
+            <tbody id="merchant-terminal-rows"><tr><td colspan="5" class="muted">Loading…</td></tr></tbody>
+          </table></div>
+        </div>
+      </section>
+    </main>
+  </div>
+  <script>
+  (() => {
+    let user;
+    let merchants = [];
+    let selectedMerchantId;
+    const error = document.getElementById("merchant-error");
+
+    function escapeHtml(value) {
+      return String(value ?? "").replace(/[&<>"']/g, (character) => ({
+        "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+      })[character]);
+    }
+
+    async function request(path, options = {}) {
+      const response = await fetch("/api/merchant-portal" + path, {
+        ...options,
+        headers: {
+          Accept: "application/json",
+          ...(options.body ? { "Content-Type": "application/json" } : {}),
+          ...options.headers
+        },
+        cache: "no-store"
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok || payload.success !== true) {
+        throw new Error(payload.error?.message || payload.message || "Merchant request failed.");
+      }
+      return payload;
+    }
+
+    function currentMerchant() {
+      return merchants.find((merchant) => merchant.id === selectedMerchantId);
+    }
+
+    async function loadTransactions() {
+      const payload = await request(`/merchants/${encodeURIComponent(selectedMerchantId)}/transactions?page=1&pageSize=50`);
+      const rows = payload.data || [];
+      document.getElementById("merchant-transactions-total").textContent = payload.meta?.total ?? rows.length;
+      document.getElementById("merchant-transaction-rows").innerHTML = rows.length
+        ? rows.map((transaction) => `<tr>
+            <td>${escapeHtml(new Date(transaction.createdAt).toLocaleString())}</td>
+            <td><code>${escapeHtml(transaction.stan)}${transaction.rrn ? ` / ${escapeHtml(transaction.rrn)}` : ""}</code></td>
+            <td>${escapeHtml(transaction.type)}</td>
+            <td>${escapeHtml(transaction.amount)} ${escapeHtml(transaction.currency)}</td>
+            <td><span class="tag">${escapeHtml(transaction.status)}</span></td>
+          </tr>`).join("")
+        : '<tr><td colspan="5" class="muted">No transactions found.</td></tr>';
+    }
+
+    async function loadTerminals() {
+      const payload = await request(`/merchants/${encodeURIComponent(selectedMerchantId)}/terminals`);
+      const terminals = payload.data || [];
+      document.getElementById("merchant-terminals-total").textContent = terminals.length;
+      document.getElementById("merchant-terminal-rows").innerHTML = terminals.length
+        ? terminals.map((terminal) => `<tr>
+            <td><code>${escapeHtml(terminal.tid || terminal.id)}</code></td>
+            <td>${escapeHtml(terminal.serialNumber)}</td>
+            <td>${escapeHtml(terminal.status)}</td>
+            <td>${escapeHtml(terminal.health?.status || terminal.healthStatus || "—")}</td>
+            <td>${escapeHtml(terminal.location || terminal.city || "—")}</td>
+          </tr>`).join("")
+        : '<tr><td colspan="5" class="muted">No terminals registered.</td></tr>';
+    }
+
+    async function loadMerchant() {
+      if (!selectedMerchantId) return;
+      error.textContent = "";
+      try {
+        const payload = await request(`/merchants/${encodeURIComponent(selectedMerchantId)}`);
+        const merchant = payload.data;
+        document.getElementById("merchant-subtitle").textContent =
+          `${merchant.displayName || merchant.legalName} · ${merchant.code}`;
+        document.getElementById("merchant-status").textContent = merchant.status;
+        document.getElementById("merchant-profile").innerHTML =
+          `<dl><dt>Legal name</dt><dd>${escapeHtml(merchant.legalName)}</dd>
+          <dt>Display name</dt><dd>${escapeHtml(merchant.displayName || "—")}</dd>
+          <dt>Email</dt><dd>${escapeHtml(merchant.email)}</dd>
+          <dt>Phone</dt><dd>${escapeHtml(merchant.phone || "—")}</dd>
+          <dt>Country</dt><dd>${escapeHtml(merchant.country)}</dd>
+          <dt>Account status</dt><dd class="status">${escapeHtml(merchant.status)}</dd></dl>`;
+        await Promise.all([loadTransactions(), loadTerminals()]);
+      } catch (cause) {
+        error.textContent = cause instanceof Error ? cause.message : "Unable to load merchant account.";
+      }
+    }
+
+    function showDashboard() {
+      document.getElementById("password-panel").hidden = true;
+      document.getElementById("merchant-dashboard").hidden = false;
+    }
+
+    async function initialize() {
+      const me = await request("/me");
+      user = me.data;
+      if (user.mustChangePassword) {
+        document.getElementById("password-panel").hidden = false;
+        return;
+      }
+      const list = await request("/merchants");
+      merchants = list.data || [];
+      if (user.role === "MERCHANT") {
+        selectedMerchantId = user.merchantId;
+      } else {
+        document.getElementById("merchant-picker-wrap").hidden = false;
+        const picker = document.getElementById("merchant-picker");
+        picker.replaceChildren(...merchants.map((merchant) => {
+          const option = document.createElement("option");
+          option.value = merchant.id;
+          option.textContent = `${merchant.displayName || merchant.legalName} (${merchant.code})`;
+          return option;
+        }));
+        selectedMerchantId = picker.value;
+        picker.addEventListener("change", () => {
+          selectedMerchantId = picker.value;
+          loadMerchant();
+        });
+      }
+      if (!selectedMerchantId) throw new Error("No merchant account is linked to this login.");
+      showDashboard();
+      await loadMerchant();
+    }
+
+    document.getElementById("password-form").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const form = event.currentTarget;
+      const values = Object.fromEntries(new FormData(form));
+      const passwordError = document.getElementById("password-error");
+      const button = document.getElementById("password-submit");
+      passwordError.textContent = "";
+      if (values.newPassword !== values.confirmPassword) {
+        passwordError.textContent = "The new passwords do not match.";
+        return;
+      }
+      button.disabled = true;
+      try {
+        await request("/change-password", {
+          method: "POST",
+          body: JSON.stringify({
+            currentPassword: values.currentPassword,
+            newPassword: values.newPassword
+          })
+        });
+        form.reset();
+        await initialize();
+      } catch (cause) {
+        passwordError.textContent = cause instanceof Error ? cause.message : "Password update failed.";
+      } finally {
+        button.disabled = false;
+      }
+    });
+
+    document.querySelectorAll("nav button[data-panel]").forEach((button) => {
+      button.addEventListener("click", () => {
+        document.querySelectorAll("nav button[data-panel]").forEach((item) => item.classList.toggle("active", item === button));
+        document.querySelectorAll(".panel[id^='panel-']").forEach((panel) => {
+          panel.hidden = panel.id !== `panel-${button.dataset.panel}`;
+        });
+      });
+    });
+    document.getElementById("refresh-transactions").addEventListener("click", () => loadTransactions().catch((cause) => { error.textContent = cause.message; }));
+    document.getElementById("refresh-terminals").addEventListener("click", () => loadTerminals().catch((cause) => { error.textContent = cause.message; }));
+
+    initialize().catch((cause) => {
+      error.textContent = cause instanceof Error ? cause.message : "Unable to load merchant dashboard.";
+      document.getElementById("merchant-dashboard").hidden = false;
+    });
+  })();
+  </script>
+</body>
+</html>

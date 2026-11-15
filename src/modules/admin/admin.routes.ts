@@ -18,7 +18,9 @@ export function registerAdminRoutes(
 ): void {
   const assertSuperAdmin = (request: FastifyRequest) => {
     const role = (request.user as { role?: string } | undefined)?.role;
-    if (role !== "SUPER_ADMIN") throw new ForbiddenError("Only SUPER_ADMIN can manage admin users");
+    if (!["SUPER_ADMIN", "ADMIN"].includes(role ?? "")) {
+      throw new ForbiddenError("Only administrators can manage admin users");
+    }
   };
   const assertKycReviewer = (request: FastifyRequest) => {
     const role = (request.user as { role?: string } | undefined)?.role;
@@ -38,7 +40,12 @@ export function registerAdminRoutes(
         throw new ValidationError("Invalid login data", { errors: parsed.error.errors });
       }
 
-      const result = await adminService.login(parsed.data.email, parsed.data.password, reply as never);
+      const result = await adminService.login(
+        parsed.data.email,
+        parsed.data.password,
+        reply as never,
+        parsed.data.pin,
+      );
       return sendSuccess(reply, result);
     },
   );
