@@ -41,18 +41,40 @@ function encryptionKey(): Buffer {
   return key;
 }
 
-export function encryptBankAccountDetails(details: BankAccountDetails): string {
+/**
+ * Encrypt any JSON payload with the same AES-256-GCM envelope format. Used for
+ * caller-defined shapes (for example a merchant's own saved bank account) that
+ * do not carry the full corporate account field set.
+ */
+export function encryptVaultPayload(payload: object): string {
   const iv = randomBytes(12);
   const cipher = createCipheriv("aes-256-gcm", encryptionKey(), iv);
   const ciphertext = Buffer.concat([
-    cipher.update(JSON.stringify(details), "utf8"),
+    cipher.update(JSON.stringify(payload), "utf8"),
     cipher.final(),
   ]);
   const tag = cipher.getAuthTag();
   return ["v1", iv.toString("base64url"), tag.toString("base64url"), ciphertext.toString("base64url")].join(".");
 }
 
-export function decryptBankAccountDetails(envelope: string): BankAccountDetails {
+export function encryptBankAccountDetails(details: BankAccountDetails): string {
+  return encryptVaultPayload(details);
+}
+
+/** Last four digits of an account number, for masked display. */
+export function maskAccountNumber(accountNumber: string): string {
+  const digits = accountNumber.replace(/\s+/g, "");
+  if (digits.length <= 4) return "*".repeat(Math.max(digits.length, 0));
+  return `••••${digits.slice(-4)}`;
+}
+
+export function lastFour(accountNumber: string): string {
+  const digits = accountNumber.replace(/\s+/g, "");
+  return digits.slice(-4);
+}
+
+/** Decrypt any envelope produced by {@link encryptVaultPayload}. */
+export function decryptVaultPayload(envelope: string): unknown {
   const [version, encodedIv, encodedTag, encodedCiphertext, extra] = envelope.split(".");
   if (version !== "v1" || !encodedIv || !encodedTag || !encodedCiphertext || extra !== undefined) {
     throw new AppError("Stored bank details cannot be decrypted", 500, "BANK_DETAILS_DECRYPTION_FAILED");
@@ -65,11 +87,17 @@ export function decryptBankAccountDetails(envelope: string): BankAccountDetails 
       decipher.update(Buffer.from(encodedCiphertext, "base64url")),
       decipher.final(),
     ]).toString("utf8");
-    const details: unknown = JSON.parse(plaintext);
-    if (!isBankAccountDetails(details)) throw new Error("Invalid bank details payload");
-    return details;
+    return JSON.parse(plaintext);
   } catch (error) {
     if (error instanceof AppError) throw error;
     throw new AppError("Stored bank details cannot be decrypted", 500, "BANK_DETAILS_DECRYPTION_FAILED");
   }
+}
+
+export function decryptBankAccountDetails(envelope: string): BankAccountDetails {
+  const details = decryptVaultPayload(envelope);
+  if (!isBankAccountDetails(details)) {
+    throw new AppError("Stored bank details cannot be decrypted", 500, "BANK_DETAILS_DECRYPTION_FAILED");
+  }
+  return details;
 }

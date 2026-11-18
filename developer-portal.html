@@ -1045,6 +1045,8 @@ footer p{color:var(--fl-dim);font-size:11px;letter-spacing:.16em;text-transform:
     <a href="#services">Services</a>
     <a href="#credentials">Authentication</a>
     <a href="#t2t">T2T Example</a>
+    <a href="/developer/funds">Funds Guide</a>
+    <a href="/developer/reference">API Reference</a>
   </div>
   <button class="nav-ping" onclick="startSmoothScroll(document.getElementById('ping').offsetTop - 84)" aria-label="Open ping status">Ping</button>
   <div class="developer-language-picker" aria-label="Page language">
@@ -1247,6 +1249,7 @@ footer p{color:var(--fl-dim);font-size:11px;letter-spacing:.16em;text-transform:
     <h2 class="section-title">Register Your Sending Terminal</h2>
     <p class="section-sub">Submit your business and terminal connection details for review. Requests are accepted only from approved agents; submission does not activate a terminal, create credentials, or enable transfers.</p>
   </div>
+  <div class="guide-reference reveal" role="note"><strong>Which IP should you provide?</strong> Enter the fixed public egress IP of the server that will send requests to PrimeStack. Do not enter localhost, a private LAN address, or a partner's IP. If a partner sends requests to your system instead, your system must allowlist the partner's source IP. Local and hosted environments can use different outbound IPs; confirm the correct address with your network or hosting provider before sharing it.</div>
 
   <div class="onboarding-grid">
     <div class="onboarding-card reveal d1">
@@ -1325,46 +1328,74 @@ footer p{color:var(--fl-dim);font-size:11px;letter-spacing:.16em;text-transform:
 <!-- CREDENTIALS -->
 <section id="credentials">
   <div class="reveal">
-    <div class="section-badge">Platform Credentials</div>
+    <div class="section-badge">Platform Connection Details</div>
     <h2 class="section-title">Connect to Your Environment</h2>
-    <p class="section-sub">API URLs, merchant key IDs, terminal IDs, and enabled currencies are environment-specific. Obtain them through the approved onboarding channel; do not use shared credentials copied from a public page.</p>
+    <p class="section-sub">The host, terminal identity, receiving account, and the IP and routes a sender needs to ping the platform and pass the IP whitelist. The merchant HMAC secret is never published here — it is delivered out-of-band.</p>
   </div>
   <div class="cred-grid">
     <div class="cred-card reveal d1">
       <div class="cred-label">API Base URL</div>
-      <div class="cred-value">Issued for your deployment</div>
+      <div class="cred-value">https://primestack-switch.onrender.com</div>
     </div>
     <div class="cred-card reveal d2">
-      <div class="cred-label">Merchant Key ID</div>
-      <div class="cred-value">Issued to an approved merchant</div>
+      <div class="cred-label">Platform Public IP</div>
+      <div class="cred-value">86.98.159.209</div>
     </div>
     <div class="cred-card reveal d3">
-      <div class="cred-label">HMAC Secret</div>
-      <div class="cred-value">Keep private; store in a server-side secret manager</div>
+      <div class="cred-label">Terminal ID (MID)</div>
+      <div class="cred-value">100000000036000</div>
     </div>
     <div class="cred-card reveal d4">
-      <div class="cred-label">Terminal IDs</div>
-      <div class="cred-value">Must be provisioned and active for your merchant</div>
+      <div class="cred-label">Merchant ID</div>
+      <div class="cred-value">493837949996</div>
     </div>
     <div class="cred-card reveal d1">
-      <div class="cred-label">Step 1 — Request Access</div>
-      <div class="cred-value">An administrator reviews the sender and allowlists its specific egress IP</div>
+      <div class="cred-label">Account Holder</div>
+      <div class="cred-value">M/S. UNITED SOLAR AND WIND POWER TECHNOLOGIES</div>
     </div>
     <div class="cred-card reveal d2">
-      <div class="cred-label">Step 2 — Verify Connection</div>
-      <div class="cred-value">POST /t2t/ping with valid HMAC headers and a fresh nonce</div>
+      <div class="cred-label">Receiving Account Number</div>
+      <div class="cred-value">029905003783</div>
     </div>
     <div class="cred-card reveal d3">
-      <div class="cred-label">Step 3 — Submit Transfer</div>
-      <div class="cred-value">POST /t2t/transfer with active merchant-owned terminals and an idempotency key</div>
+      <div class="cred-label">Receiving VPA</div>
+      <div class="cred-value">MSUNITEDSOLARANDWINDPOWERTECHNOLOGIES.eazypay1@icici</div>
     </div>
     <div class="cred-card reveal d4">
+      <div class="cred-label">Settlement Currency</div>
+      <div class="cred-value">USD</div>
+    </div>
+    <div class="cred-card reveal d1">
+      <div class="cred-label">Sender Egress IP</div>
+      <div class="cred-value">Send your fixed public IPv4/IPv6 so operations can allowlist it with POST /t2t/whitelist</div>
+    </div>
+    <div class="cred-card reveal d2">
+      <div class="cred-label">HMAC Secret</div>
+      <div class="cred-value">Keep private; delivered out-of-band — never published or embedded in browser code</div>
+    </div>
+    <div class="cred-card reveal d3">
+      <div class="cred-label">Whitelist a Sender IP</div>
+      <div class="cred-value">POST /t2t/whitelist with the sender IP, action add, and an optional callbackUrl</div>
+    </div>
+    <div class="cred-card reveal d4">
+      <div class="cred-label">Ping the Platform</div>
+      <div class="cred-value">POST /t2t/ping returns reachable and whitelisted for the calling IP</div>
+    </div>
+    <div class="cred-card reveal d1">
+      <div class="cred-label">Review the Whitelist</div>
+      <div class="cred-value">GET /t2t/whitelist lists entries; POST /t2t/whitelist/ping reprobes TCP 443/80</div>
+    </div>
+    <div class="cred-card reveal d2">
+      <div class="cred-label">Step — Submit Transfer</div>
+      <div class="cred-value">POST /t2t/transfer with active merchant-owned terminals and an idempotency key</div>
+    </div>
+    <div class="cred-card reveal d3">
       <div class="cred-label">Health Check</div>
       <div class="cred-value">GET /health checks service health; it does not authorize or settle a transfer</div>
     </div>
   </div>
   <div style="margin-top:16px;padding:16px 20px;background:rgba(245,158,11,.06);border:1px solid rgba(245,158,11,.2);border-radius:10px;font-size:.82rem;color:var(--muted)" class="reveal">
-    <strong style="color:var(--gold)">Credential safety</strong> — Keep merchant secrets on your server, never in browser code. Do not share administrator credentials or use another merchant's key.
+    <strong style="color:var(--gold)">Credential safety</strong> — the values above are the platform's public connection details. Keep the merchant HMAC secret on your server, never in browser code, and do not share administrator credentials or use another merchant's key. The T2T allowlist matches the caller's own egress IP, so send the exact address you will call from.
   </div>
 </section>
 
@@ -1728,79 +1759,20 @@ if (!response.ok || !result.data?.whitelisted) {
 </footer>
 
 <script>
-// Inertia-based scrolling for a controlled, weighty page transition.
+// Smooth anchor navigation. Wheel scrolling stays native so the browser's
+// compositor drives it and it never stalls behind main-thread work.
 const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-
-let smoothTarget = window.scrollY;
-let smoothCurrent = window.scrollY;
-let smoothFrame = 0;
-let isSmoothing = false;
 
 function clampScrollPosition(position) {
   const maxScroll = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
   return Math.min(maxScroll, Math.max(0, position));
 }
 
-let smoothLastFrame = 0;
-
-function animateSmoothScroll(now) {
-  const elapsed = smoothLastFrame ? Math.min(now - smoothLastFrame, 64) : 16.7;
-  smoothLastFrame = now;
-  smoothCurrent += (smoothTarget - smoothCurrent) * (1 - Math.exp(-elapsed / 340));
-
-  if (Math.abs(smoothTarget - smoothCurrent) < 0.5) {
-    smoothCurrent = smoothTarget;
-  }
-
-  window.scrollTo(0, smoothCurrent);
-
-  if (Math.abs(smoothTarget - smoothCurrent) >= 0.5) {
-    smoothFrame = requestAnimationFrame(animateSmoothScroll);
-  } else {
-    isSmoothing = false;
-    smoothFrame = 0;
-    smoothLastFrame = 0;
-  }
-}
-
 function startSmoothScroll(target) {
-  if (prefersReducedMotion) {
-    window.scrollTo(0, clampScrollPosition(target));
-    return;
-  }
-
-  smoothTarget = clampScrollPosition(target);
-  smoothCurrent = window.scrollY;
-
-  if (!isSmoothing) {
-    isSmoothing = true;
-    smoothLastFrame = 0;
-    smoothFrame = requestAnimationFrame(animateSmoothScroll);
-  }
-}
-
-if (!prefersReducedMotion) {
-  window.addEventListener('wheel', event => {
-    if (event.ctrlKey || event.metaKey || event.altKey) return;
-
-    const multiplier = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? window.innerHeight : 1;
-    const delta = event.deltaY * multiplier;
-    if (!delta) return;
-
-    const origin = isSmoothing ? smoothTarget : window.scrollY;
-    const nextTarget = clampScrollPosition(origin + delta);
-    if (nextTarget === origin) return;
-
-    event.preventDefault();
-    if (!isSmoothing) {
-      smoothTarget = window.scrollY;
-      smoothCurrent = window.scrollY;
-      isSmoothing = true;
-      smoothLastFrame = 0;
-      smoothFrame = requestAnimationFrame(animateSmoothScroll);
-    }
-    smoothTarget = nextTarget;
-  }, { passive: false });
+  window.scrollTo({
+    top: clampScrollPosition(target),
+    behavior: prefersReducedMotion ? 'auto' : 'smooth'
+  });
 }
 
 const senderRegistration = document.getElementById('sender-registration');

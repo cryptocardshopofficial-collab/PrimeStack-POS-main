@@ -3,7 +3,10 @@ import { ForbiddenError, UnauthorizedError, ValidationError } from "../../core/e
 import { sendCreated, sendPaginated, sendSuccess, parsePagination } from "../../shared/utils/response.js";
 import {
   agentPortalLoginSchema,
+  agentTransactionControlReasonSchema,
+  agentTransactionControlResponseSchema,
   registerAgentKycSchema,
+  reviewAgentTransactionControlSchema,
   updateAgentKycStatusSchema,
 } from "./agent-registration.types.js";
 import { AgentRegistrationService } from "./agent-registration.service.js";
@@ -31,6 +34,57 @@ export function registerAgentRegistrationRoutes(
   app: FastifyInstance,
   service: AgentRegistrationService,
 ): void {
+  app.get(
+    "/admin/agent-transaction-requests",
+    { preHandler: app.authenticate },
+    async (request, reply) => {
+      assertAgentAdministrator(request);
+      const query = request.query as Record<string, unknown>;
+      const { page, pageSize } = parsePagination(query);
+      const status = query.status;
+      if (
+        status !== undefined &&
+        !["PENDING", "INFO_REQUESTED", "APPROVED", "REJECTED"].includes(String(status))
+      ) {
+        throw new ValidationError("Invalid transaction control request status");
+      }
+      reply.header("Cache-Control", "no-store");
+      const result = await service.listTransactionControlRequests(
+        status as "PENDING" | "INFO_REQUESTED" | "APPROVED" | "REJECTED" | undefined,
+        page,
+        pageSize,
+      );
+      return sendPaginated(reply, result.data, result.meta);
+    },
+  );
+
+  app.post(
+    "/admin/agent-transaction-requests/:id/review",
+    { preHandler: app.authenticate },
+    async (request, reply) => {
+      const admin = assertAgentAdministrator(request);
+      const { id } = request.params as { id: string };
+      const parsed = reviewAgentTransactionControlSchema.safeParse(request.body);
+      if (!parsed.success) {
+        throw new ValidationError("Invalid transaction control review", {
+          errors: parsed.error.errors,
+        });
+      }
+      reply.header("Cache-Control", "no-store");
+      return sendSuccess(
+        reply,
+        await service.reviewTransactionControlRequest(
+          id,
+          parsed.data.decision,
+          parsed.data.adminRemarks,
+          admin.id,
+          request.ip,
+          request.headers["user-agent"],
+        ),
+      );
+    },
+  );
+
   app.get("/admin/agents", { preHandler: app.authenticate }, async (request, reply) => {
     assertAgentAdministrator(request);
     const { page, pageSize } = parsePagination(request.query as Record<string, unknown>);
@@ -141,6 +195,84 @@ export function registerAgentRegistrationRoutes(
       return sendSuccess(
         reply,
         await service.getPortalDashboard(agentId, page, pageSize),
+      );
+    },
+  );
+
+  app.post(
+    "/public/agent-portal/transactions/:transactionId/hold-request",
+    { preHandler: authenticateAgentPortal },
+    async (request, reply) => {
+      const agentId = (request.user as { agentId: string }).agentId;
+      const { transactionId } = request.params as { transactionId: string };
+      const parsed = agentTransactionControlReasonSchema.safeParse(request.body);
+      if (!parsed.success) {
+        throw new ValidationError("A valid hold reason is required", {
+          errors: parsed.error.errors,
+        });
+      }
+      reply.header("Cache-Control", "no-store");
+      return sendCreated(
+        reply,
+        await service.requestTransactionControl(
+          agentId,
+          transactionId,
+          "HOLD",
+          parsed.data.reason,
+          request.ip,
+          request.headers["user-agent"],
+        ),
+      );
+    },
+  );
+
+  app.post(
+    "/public/agent-portal/transactions/:transactionId/resume-request",
+    { preHandler: authenticateAgentPortal },
+    async (request, reply) => {
+      const agentId = (request.user as { agentId: string }).agentId;
+      const { transactionId } = request.params as { transactionId: string };
+      const parsed = agentTransactionControlReasonSchema.safeParse(request.body);
+      if (!parsed.success) {
+        throw new ValidationError("A valid resume reason is required", {
+          errors: parsed.error.errors,
+        });
+      }
+      reply.header("Cache-Control", "no-store");
+      return sendCreated(
+        reply,
+        await service.requestTransactionControl(
+          agentId,
+          transactionId,
+          "RESUME",
+          parsed.data.reason,
+          request.ip,
+          request.headers["user-agent"],
+        ),
+      );
+    },
+  );
+
+  app.post(
+    "/public/agent-portal/transaction-control-requests/:id/respond",
+    { preHandler: authenticateAgentPortal },
+    async (request, reply) => {
+      const agentId = (request.user as { agentId: string }).agentId;
+      const { id } = request.params as { id: string };
+      const parsed = agentTransactionControlResponseSchema.safeParse(request.body);
+      if (!parsed.success) {
+        throw new ValidationError("A valid response is required", {
+          errors: parsed.error.errors,
+        });
+      }
+      reply.header("Cache-Control", "no-store");
+      return sendSuccess(
+        reply,
+        await service.respondToTransactionControlRequest(
+          agentId,
+          id,
+          parsed.data.response,
+        ),
       );
     },
   );

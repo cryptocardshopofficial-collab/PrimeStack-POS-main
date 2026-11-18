@@ -100,6 +100,51 @@ describe("Agent HMAC authentication", () => {
     await app.close();
   });
 
+  it("accepts custom HMAC header prefixes regardless of letter case", async () => {
+    const { config } = await import("../config/index.js");
+    const previousPrefix = config.hmac.headerPrefix;
+    config.hmac.headerPrefix = "X-Primestack";
+
+    try {
+      prisma.hmacKey.findFirst.mockResolvedValue({
+        keyId: "merchant-hmac-key",
+        secret,
+        status: "ACTIVE",
+        expiresAt: null,
+        merchant: { id: "merchant-1", code: "MERCHANT-1", preferredLang: "en" },
+        agent: null,
+      });
+
+      const app = Fastify({ logger: false });
+      await hmacAuthPlugin(app);
+      app.get("/merchant/resource", async () => ({ ok: true }));
+
+      const timestamp = Date.now().toString();
+      const nonce = "merchant-case-test-nonce-123";
+      const signature = createHmac("sha256", secret)
+        .update(`merchant-hmac-key${timestamp}${nonce}`)
+        .digest("hex");
+
+      const response = await app.inject({
+        method: "GET",
+        url: "/merchant/resource",
+        headers: {
+          "X-Primestack-key-id": "merchant-hmac-key",
+          "X-Primestack-timestamp": timestamp,
+          "X-Primestack-nonce": nonce,
+          "X-Primestack-signature": signature,
+        },
+      });
+
+      expect(config.hmac.headerPrefix).toBe("X-Primestack");
+      expect(response.statusCode).toBe(200);
+      expect(response.json()).toEqual({ ok: true });
+      await app.close();
+    } finally {
+      config.hmac.headerPrefix = previousPrefix;
+    }
+  });
+
   it("rejects merchant credentials on agent routes", async () => {
     prisma.hmacKey.findFirst.mockResolvedValue({
       ...agentKey,

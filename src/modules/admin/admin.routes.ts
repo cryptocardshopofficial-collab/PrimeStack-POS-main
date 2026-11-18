@@ -115,6 +115,36 @@ export function registerAdminRoutes(
     return sendSuccess(reply, { id, deactivated: true });
   });
 
+  // ── Staff access PIN (JWT required) ─────────────
+
+  app.get("/admin/users/:id/pin", {
+    preHandler: app.authenticate,
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    assertSuperAdmin(request);
+    const { id } = request.params as { id: string };
+    reply.header("cache-control", "no-store");
+    return sendSuccess(reply, await adminService.getUserPinStatus(id));
+  });
+
+  app.post("/admin/users/:id/pin", {
+    preHandler: app.authenticate,
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    assertSuperAdmin(request);
+    const { id } = request.params as { id: string };
+    const authUser = request.user as { id: string };
+    reply.header("cache-control", "no-store");
+    return sendCreated(reply, await adminService.setUserPin(id, authUser.id));
+  });
+
+  app.delete("/admin/users/:id/pin", {
+    preHandler: app.authenticate,
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    assertSuperAdmin(request);
+    const { id } = request.params as { id: string };
+    const authUser = request.user as { id: string };
+    return sendSuccess(reply, await adminService.clearUserPin(id, authUser.id));
+  });
+
   // ── Audit Logs (JWT required) ────────────────────
 
   app.get("/admin/audit-logs", {

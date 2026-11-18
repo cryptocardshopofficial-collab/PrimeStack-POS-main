@@ -10,6 +10,7 @@ import {
 } from "../../core/errors.js";
 import { logger } from "../../core/logger.js";
 import { LedgerService } from "../ledger/ledger.service.js";
+import { provisionWiseAccountDetails } from "./wise-virtual-account.js";
 import type { CreateWalletInput, UpdateWalletInput, WalletBalance } from "./types.js";
 
 function parseMoney(value: string | number, label: string, scale = 4, allowZero = false): Decimal {
@@ -408,9 +409,32 @@ export class WalletService {
 
   async createVirtualAccount(walletAddress: string, currency: string) {
     const wallet = await this.getWallet(walletAddress);
+    const code = currency.toUpperCase();
+    const existing = await this.prisma.virtualAccount.findUnique({
+      where: { walletId_currency: { walletId: wallet.id, currency: code } },
+    });
+    if (existing) {
+      throw new ConflictError(
+        `A ${code} virtual account already exists for this wallet`,
+      );
+    }
     const accountNumber = `VA-${randomUUID().replaceAll("-", "").slice(0, 20).toUpperCase()}`;
+    // When Wise provisioning is configured this returns real receiving-account
+    // details (IBAN / local account number); otherwise it stays local-only.
+    const wise = await provisionWiseAccountDetails(code);
     return this.prisma.virtualAccount.create({
-      data: { walletId: wallet.id, currency: currency.toUpperCase(), accountNumber },
+      data: {
+        walletId: wallet.id,
+        currency: code,
+        accountNumber,
+        ...(wise
+          ? {
+              provider: "WISE",
+              externalId: wise.externalId,
+              details: wise.details as Prisma.InputJsonValue,
+            }
+          : {}),
+      },
     });
   }
 

@@ -75,6 +75,18 @@ function createPortalService() {
       findFirst: vi.fn(),
       updateMany: vi.fn(),
     },
+    agentTransactionControlRequest: {
+      findMany: vi.fn(),
+      create: vi.fn(),
+      findFirst: vi.fn(),
+      findUnique: vi.fn(),
+      updateMany: vi.fn(),
+      findUniqueOrThrow: vi.fn(),
+    },
+    user: { findMany: vi.fn() },
+    notification: { createMany: vi.fn(), create: vi.fn() },
+    transaction: { updateMany: vi.fn() },
+    transactionLog: { create: vi.fn() },
     auditLog: { create: vi.fn() },
   };
   const prisma = {
@@ -83,7 +95,8 @@ function createPortalService() {
     ),
     agentKycProfile: { findUnique: vi.fn() },
     merchant: { findMany: vi.fn() },
-    transaction: { findMany: vi.fn(), count: vi.fn() },
+    transaction: { findMany: vi.fn(), count: vi.fn(), findFirst: vi.fn() },
+    agentTransactionControlRequest: { findMany: vi.fn() },
   };
   prisma.agentKycProfile.findUnique.mockResolvedValue({
     verificationStatus: "APPROVED",
@@ -198,6 +211,7 @@ describe("AgentRegistrationService", () => {
     prisma.merchant.findMany.mockResolvedValue([]);
     prisma.transaction.findMany.mockResolvedValue([]);
     prisma.transaction.count.mockResolvedValue(0);
+    prisma.agentTransactionControlRequest.findMany.mockResolvedValue([]);
 
     await service.getPortalDashboard(createdAgent.id, 1, 25);
 
@@ -209,6 +223,92 @@ describe("AgentRegistrationService", () => {
     expect(prisma.transaction.count).toHaveBeenCalledWith({
       where: { merchant: { is: { agentId: createdAgent.id } } },
     });
+  });
+
+  it("creates an agent hold request without changing transaction status", async () => {
+    const { service, prisma, transaction } = createPortalService();
+    prisma.transaction.findFirst.mockResolvedValue({
+      id: "tx-1",
+      stan: "123456",
+      status: "CAPTURED",
+      settledAt: null,
+      merchantId: "merchant-1",
+    });
+    transaction.agentTransactionControlRequest.create.mockResolvedValue({
+      id: "request-1",
+      transactionId: "tx-1",
+      action: "HOLD",
+      status: "PENDING",
+    });
+    transaction.user.findMany.mockResolvedValue([{ id: "admin-1" }]);
+
+    await service.requestTransactionControl(
+      createdAgent.id,
+      "tx-1",
+      "HOLD",
+      "Review suspicious activity",
+      "203.0.113.1",
+      "agent-browser",
+    );
+
+    expect(prisma.transaction.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "tx-1", merchant: { is: { agentId: createdAgent.id } } },
+      }),
+    );
+    expect(transaction.agentTransactionControlRequest.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          action: "HOLD",
+          reason: "Review suspicious activity",
+          previousStatus: "CAPTURED",
+        }),
+      }),
+    );
+    expect(transaction.transaction.updateMany).not.toHaveBeenCalled();
+  });
+
+  it("changes a transaction to ON_HOLD only after an administrator approves", async () => {
+    const { service, transaction } = createPortalService();
+    transaction.agentTransactionControlRequest.findUnique.mockResolvedValue({
+      id: "request-1",
+      transactionId: "tx-1",
+      agentId: createdAgent.id,
+      action: "HOLD",
+      status: "PENDING",
+      previousStatus: "CAPTURED",
+      transaction: {
+        id: "tx-1",
+        status: "CAPTURED",
+        settledAt: null,
+        merchantId: "merchant-1",
+      },
+    });
+    transaction.transaction.updateMany.mockResolvedValue({ count: 1 });
+    transaction.agentTransactionControlRequest.updateMany.mockResolvedValue({ count: 1 });
+    transaction.agentTransactionControlRequest.findUniqueOrThrow.mockResolvedValue({
+      id: "request-1",
+      status: "APPROVED",
+    });
+
+    await service.reviewTransactionControlRequest(
+      "request-1",
+      "APPROVE",
+      "Verified and approved",
+      "admin-1",
+    );
+
+    expect(transaction.transaction.updateMany).toHaveBeenCalledWith({
+      where: { id: "tx-1", status: "CAPTURED", settledAt: null },
+      data: { status: "ON_HOLD" },
+    });
+    expect(transaction.agentTransactionControlRequest.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "request-1", status: "PENDING" },
+        data: expect.objectContaining({ status: "APPROVED", reviewedBy: "admin-1" }),
+      }),
+    );
+    expect(transaction.transactionLog.create).toHaveBeenCalledOnce();
   });
 
   it("records agent identity and merchant status in the same pause transaction", async () => {

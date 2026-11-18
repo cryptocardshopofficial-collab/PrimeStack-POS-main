@@ -74,6 +74,9 @@ td code{background:rgba(14,165,233,.08);padding:3px 8px;border-radius:6px;font-s
 .guide-steps li{position:relative;padding:14px 14px 14px 48px;border:1px solid var(--border);border-radius:8px;background:rgba(255,255,255,.02);color:#cbd5e1;font-size:.86rem;margin:10px 0}
 .guide-steps li::before{counter-increment:guide-step;content:counter(guide-step,decimal-leading-zero);position:absolute;left:13px;top:13px;color:#7dd3fc;font:600 .72rem 'JetBrains Mono',monospace}
 pre{background:rgba(10,15,30,.8);border:1px solid var(--border);border-radius:10px;padding:16px 18px;overflow-x:auto;font-size:.79rem;color:#cbd5e1;line-height:1.7}
+td code.wrap{white-space:normal;overflow-wrap:anywhere}
+.conn-sub{margin:22px 0 10px;font-size:.92rem;font-weight:600}
+#connection-details pre{margin:0}
 .actions{display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin-top:6px}
 button.btn{font:inherit;font-size:.85rem;font-weight:600;padding:11px 20px;border-radius:10px;border:0;cursor:pointer;background:linear-gradient(135deg,var(--blue),var(--violet));color:#fff}
 button.btn.ghost{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);color:var(--text)}
@@ -171,22 +174,61 @@ footer span{color:var(--blue)}
   var SERVICES = {
     't2t': {
       title: 'Terminal-to-Terminal',
-      description: 'Signed, idempotent transfers initiated from an approved sending terminal. Each request carries an HMAC signature and a single-use nonce, and is checked against terminal status, IP allowlist, currency, and available balance before the ledger is touched.',
+      description: 'Signed, idempotent transfers initiated from an approved sending terminal, plus the routes that receive real funds into a terminal. Each outbound request carries an HMAC signature and a single-use nonce, and is checked against terminal status, IP allowlist, currency, and available balance before the ledger is touched. Inbound credits are idempotent by reference or event ID and post a double-entry credit to the terminal account.',
       steps: [
         'Complete merchant and approved-agent onboarding. A registration request is reviewed; it does not activate a terminal or issue credentials.',
         'Receive your environment URL, key ID, HMAC secret, approved egress IP, and provisioned terminal IDs through the authorized channel.',
         'Store the secret on your server. Sign the exact JSON request body with HMAC-SHA256 using keyId + timestamp + nonce + JSON.stringify(body); use a current millisecond timestamp and a fresh nonce.',
-        'From the approved egress IP, call the signed T2T ping route and resolve any authentication, allowlist, or terminal-status errors before moving on.',
+        'From the approved egress IP, call the signed T2T ping route and resolve any authentication, allowlist, or terminal-status errors before moving on. The receiver must add that exact public egress IP to the T2T allowlist; the allowlist compares the caller IP that reaches the API, so trust-proxy settings must be correct on the server.',
+        'Register a public HTTPS callback URL for the sender entry when you add the IP to the allowlist. When the receiver pings that entry from the dashboard or POST /t2t/whitelist/ping, the API probes the sender IP on TCP 443 then 80 and then POSTs a signed JSON notice to your callback so your own system is told the allowlist entry is reachable. The notice is signed with the same scheme as the inbound webhook (13-digit millisecond timestamp in the signature-header timestamp field, HMAC-SHA256 over timestamp + raw JSON body), so validate it the same way and reply 2xx.',
         'Send the dedicated T2T transfer request with active same-merchant terminals, a supported currency, and a unique idempotency key. Reuse that key only for retries of the same operation.',
+        'To record real funds that already arrived, use the operator-only inbound credit route, or have an automated sender call the signed inbound webhook with a unique event ID. Reconcile the returned journal entry reference against the bank or provider statement.',
         'Record the returned reference and reconcile the transfer against the internal ledger. A completed T2T transfer is not an external bank payment.'
       ],
       endpoints: [
         ['POST', '/api/t2t/ping', 'Signed connectivity probe from a registered sending terminal'],
         ['POST', '/api/t2t/transfer', 'Create an internal terminal-to-terminal transfer'],
+        ['GET',  '/api/t2t/balance/:tid', 'Read a terminal receiving-account balance'],
+        ['GET',  '/api/t2t/transfers', 'List terminal-to-terminal transfers'],
+        ['POST', '/api/t2t/inbound', 'Operator-only credit of real funds that already arrived into a terminal'],
+        ['POST', '/api/webhooks/inbound', 'Signed provider-agnostic webhook that credits received real funds'],
+        ['POST', '/api/t2t/whitelist', 'Add or remove a sender IP from the T2T allowlist; optional callbackUrl receives the signed reachability notice'],
+        ['GET',  '/api/t2t/whitelist', 'List allowlisted sender IPs'],
+        ['POST', '/api/t2t/whitelist/ping', 'Probe each allowlisted sender IP on TCP 443/80 and deliver the signed notice to its callback URL'],
         ['POST', '/api/transfers/bulk', 'Create several transfers in one idempotent request'],
         ['GET',  '/api/transfers/:reference', 'Retrieve a transfer by its reference'],
         ['POST', '/api/transfers/:reference/reverse', 'Reverse a previously posted transfer']
-      ]
+      ],
+      connection: {
+        title: 'Terminal and sender connection details',
+        note: 'Everything a sender needs to reach the platform, ping it, and open a terminal-to-terminal link. Call the platform on its API host; use the platform\u2019s fixed public IP when a counterparty has to allowlist it. Send the platform your own fixed public egress IP and a public HTTPS callback, which it stores with POST /t2t/whitelist and probes with POST /t2t/whitelist/ping. The HMAC secret is never published here \u2014 it is delivered out-of-band and kept only on your server.',
+        rows: [
+          ['Terminal ID (MID)', '100000000036000'],
+          ['Merchant ID', '493837949996'],
+          ['Account holder', 'M/S. UNITED SOLAR AND WIND POWER TECHNOLOGIES'],
+          ['Receiving account number', '029905003783'],
+          ['Receiving VPA', 'MSUNITEDSOLARANDWINDPOWERTECHNOLOGIES.eazypay1@icici'],
+          ['Settlement currency', 'USD'],
+          ['Platform API host', 'https://primestack-switch.onrender.com \u2014 call this host for /t2t/ping, /t2t/transfer and /t2t/whitelist'],
+          ['Platform fixed public IP', '86.98.159.209 \u2014 give this to a counterparty that must allowlist the platform'],
+          ['Platform notice callback', '&lt;receiver-https-callback&gt; \u2014 the sender POSTs the signed notice here'],
+          ['Sender fixed egress IP', '&lt;your fixed public IPv4/IPv6&gt; \u2014 the platform allowlists this with POST /t2t/whitelist'],
+          ['Sender notice callback', '&lt;your public https:// callback&gt; \u2014 receives {"event":"t2t.whitelist.ping",...}'],
+          ['Sender merchant key ID', '&lt;issued-merchant-key-id&gt;'],
+          ['HMAC secret', 'Delivered out-of-band \u2014 never published or embedded in browser code'],
+          ['Idempotency key', 'x-primestack-idempotency-key \u2014 unique per transfer, 16\u2013128 characters']
+        ],
+        examples: [
+          {
+            title: 'Allowlist a sender IP \u2014 POST /t2t/whitelist (operator or merchant JWT)',
+            code: 'POST https://primestack-switch.onrender.com/t2t/whitelist\nAuthorization: Bearer &lt;operator or merchant JWT&gt;\n\n{\n  "ip": "&lt;sender fixed public IP&gt;",\n  "action": "add",\n  "note": "sender egress",\n  "callbackUrl": "https://sender-host/t2t/whitelist-notice"\n}'
+          },
+          {
+            title: 'Ping the platform and probe allowlisted senders',
+            code: 'POST /t2t/ping              # signed probe from the allowlisted sender IP\nPOST /t2t/whitelist/ping    # platform probes allowlisted sender IPs on TCP 443/80\nGET  /t2t/whitelist         # list allowlisted sender IPs\n\nBase URL: https://primestack-switch.onrender.com'
+          }
+        ]
+      }
     },
     's2s': {
       title: 'Server-to-Server',
@@ -325,8 +367,8 @@ footer span{color:var(--blue)}
         ['POST', '/api/admin/wallets/:address/transfer', 'Internal wallet transfer (operator JWT)'],
         ['GET',  '/api/admin/wallets/:address/statement', 'Wallet statement (operator JWT)'],
         ['POST', '/api/admin/wallets/:address/beneficiaries', 'Add a payout beneficiary (operator JWT)'],
-        ['GET',  '/api/admin/wallets/:address/virtual-accounts', 'List local virtual-account records'],
-        ['POST', '/api/admin/wallets/:address/virtual-accounts', 'Create a virtual-account record when provider config allows'],
+        ['GET',  '/api/admin/wallets/:address/virtual-accounts', 'List virtual-account records (Wise details when provisioned)'],
+        ['POST', '/api/admin/wallets/:address/virtual-accounts', 'Provision a receiving account — real Wise details when configured, otherwise a local identifier'],
         ['POST', '/api/admin/wallets/:address/holds', 'Place a hold on a balance (operator JWT)'],
         ['GET',  '/api/admin/wallet-holds', 'List wallet holds (operator JWT)'],
         ['POST', '/api/admin/wallet-holds/:reference/release', 'Release an active hold (operator JWT)']
@@ -429,6 +471,24 @@ footer span{color:var(--blue)}
            '<td><code>' + row[1] + '</code></td>' +
            '<td>' + row[2] + '</td></tr>';
   }).join('');
+
+  if (svc.connection) {
+    var endpointSection = document.getElementById('endpoints').closest('section');
+    var connectionRows = svc.connection.rows.map(function (row) {
+      return '<tr><td>' + row[0] + '</td><td><code class="wrap">' + row[1] + '</code></td></tr>';
+    }).join('');
+    var connectionExamples = (svc.connection.examples || []).map(function (example) {
+      return '<h3 class="conn-sub">' + example.title + '</h3><pre>' + example.code + '</pre>';
+    }).join('');
+    endpointSection.insertAdjacentHTML('afterend',
+      '<section class="card" id="connection-details">' +
+        '<h2>' + svc.connection.title + '</h2>' +
+        '<p class="lead">' + svc.connection.note + '</p>' +
+        '<table><thead><tr><th>Field</th><th>Value</th></tr></thead>' +
+        '<tbody>' + connectionRows + '</tbody></table>' +
+        connectionExamples +
+      '</section>');
+  }
 
   if (svc.note) {
     body.insertAdjacentHTML('afterend',

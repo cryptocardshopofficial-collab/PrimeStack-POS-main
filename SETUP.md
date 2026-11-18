@@ -180,6 +180,37 @@ forwarded headers or use `0.0.0.0/0`; if unset, forwarded IPs are ignored and
 the allowlist checks the socket peer address. Apply migrations with
 `npx prisma migrate deploy` before enabling T2T.
 
+### Which IP to whitelist (localhost vs Render)
+
+The T2T allowlist matches the **caller's own public egress IP** — the address the
+sender's server connects from, as the API sees it in `request.ip`. It is never
+Render's IP and never the platform's own address. The exchange is:
+
+- You give the sender your API **hostname** (the Render service URL or custom
+  domain). Do not hand out an IP: Render's address is not fixed and is not what
+  the allowlist checks.
+- The sender gives you the **fixed public egress IP of their server**. Whitelist
+  that with `POST /t2t/whitelist` (`{"ip":"203.0.113.10","action":"add"}`).
+  Allowlist entries are matched by exact address — no CIDR or wildcard — so the
+  sender must have a single stable IPv4 or IPv6 egress. If their egress is
+  dynamic they need a static outbound IP (NAT gateway) first.
+
+On **localhost** the sender and receiver are usually the same machine, so
+`request.ip` is a loopback or LAN address and does not represent a real remote
+sender. Test with a tunnel or from the sender's real egress IP instead.
+
+On **Render** the request passes through Render's proxy, so `request.ip` is the
+proxy address until `TRUSTED_PROXIES` lists Render's proxy ranges. Set it (see
+`render.yaml`) and then `request.ip` resolves to the sender's real IP from
+`X-Forwarded-For`. If `TRUSTED_PROXIES` is wrong or unset, forwarded IPs are
+ignored, every sender's whitelist check fails, and `POST /t2t/transfer` returns
+403. Verify before going live:
+
+1. From the sender's server, call `POST /t2t/ping`.
+2. Read the returned `callerIp`. It must equal the sender's public egress IP; if
+   it is a Render/RFC1918 address, fix `TRUSTED_PROXIES`.
+3. Whitelist that exact `callerIp`, ping again, and confirm `"whitelisted": true`.
+
 ---
 
 ## Common Issues

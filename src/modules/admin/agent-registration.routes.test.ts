@@ -143,4 +143,101 @@ describe("agent registration routes", () => {
       await app.close();
     }
   });
+
+  it("requires agent scope and a reason for transaction control requests", async () => {
+    const service = {
+      requestTransactionControl: vi.fn().mockResolvedValue({
+        id: "request-id",
+        action: "HOLD",
+        status: "PENDING",
+      }),
+    } as unknown as AgentRegistrationService;
+    const app = await createApp(service);
+
+    try {
+      const forbidden = await app.inject({
+        method: "POST",
+        url: "/public/agent-portal/transactions/tx-1/hold-request",
+        headers: { "x-agent-scope": "OTHER" },
+        payload: { reason: "Risk review" },
+      });
+      expect(forbidden.statusCode).toBe(401);
+      expect(service.requestTransactionControl).not.toHaveBeenCalled();
+
+      const invalid = await app.inject({
+        method: "POST",
+        url: "/public/agent-portal/transactions/tx-1/hold-request",
+        headers: { "x-agent-scope": "AGENT_PORTAL", "x-agent-id": "agent-7" },
+        payload: { reason: " " },
+      });
+      expect(invalid.statusCode).toBe(422);
+      expect(service.requestTransactionControl).not.toHaveBeenCalled();
+
+      const requested = await app.inject({
+        method: "POST",
+        url: "/public/agent-portal/transactions/tx-1/hold-request",
+        headers: { "x-agent-scope": "AGENT_PORTAL", "x-agent-id": "agent-7" },
+        payload: { reason: "Please review this transaction" },
+      });
+      expect(requested.statusCode).toBe(201);
+      expect(service.requestTransactionControl).toHaveBeenCalledWith(
+        "agent-7",
+        "tx-1",
+        "HOLD",
+        "Please review this transaction",
+        expect.any(String),
+        expect.any(String),
+      );
+    } finally {
+      await app.close();
+    }
+  });
+
+  it("restricts hold decisions to administrators and requires remarks", async () => {
+    const service = {
+      reviewTransactionControlRequest: vi.fn().mockResolvedValue({
+        id: "request-id",
+        status: "APPROVED",
+      }),
+    } as unknown as AgentRegistrationService;
+    const app = await createApp(service);
+
+    try {
+      const forbidden = await app.inject({
+        method: "POST",
+        url: "/admin/agent-transaction-requests/request-id/review",
+        headers: { "x-test-role": "OPERATOR" },
+        payload: { decision: "APPROVE", adminRemarks: "Reviewed" },
+      });
+      expect(forbidden.statusCode).toBe(403);
+      expect(service.reviewTransactionControlRequest).not.toHaveBeenCalled();
+
+      const invalid = await app.inject({
+        method: "POST",
+        url: "/admin/agent-transaction-requests/request-id/review",
+        headers: { "x-test-role": "ADMIN" },
+        payload: { decision: "APPROVE", adminRemarks: "" },
+      });
+      expect(invalid.statusCode).toBe(422);
+      expect(service.reviewTransactionControlRequest).not.toHaveBeenCalled();
+
+      const approved = await app.inject({
+        method: "POST",
+        url: "/admin/agent-transaction-requests/request-id/review",
+        headers: { "x-test-role": "ADMIN" },
+        payload: { decision: "APPROVE", adminRemarks: "Verified evidence" },
+      });
+      expect(approved.statusCode).toBe(200);
+      expect(service.reviewTransactionControlRequest).toHaveBeenCalledWith(
+        "request-id",
+        "APPROVE",
+        "Verified evidence",
+        "admin-id",
+        expect.any(String),
+        expect.any(String),
+      );
+    } finally {
+      await app.close();
+    }
+  });
 });

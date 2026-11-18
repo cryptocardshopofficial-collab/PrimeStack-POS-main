@@ -1,4 +1,5 @@
 import { FastifyReply } from "fastify";
+import { randomInt } from "node:crypto";
 import { Prisma, type PrismaClient } from "@prisma/client";
 import { ConflictError, NotFoundError, UnauthorizedError, ValidationError } from "../../core/errors.js";
 import { logger } from "../../core/logger.js";
@@ -33,16 +34,17 @@ export class AdminService {
       throw new UnauthorizedError("Invalid credentials");
     }
 
-    // Merchant accounts additionally require the administrator-issued PIN.
-    if (user.role === "MERCHANT") {
-      if (!user.portalPinHash) {
-        throw new UnauthorizedError(
-          "Merchant access PIN is not configured; ask an administrator to re-issue portal credentials",
-        );
-      }
+    // A configured access PIN is always required, for merchant and staff
+    // accounts alike. Merchant accounts must have one; for staff it is optional
+    // and set by an administrator.
+    if (user.portalPinHash) {
       if (!pin || !(await verifyPassword(pin, user.portalPinHash))) {
         throw new UnauthorizedError("Invalid credentials");
       }
+    } else if (user.role === "MERCHANT") {
+      throw new UnauthorizedError(
+        "Merchant access PIN is not configured; ask an administrator to re-issue portal credentials",
+      );
     }
 
     // Update last login
@@ -157,6 +159,77 @@ export class AdminService {
     }
 
     return user;
+  }
+
+  // ── Staff access PIN ────────────────────────────
+
+  /** Whether a staff account has an access PIN configured (never the PIN itself). */
+  async getUserPinStatus(id: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id },
+      select: { id: true, email: true, role: true, portalPinHash: true },
+    });
+    if (!user) throw new NotFoundError("User", id);
+    return {
+      userId: user.id,
+      email: user.email,
+      role: user.role,
+      hasPin: Boolean(user.portalPinHash),
+    };
+  }
+
+  /** Issue a fresh 6-digit staff access PIN. Plaintext is returned exactly once. */
+  async setUserPin(id: string, actorId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id },
+      select: { id: true, email: true, role: true },
+    });
+    if (!user) throw new NotFoundError("User", id);
+
+    const portalPin = String(randomInt(0, 1_000_000)).padStart(6, "0");
+    const portalPinHash = await hashPassword(portalPin);
+    await this.prisma.user.update({
+      where: { id },
+      data: { portalPinHash },
+    });
+
+    await this.createAuditLog({
+      userId: actorId,
+      action: "SET_USER_ACCESS_PIN",
+      entity: "User",
+      entityId: id,
+      after: { email: user.email, role: user.role, pinSet: true },
+    });
+
+    return { userId: user.id, email: user.email, portalPin };
+  }
+
+  /** Remove a staff access PIN so sign-in returns to email + password only. */
+  async clearUserPin(id: string, actorId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id },
+      select: { id: true, email: true, role: true },
+    });
+    if (!user) throw new NotFoundError("User", id);
+    if (user.role === "MERCHANT") {
+      throw new ValidationError(
+        "Merchant access always requires a PIN; re-issue portal credentials instead",
+      );
+    }
+
+    await this.prisma.user.update({
+      where: { id },
+      data: { portalPinHash: null },
+    });
+    await this.createAuditLog({
+      userId: actorId,
+      action: "CLEAR_USER_ACCESS_PIN",
+      entity: "User",
+      entityId: id,
+      after: { email: user.email, role: user.role, pinSet: false },
+    });
+
+    return { userId: user.id, hasPin: false };
   }
 
   async listUsers(filters: { role?: string; isActive?: boolean; page: number; pageSize: number }) {

@@ -21,8 +21,21 @@ services:
         value: 9006
       - key: HOST
         value: 0.0.0.0
-      # Configure this in Render with the trusted proxy CIDRs for the deployment.
-      # Never use an unrestricted range: T2T IP allowlists depend on request.ip.
+      # Trusted proxy hop(s) in front of this service. T2T IP allowlists compare
+      # the caller IP that reaches the API (request.ip), so this must list ONLY
+      # the real proxy addresses/CIDRs that front this service on Render — never
+      # an unrestricted range such as 0.0.0.0/0.
+      #
+      # On Render, set this to the load-balancer ranges published for your
+      # region (Render's "Cloudflare-style" inbound proxies). Without it,
+      # request.ip is the proxy address, forwarded headers are ignored, and every
+      # external sender fails the T2T allowlist with a 403. The sender then only
+      # needs to whitelist THEIR OWN fixed public egress IP — not Render's.
+      #
+      # Example shape (replace with the current values from Render's docs):
+      #   35.160.0.0/13,52.15.0.0/16
+      # Verify with: POST /t2t/ping from the sender and confirm callerIp matches
+      # the sender's public egress IP.
       - key: TRUSTED_PROXIES
         sync: false
       - key: LOG_LEVEL
@@ -61,6 +74,22 @@ services:
         value: psk_console_001
       - key: CONSOLE_HMAC_SECRET
         generateValue: true
+      # Shared secret for the signed inbound real-funds webhook
+      # (POST /webhooks/inbound). When unset the webhook rejects every request.
+      - key: INBOUND_WEBHOOK_SECRET
+        generateValue: true
+      - key: INBOUND_WEBHOOK_MAX_TIMESTAMP_DRIFT_MS
+        value: 300000
+      # ASSET ledger account debited when inbound funds are credited.
+      - key: INBOUND_FUNDING_ACCOUNT_PREFIX
+        value: SYSTEM-FUNDING
+      # Signs the outbound reachability notice POSTed to a whitelisted sender's
+      # callback URL when its IP is pinged. Falls back to INBOUND_WEBHOOK_SECRET
+      # when unset, so one secret can sign both inbound and outbound traffic.
+      - key: T2T_NOTIFY_SECRET
+        sync: false
+      - key: T2T_NOTIFY_TIMEOUT_MS
+        value: 5000
 
       # ── Limits / i18n ─────────────────────────────
       - key: RATE_LIMIT_MAX
@@ -97,6 +126,15 @@ services:
       # in this blueprint. Without them the rails service stays in simulation.
       - key: WISE_ENV
         value: sandbox
+      # Provisioning flags for the admin "Create virtual account" flow. Flip both
+      # to "true" (with the key/profile/public key set) to return real Wise
+      # receiving-account details (IBAN / local account number); while "false"
+      # the flow stores a local identifier only. The API also needs
+      # WISE_VIRTUAL_ACCOUNT_PROVISIONING_ENABLED=true to attempt a live call.
+      - key: WISE_VIRTUAL_ACCOUNTS_ENABLED
+        value: "false"
+      - key: WISE_VIRTUAL_ACCOUNT_PROVISIONING_ENABLED
+        value: "false"
       - key: WISE_API_KEY
         sync: false
       - key: WISE_PROFILE_ID

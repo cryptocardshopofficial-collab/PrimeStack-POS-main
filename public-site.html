@@ -13,7 +13,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Martian+Mono:wght@300;400;600&display=swap" rel="stylesheet">
   <style>
     :root{--navy:#06101e;--navy2:#0a1829;--blue:#3578f6;--cyan:#55d6e8;--ice:#edf5ff;--paper:#f7f9fc;--white:#fff;--ink:#0c1c31;--muted:#66758a;--line:#dfe7f1;--green:#2fc49a}
-    *{box-sizing:border-box}html{scroll-behavior:auto;scrollbar-gutter:stable}body{margin:0;font-family:"DM Sans",Arial,sans-serif;color:var(--ink);background:var(--white);overflow-x:hidden}body::before{content:"";position:fixed;z-index:9999;left:0;top:0;height:2px;width:100%;transform:scaleX(var(--flight-progress,0));transform-origin:left center;background:linear-gradient(90deg,#3578f6,#55d6e8);box-shadow:0 0 14px rgba(85,214,232,.75);pointer-events:none}a{color:inherit;text-decoration:none}button{font:inherit}code{font-family:"JetBrains Mono",monospace}
+    *{box-sizing:border-box}html{scroll-behavior:smooth;scrollbar-gutter:stable}body{margin:0;font-family:"DM Sans",Arial,sans-serif;color:var(--ink);background:var(--white);overflow-x:hidden}body::before{content:"";position:fixed;z-index:9999;left:0;top:0;height:2px;width:100%;transform:scaleX(var(--flight-progress,0));transform-origin:left center;background:linear-gradient(90deg,#3578f6,#55d6e8);box-shadow:0 0 14px rgba(85,214,232,.75);pointer-events:none}a{color:inherit;text-decoration:none}button{font:inherit}code{font-family:"JetBrains Mono",monospace}
     .mouse-point{position:fixed;z-index:10001;left:0;top:0;width:10px;height:10px;border-radius:50%;background:#55d6e8;box-shadow:0 0 0 4px rgba(85,214,232,.16),0 0 16px rgba(85,214,232,.9);opacity:0;pointer-events:none;transform:translate(-50%,-50%);transition:opacity .15s}
     .mouse-point.visible{opacity:1}
     .container{width:min(1180px,calc(100% - 64px));margin:auto}.eyebrow{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.16em;color:#4d91ff}.display{font-family:Manrope,sans-serif;font-weight:800;letter-spacing:-.055em}
@@ -110,6 +110,79 @@
     .network-architecture:not(.is-visible) .network-globe-map,.network-architecture:not(.is-visible) .network-globe-ring,.network-architecture:not(.is-visible) .network-architecture-card::before{animation-play-state:paused}
     @media(prefers-reduced-motion:reduce){.network-architecture-card::before,.network-globe-map,.network-globe-ring{animation:none!important}}
     .nav.scrolled{background:rgba(6,16,30,.98);backdrop-filter:none}
+    body.banking-theme{--bank-blue:#2f69ff;--bank-ink:#1a1a1a;--bank-muted:#687183;--bank-line:rgba(47,105,255,.14);position:relative;background:radial-gradient(circle at 82% 10%,#ecefff 0,transparent 34%),#f7fafc;color:var(--bank-ink);font-family:Inter,"DM Sans",Arial,sans-serif}
+    body.banking-theme{isolation:isolate;background:var(--banking-scene-bg,radial-gradient(circle at 82% 10%,#ecefff 0,transparent 34%),#f7fafc);transition:background 1.2s cubic-bezier(.65,0,.35,1)}
+    body.banking-theme>*:not(#bankingThemeScene):not(#bankingThemeLoader):not(#bankingThemeControls):not(#bankingThemeScrim){position:relative;z-index:1}
+    body.banking-theme #bankingThemeScene{display:block;position:fixed;inset:0;z-index:0;width:100%;height:100%;pointer-events:none}
+    #bankingThemeScene,#bankingThemeLoader,#bankingThemeControls,#bankingThemeScrim{display:none}
+    body.banking-theme.banking-animation-ready .hero{background:transparent}
+    body.banking-theme.banking-animation-ready .hero::before,body.banking-theme.banking-animation-ready .hero::after{opacity:0}
+    body.banking-theme.banking-animation-loading #bankingThemeLoader{position:fixed;inset:0;z-index:10000;display:grid;place-items:center;background:radial-gradient(circle at center,#fff 0%,#ecefff 45%,#c2d1ff 100%);color:#1a1a1a}
+    .banking-loader-content{width:min(360px,calc(100% - 48px));font:500 11px "JetBrains Mono",monospace;letter-spacing:.12em;text-transform:uppercase}
+    .banking-loader-status{margin-bottom:14px;color:#0e2ac5}
+    .banking-loader-track{height:2px;overflow:hidden;background:rgba(14,42,197,.16)}
+    .banking-loader-fill{width:0;height:100%;background:#2f69ff;transition:width .65s cubic-bezier(.16,1,.3,1)}
+    .banking-loader-count{margin-top:10px;text-align:right;color:#737987}
+    .banking-theme-controls-button{width:38px;height:38px;border:1px solid rgba(47,105,255,.2);border-radius:50%;background:rgba(255,255,255,.5);color:#1a1a1a;display:grid;place-items:center;cursor:pointer}
+    .banking-theme-controls-button:hover{background:#fff}
+    body.banking-theme #bankingThemeScrim{position:fixed;inset:0;z-index:10001;background:rgba(8,15,35,.28);backdrop-filter:blur(3px)}
+    body.banking-theme #bankingThemeScrim.open{display:block}
+    body.banking-theme #bankingThemeControls{position:fixed;z-index:10002;top:0;right:0;bottom:0;width:min(380px,100%);padding:26px;background:rgba(255,255,255,.94);border-left:1px solid rgba(47,105,255,.16);box-shadow:-24px 0 70px rgba(13,28,72,.16);display:flex;flex-direction:column;transform:translateX(105%);transition:transform .35s cubic-bezier(.16,1,.3,1);color:#1a1a1a}
+    body.banking-theme #bankingThemeControls.open{transform:translateX(0)}
+    .banking-controls-head{display:flex;align-items:center;justify-content:space-between;font:700 14px Raleway,Inter,sans-serif}
+    .banking-controls-close{width:34px;height:34px;border:1px solid var(--bank-line);border-radius:50%;background:#fff;color:#1a1a1a;cursor:pointer}
+    .banking-controls-note{color:#687183;font-size:13px;line-height:1.6}
+    .banking-palette-list{display:grid;gap:10px;margin-top:12px}
+    .banking-palette-option{padding:14px;border:1px solid var(--bank-line);border-radius:12px;background:rgba(255,255,255,.7);text-align:left;color:#1a1a1a;cursor:pointer;transition:transform .2s,border-color .2s}
+    .banking-palette-option:hover{transform:translateY(-2px);border-color:#2f69ff}
+    .banking-palette-option[aria-pressed="true"]{border-color:#2f69ff;box-shadow:0 0 0 2px rgba(47,105,255,.1)}
+    .banking-palette-option strong{display:flex;align-items:center;justify-content:space-between;font-size:13px}
+    .banking-palette-option p{margin:8px 0 0;color:#687183;font-size:11px;line-height:1.5}
+    .banking-palette-swatch{width:12px;height:12px;border-radius:50%;background:var(--swatch)}
+    body.banking-theme::before{background:linear-gradient(90deg,#2f69ff,#96e5ff);box-shadow:0 0 14px rgba(47,105,255,.45)}
+    body.banking-theme .nav{color:var(--bank-ink);border-bottom-color:rgba(47,105,255,.12);background:rgba(247,250,252,.46);backdrop-filter:blur(16px)}
+    body.banking-theme .nav.scrolled{background:rgba(247,250,252,.9);box-shadow:0 10px 40px rgba(25,49,100,.08)}
+    body.banking-theme .logo-text{color:var(--bank-ink)}
+    body.banking-theme .nav-link{color:rgba(26,26,26,.76)}
+    body.banking-theme .nav-link:hover,body.banking-theme .nav-link.active{color:var(--bank-blue)}
+    body.banking-theme .nav-button{border-color:rgba(47,105,255,.2);color:var(--bank-ink);background:rgba(255,255,255,.42)}
+    body.banking-theme .nav-button.primary{border-color:var(--bank-blue);background:var(--bank-blue);color:#fff}
+    body.banking-theme .nav-toggle{border-color:var(--bank-line);background:rgba(255,255,255,.62);color:var(--bank-ink)}
+    body.banking-theme .mega{border-color:var(--bank-line);background:rgba(255,255,255,.94);backdrop-filter:blur(18px);box-shadow:0 20px 60px rgba(29,55,110,.12)}
+    body.banking-theme .hero{isolation:isolate;min-height:720px;height:min(820px,100svh);background:radial-gradient(ellipse at 75% 45%,#fff 0,#edf1ff 37%,#cbd8ff 100%);color:var(--bank-ink)}
+    body.banking-theme .hero-image,body.banking-theme .hero-overlay,body.banking-theme .pointer-light,body.banking-theme .orbit,body.banking-theme .payment-hero-visual{display:none}
+    body.banking-theme .hero::before{content:"";position:absolute;z-index:1;width:clamp(320px,47vw,650px);aspect-ratio:1;right:4%;top:50%;transform:translateY(-46%);border-radius:50%;background:radial-gradient(circle at 31% 24%,rgba(255,255,255,.98) 0 5%,rgba(255,255,255,.62) 10%,transparent 24%),radial-gradient(circle at 36% 32%,#a8c1ff 0,#2f69ff 38%,#0a33bf 76%,#07166e 100%);box-shadow:inset -38px -46px 80px rgba(4,17,93,.3),inset 18px 18px 46px rgba(255,255,255,.5),0 40px 100px rgba(14,42,197,.24);pointer-events:none}
+    body.banking-theme .hero::after{content:"";position:absolute;z-index:2;width:clamp(86px,11vw,150px);aspect-ratio:1;right:39%;top:20%;border-radius:50%;background:radial-gradient(circle at 30% 25%,#fff 0,#a8c1ff 38%,#2f69ff 78%);box-shadow:inset -10px -14px 24px rgba(4,17,93,.2),0 22px 50px rgba(14,42,197,.2);pointer-events:none}
+    body.banking-theme .hero-content{z-index:3}
+    body.banking-theme .hero-copy{max-width:760px;padding:0}
+    body.banking-theme .hero .eyebrow,body.banking-theme .eyebrow{color:var(--bank-blue)}
+    body.banking-theme .hero h1{max-width:760px;color:#0a0a0a;font-family:Raleway,Manrope,sans-serif;font-weight:800;letter-spacing:-.065em}
+    body.banking-theme .hero h1 em{color:var(--bank-blue)}
+    body.banking-theme .hero p{color:#48536a}
+    body.banking-theme .button.primary{border-color:var(--bank-blue);background:var(--bank-blue);box-shadow:0 12px 30px rgba(47,105,255,.2)}
+    body.banking-theme #solutionsSection{background:linear-gradient(180deg,rgba(247,250,252,.7) 0%,rgba(255,255,255,.62) 100%)}
+    body.banking-theme .section-heading h2,body.banking-theme .guide-intro h2,body.banking-theme .guide-section-heading h3{color:#101522;font-family:Raleway,Manrope,sans-serif;letter-spacing:-.045em}
+    body.banking-theme .section-heading p,body.banking-theme .guide-section-heading p{color:var(--bank-muted)}
+    body.banking-theme .card,body.banking-theme .guide-detail,body.banking-theme .guide-note{border-color:var(--bank-line);border-radius:16px;background:rgba(255,255,255,.78);box-shadow:0 14px 42px rgba(26,48,100,.055);backdrop-filter:blur(14px)}
+    body.banking-theme .card:hover{border-color:rgba(47,105,255,.32);box-shadow:0 22px 56px rgba(26,48,100,.12)}
+    body.banking-theme .card-no{border-radius:50%;background:#ecefff;color:var(--bank-blue)}
+    body.banking-theme .card-link,body.banking-theme .guide-next a{color:var(--bank-blue)}
+    body.banking-theme .page-guide{border-color:rgba(47,105,255,.1);background:linear-gradient(160deg,rgba(243,246,255,.72),rgba(255,255,255,.64) 68%)}
+    body.banking-theme .guide-nav a{border-color:var(--bank-line);background:rgba(255,255,255,.8);color:#34405a}
+    body.banking-theme .guide-nav a:hover{border-color:var(--bank-blue);color:var(--bank-blue)}
+    body.banking-theme .guide-detail strong,body.banking-theme .guide-note strong{color:#17284e}
+    body.banking-theme .guide-detail p,body.banking-theme .guide-note{color:#59657a}
+    body.banking-theme .guide-step{border-color:var(--bank-line);background:linear-gradient(145deg,#fff,#edf1ff);color:#17213a}
+    body.banking-theme .guide-step span{color:var(--bank-blue)}
+    body.banking-theme .guide-step strong{color:#17213a}
+    body.banking-theme .guide-step p{color:#59657a}
+    body.banking-theme footer{background:linear-gradient(145deg,#eef2ff,#f9fbff);color:#17213a}
+    body.banking-theme .footer-brand p,body.banking-theme .footer-column a{color:#69758a}
+    body.banking-theme .footer-column a:hover{color:var(--bank-blue)}
+    body.banking-theme .footer-bottom{border-top-color:var(--bank-line);color:#788398}
+    @media(max-width:1050px){body.banking-theme .nav-menu{border-color:var(--bank-line);background:rgba(247,250,255,.97);box-shadow:0 20px 55px rgba(26,48,100,.12);backdrop-filter:blur(18px)}body.banking-theme .nav-item{border-bottom-color:var(--bank-line)}}
+    @media(max-width:700px){body.banking-theme .hero{min-height:100svh;height:100svh}.banking-theme .hero::before{width:clamp(300px,88vw,480px);right:-25%;top:43%;opacity:.82}.banking-theme .hero::after{width:90px;right:18%;top:19%}.banking-theme .hero-copy{padding:22px;border:1px solid rgba(255,255,255,.55);border-radius:22px;background:rgba(255,255,255,.48);backdrop-filter:blur(14px)}body.banking-theme .hero-actions{flex-direction:row}.banking-theme .hero-actions .button{width:auto}}
+    @media(prefers-reduced-motion:reduce){body.banking-theme .hero::before,body.banking-theme .hero::after{transition:none}}
     .network-architecture-card h3,.network-architecture-card .card-layer{color:#eaf5ff}
     .network-architecture-card .card-subtitle{color:#9cb7d2}
     .network-architecture-card li{border-color:rgba(255,255,255,.1);color:#c7d7e8}
@@ -532,6 +605,10 @@
     </div>
   </div></nav>
   <div id="google_translate_element" aria-hidden="true"></div>
+  <canvas id="bankingThemeScene" aria-hidden="true"></canvas>
+  <div id="bankingThemeLoader" aria-hidden="true"><div class="banking-loader-content"><div class="banking-loader-status">Calibrating gravity field</div><div class="banking-loader-track"><div class="banking-loader-fill"></div></div><div class="banking-loader-count">000%</div></div></div>
+  <div id="bankingThemeScrim"></div>
+  <aside id="bankingThemeControls" aria-hidden="true"></aside>
 
   <div id="pricingFlight">
     <div class="pf-notice">Your browser doesn't support animation-timeline yet — showing a graceful fallback.</div>
@@ -765,6 +842,7 @@
   <footer><div class="container"><div class="footer-grid">
     <div class="footer-brand"><a href="/" class="logo" aria-label="PrimeStack home"><span class="logo-text">PrimeStack</span></a><p>Global payment infrastructure for collection, transfers, settlement, banking, wallets, and developer integrations.</p></div>
     <div class="footer-column"><strong>Platform</strong><a href="/payments">Payments</a><a href="/banking">Banking</a><a href="/network">Network</a><a href="/settlement">Settlement</a><a href="/pricing">Subscriptions &amp; charges</a></div>
+    <div class="footer-column"><strong>Developers</strong><a href="/developer">Developer portal</a><a href="/developer/funds">Funds movement guide</a><a href="/developer/reference">API reference</a><a href="/merchant-register">Request access</a></div>
     <div class="footer-column"><strong>Technology</strong><a href="/technology">Technology</a><a href="/iso20022">ISO 20022</a><a href="/iso8583">ISO 8583</a><a href="/developer">Developers</a></div>
     <div class="footer-column"><strong>Company</strong><a href="/about">About us</a><a href="/partners">Partners</a><a href="/careers">Careers</a><a href="/contact">Contact</a></div>
     <div class="footer-column"><strong>Legal</strong><a href="/terms">Terms & conditions</a><a href="/privacy">Privacy policy</a><a href="/cookies">Cookies</a><a href="/acceptable-use">Acceptable use</a></div>
@@ -2206,6 +2284,7 @@
     document.getElementById("tickerTrack").innerHTML=[...ticker,...ticker].map(x=>`<span class="ticker-item">${x}</span>`).join("");
     const path=window.location.pathname.replace(/\/+$/,"")||"/";
     const isPaymentTheme=["/payments","/collect","/send","/payouts","/wallets"].includes(path);
+    const isCompanyTheme=path==="/company";
     const page=pages[path]||pages["/"];
     const guide=pageGuides[path];
     const escapeHtml=value=>String(value).replace(/[&<>"']/g,char=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[char]));
@@ -2242,7 +2321,20 @@
     const hero=document.getElementById("hero");
     document.body.classList.toggle("technology-full-theme",path==="/technology");
     document.body.classList.toggle("payments-theme",isPaymentTheme);
+    document.body.classList.toggle("banking-theme",isCompanyTheme);
     document.body.classList.toggle("pricing-theme",path==="/pricing");
+    if(isCompanyTheme){
+      document.body.classList.add("banking-animation-loading");
+      const fontStylesheet=document.createElement("link");
+      fontStylesheet.rel="stylesheet";
+      fontStylesheet.href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Raleway:wght@500;600;700;800;900&display=swap";
+      document.head.append(fontStylesheet);
+      const animationScript=document.createElement("script");
+      animationScript.type="module";
+      animationScript.src="/banking-theme.js";
+      animationScript.onerror=()=>{console.error("Company page theme animation failed to load.");document.body.classList.remove("banking-animation-loading")};
+      document.body.append(animationScript);
+    }
     if(path==="/technology")initTechnologyShader(document.getElementById("technologyShader"));
     const heroImage=document.getElementById("hero").querySelector(".hero-image");
     let flightFrame=0,heroParallaxActive=false;
@@ -2261,53 +2353,6 @@
       }
     };
     addEventListener("scroll",()=>{if(!flightFrame)flightFrame=requestAnimationFrame(updateFlight)},{passive:true});
-    if(!matchMedia("(prefers-reduced-motion:reduce)").matches&&typeof requestAnimationFrame==="function"){
-      const maxScrollY=()=>Math.max(document.documentElement.scrollHeight-innerHeight,0);
-      let targetY=scrollY,currentY=scrollY,scrollFrame=0,lastFrame=0;
-      const renderScroll=now=>{
-        const elapsed=lastFrame?Math.min(now-lastFrame,64):16.7;
-        lastFrame=now;
-        targetY=Math.max(0,Math.min(maxScrollY(),targetY));
-        currentY+=(targetY-currentY)*(1-Math.exp(-elapsed/340));
-        if(Math.abs(targetY-currentY)<.5){
-          currentY=targetY;
-          window.scrollTo(0,currentY);
-          scrollFrame=0;
-          lastFrame=0;
-          return;
-        }
-        window.scrollTo(0,currentY);
-        scrollFrame=requestAnimationFrame(renderScroll);
-      };
-      addEventListener("wheel",event=>{
-        if(!event.cancelable||event.defaultPrevented||event.ctrlKey||event.metaKey||event.altKey||event.shiftKey||event.deltaY===0)return;
-        const source=event.target instanceof Element?event.target:null;
-        if(source&&source.closest("input,textarea,select,[contenteditable='true'],.pricing-table-wrap"))return;
-        if(!scrollFrame)currentY=targetY=scrollY;
-        const unit=event.deltaMode===1?16:event.deltaMode===2?innerHeight:1;
-        const nextY=Math.max(0,Math.min(maxScrollY(),targetY+event.deltaY*unit));
-        if(nextY===targetY)return;
-        event.preventDefault();
-        targetY=nextY;
-        if(!scrollFrame){
-          lastFrame=0;
-          scrollFrame=requestAnimationFrame(renderScroll);
-        }
-      },{passive:false});
-      const cancelSmoothScroll=()=>{
-        if(!scrollFrame)return;
-        cancelAnimationFrame(scrollFrame);
-        scrollFrame=0;
-        lastFrame=0;
-        currentY=targetY=scrollY;
-      };
-      addEventListener("pointerdown",cancelSmoothScroll,{passive:true});
-      addEventListener("touchstart",cancelSmoothScroll,{passive:true});
-      addEventListener("keydown",event=>{
-        if(["ArrowDown","ArrowUp","PageDown","PageUp","Home","End"," "].includes(event.key))cancelSmoothScroll();
-      },{capture:true});
-      addEventListener("blur",cancelSmoothScroll);
-    }
     const mousePoint=document.getElementById("mousePoint");
     if(matchMedia("(pointer:fine)").matches&&!matchMedia("(prefers-reduced-motion:reduce)").matches){
       let targetX=innerWidth/2,targetY=innerHeight/2,pointX=targetX,pointY=targetY,pointFrame=0,lastPointFrame=performance.now();

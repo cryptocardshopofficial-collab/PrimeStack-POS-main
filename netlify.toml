@@ -1,0 +1,12 @@
+# Netlify build for the PrimeStack public website.
+#
+# The site is fully static: public-site.html is one document with client-side
+# routing, and scripts/build-netlify.mjs assembles the rest (developer portal,
+# merchant registration, sliced API reference) plus the routing rules.
+#
+# Routing lives in the generated _redirects / _headers files so the platform
+# origin can be overridden per deploy with PLATFORM_ORIGIN.
+
+[build]
+  command = "node scripts/build-netlify.mjs"
+  publish = "netlify-dist"

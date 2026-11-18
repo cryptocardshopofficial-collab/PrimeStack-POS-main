@@ -41,6 +41,19 @@ export const agentPortalLoginSchema = z.object({
   pin: z.string().regex(/^\d{12}$/, "Enter the 12-digit Agent Login PIN"),
 });
 
+export const agentTransactionControlReasonSchema = z.object({
+  reason: z.string().trim().min(3).max(1000),
+});
+
+export const agentTransactionControlResponseSchema = z.object({
+  response: z.string().trim().min(3).max(1000),
+});
+
+export const reviewAgentTransactionControlSchema = z.object({
+  decision: z.enum(["APPROVE", "REJECT", "REQUEST_INFO"]),
+  adminRemarks: z.string().trim().min(3).max(1000),
+});
+
 export type RegisterAgentKycInput = z.infer<typeof registerAgentKycSchema>;
 export type AgentKycStatusInput = z.infer<typeof updateAgentKycStatusSchema>;
 export type AgentPortalLoginInput = z.infer<typeof agentPortalLoginSchema>;

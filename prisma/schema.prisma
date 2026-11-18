@@ -129,9 +129,22 @@ enum TransactionStatus {
   AUTHORIZED
   DECLINED
   CAPTURED
+  ON_HOLD
   REVERSED
   EXPIRED
   SETTLED
+}
+
+enum AgentTransactionControlAction {
+  HOLD
+  RESUME
+}
+
+enum AgentTransactionControlStatus {
+  PENDING
+  INFO_REQUESTED
+  APPROVED
+  REJECTED
 }
 
 enum WalletType {
@@ -379,6 +392,8 @@ model Merchant {
   notifications    Notification[]
   s2sConnections   S2sConnection[] @relation("S2sMerchantConnections")
   portalUser      User?
+  bankAccounts     MerchantBankAccount[]
+  transactionControlRequests MerchantTransactionControlRequest[]
 
   @@index([status])
   @@index([country])
@@ -526,6 +541,8 @@ model Transaction {
 
   chargebacks     Chargeback[]
   transactionLogs TransactionLog[]
+  agentControlRequests AgentTransactionControlRequest[]
+  merchantControlRequests MerchantTransactionControlRequest[]
 
   @@index([merchantId])
   @@index([terminalId])
@@ -547,6 +564,55 @@ model TransactionLog {
 
   @@index([transactionId])
   @@index([createdAt])
+}
+
+model AgentTransactionControlRequest {
+  id              String                           @id @default(uuid())
+  transactionId   String
+  transaction     Transaction                      @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  agentId         String
+  agent           Agent                            @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  action          AgentTransactionControlAction
+  status          AgentTransactionControlStatus    @default(PENDING)
+  reason          String                           @db.VarChar(1000)
+  agentResponse   String?                          @db.VarChar(1000)
+  previousStatus  TransactionStatus?
+  adminRemarks    String?                          @db.VarChar(1000)
+  reviewedBy      String?
+  reviewedAt      DateTime?
+  createdAt       DateTime                         @default(now())
+  updatedAt       DateTime                         @updatedAt
+
+  @@index([agentId, status, createdAt])
+  @@index([transactionId, createdAt])
+}
+
+// Merchant-initiated hold/resume requests. A merchant asks an administrator to
+// pause a transaction (optionally reported as suspicious) or to release a hold.
+// The transaction only changes once an administrator approves the request.
+// Reuses the agent control enums: HOLD = pause, RESUME = release the hold.
+model MerchantTransactionControlRequest {
+  id                String                         @id @default(uuid())
+  transactionId     String
+  transaction       Transaction                    @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  merchantId        String
+  merchant          Merchant                       @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  requestedByUserId String
+  requestedBy       User                           @relation("MerchantControlRequests", fields: [requestedByUserId], references: [id], onDelete: Cascade)
+  action            AgentTransactionControlAction
+  suspicious        Boolean                        @default(false)
+  status            AgentTransactionControlStatus  @default(PENDING)
+  reason            String                         @db.VarChar(1000)
+  merchantResponse  String?                        @db.VarChar(1000)
+  previousStatus    TransactionStatus?
+  adminRemarks      String?                        @db.VarChar(1000)
+  reviewedBy        String?
+  reviewedAt        DateTime?
+  createdAt         DateTime                       @default(now())
+  updatedAt         DateTime                       @updatedAt
+
+  @@index([merchantId, status, createdAt])
+  @@index([transactionId, createdAt])
 }
 
 // ──────────────────────────────────────────────
@@ -658,6 +724,9 @@ model VirtualAccount {
   wallet        Wallet   @relation(fields: [walletId], references: [id], onDelete: Cascade)
   accountNumber String   @unique
   currency      String
+  provider      String?
+  externalId    String?
+  details       Json?
   active        Boolean  @default(true)
   createdAt     DateTime @default(now())
 
@@ -807,6 +876,7 @@ model Agent {
   hmacKeys       HmacKey[]
   kycProfile     AgentKycProfile?
   credential     AgentCredential?
+  transactionControlRequests AgentTransactionControlRequest[]
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
@@ -1057,11 +1127,12 @@ model HmacNonce {
 }
 
 model T2tIpWhitelist {
-  id         String   @id @default(uuid())
-  ip         String
-  note       String?
-  merchantId String?  @map("merchant_id")
-  addedAt    DateTime @default(now()) @map("added_at") @db.Timestamptz(6)
+  id          String   @id @default(uuid())
+  ip          String
+  note        String?
+  callbackUrl String?  @map("callback_url")
+  merchantId  String?  @map("merchant_id")
+  addedAt     DateTime @default(now()) @map("added_at") @db.Timestamptz(6)
 
   @@unique([merchantId, ip], map: "T2tIpWhitelist_merchant_ip_key")
   @@index([ip], map: "T2tIpWhitelist_ip_idx")
@@ -1100,6 +1171,28 @@ model BankAccountProfile {
 
   @@index([bankName])
   @@index([createdAt])
+}
+
+// A merchant's own saved bank account, used to receive commission and payouts so
+// the details are typed once and then selected. The full account details are
+// stored with AES-256-GCM envelope encryption (src/modules/admin/bank-account-vault.ts);
+// only the masked last four digits are ever returned to a client.
+model MerchantBankAccount {
+  id               String   @id @default(uuid())
+  merchantId       String
+  merchant         Merchant @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  label            String   @db.VarChar(120)
+  bankName         String   @db.VarChar(160)
+  accountName      String   @db.VarChar(160)
+  accountLast4     String   @db.VarChar(4)
+  currency         String   @default("USD") @db.VarChar(3)
+  encryptedDetails String   @db.Text
+  isDefault        Boolean  @default(false)
+  createdByUserId  String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([merchantId, createdAt])
 }
 
 model HostConnection {
@@ -1383,6 +1476,7 @@ model User {
   updatedAt   DateTime @updatedAt
 
   auditLogs   AuditLog[]
+  merchantControlRequests MerchantTransactionControlRequest[] @relation("MerchantControlRequests")
 
   @@index([role])
   @@index([isActive])

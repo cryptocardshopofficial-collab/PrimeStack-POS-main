@@ -4,6 +4,7 @@ import type { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 import { config } from "../../config/index.js";
 import { ForbiddenError, ValidationError } from "../../core/errors.js";
 import { sendCreated, sendSuccess } from "../../shared/utils/response.js";
+import { wiseWebhookPublicKey } from "../wallet/wise-virtual-account.js";
 import type { WalletService } from "../wallet/wallet.service.js";
 
 const VIRTUAL_ACCOUNT_ROLES = new Set(["SUPER_ADMIN", "ADMIN"]);
@@ -36,10 +37,10 @@ export function registerAdminVirtualAccountRoutes(
       enabled: config.wise.enabled,
       provisioningEnabled: config.wise.provisioningEnabled,
       environment: config.wise.environment,
-      configured: Boolean(config.wise.apiKey && config.wise.profileId && config.wise.webhookPublicKey),
+      configured: Boolean(config.wise.apiKey && config.wise.profileId && wiseWebhookPublicKey()),
       profileIdConfigured: Boolean(config.wise.profileId),
       apiKeyConfigured: Boolean(config.wise.apiKey),
-      webhookPublicKeyConfigured: Boolean(config.wise.webhookPublicKey),
+      webhookPublicKeyConfigured: Boolean(wiseWebhookPublicKey()),
       defaultCreditAccount: config.wise.defaultCreditAccount,
     });
   });
@@ -58,7 +59,7 @@ export function registerAdminVirtualAccountRoutes(
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     const actor = assertVirtualAccountAdmin(request);
     reply.header("Cache-Control", "no-store");
-    if (!config.wise.provisioningEnabled || !config.wise.apiKey || !config.wise.profileId || !config.wise.webhookPublicKey) {
+    if (!config.wise.provisioningEnabled || !config.wise.apiKey || !config.wise.profileId) {
       throw new ForbiddenError("Wise virtual-account provisioning is not enabled or fully configured");
     }
     const schema = z.object({

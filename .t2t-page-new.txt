@@ -1,0 +1,123 @@
+function t2tEnginePage() {
+  return page('T2T Engine', '/merchant/t2t', `
+<style>
+.t2e-cred td { padding: 7px 0; vertical-align: top; }
+.t2e-cred td:first-child { color: var(--muted); width: 38%; white-space: nowrap; }
+.t2e-cred td:last-child { font-family: monospace; font-size: .72rem; word-break: break-all; }
+</style>
+<div class="page-header">
+  <div class="breadcrumb"><a href="/">Home</a><span>/</span>T2T Engine</div>
+  <h1>Terminal-to-Terminal Engine</h1>
+  <p>Accept funds from any external terminal worldwide — South Africa, UAE, UK, anywhere. Add the sender IP, verify with ping, then receive transfers instantly.</p>
+</div>
+
+<div class="tabs">
+  <div class="tab active" data-g="t2e" data-t="t2e-setup">Setup</div>
+  <div class="tab" data-g="t2e" data-t="t2e-send">Transfer</div>
+  <div class="tab" data-g="t2e" data-t="t2e-hist">History</div>
+  <div class="tab" data-g="t2e" data-t="t2e-bal">Balances</div>
+</div>
+
+<div id="t2e-setup" class="tab-pane active" data-g="t2e">
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px">
+    <div class="card">
+      <div class="card-title" style="margin-bottom:12px">Your Receiving Details</div>
+      <p style="font-size:.82rem;color:var(--muted);margin-bottom:12px">Send these to your customer:</p>
+      <table class="t2e-cred" style="width:100%;border-collapse:collapse">
+        <tr><td>Server URL</td><td>https://primestack-global-server-network.onrender.com</td></tr>
+        <tr style="border-top:1px solid var(--border)"><td>HMAC Key ID</td><td>psk_8c404d74df8344f6f3c27d767bc64694c7571fdf00d6e4da</td></tr>
+        <tr style="border-top:1px solid var(--border)"><td>Your Terminal</td><td style="font-weight:700;color:var(--accent);font-size:.85rem">PST-001-PRIME</td></tr>
+        <tr style="border-top:1px solid var(--border)"><td>Transfer endpoint</td><td>POST /t2t/transfer</td></tr>
+        <tr style="border-top:1px solid var(--border)"><td>Ping endpoint</td><td>POST /t2t/ping</td></tr>
+      </table>
+    </div>
+    <div class="card">
+      <div class="card-title" style="margin-bottom:12px">IP Whitelist</div>
+      <p style="font-size:.82rem;color:var(--muted);margin-bottom:12px">Only whitelisted IPs can send you transfers.</p>
+      <div style="display:flex;gap:8px;margin-bottom:8px">
+        <input id="t2e-ip-in" class="input-mono" placeholder="e.g. 216.24.57.16" style="flex:1">
+        <button class="btn btn-success btn-sm" onclick="t2eAdd()">+ Add IP</button>
+      </div>
+      <div id="t2e-wl-msg" style="font-size:.78rem;margin-bottom:6px"></div>
+      <button class="btn btn-ghost btn-sm" onclick="t2eWlLoad()" style="margin-bottom:8px">Refresh list</button>
+      <div id="t2e-wl-list" style="font-size:.78rem;color:var(--muted)">Click Refresh to load</div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title" style="margin-bottom:12px">Ping — Verify Sender Connection</div>
+    <p style="font-size:.82rem;color:var(--muted);margin-bottom:12px">Test that the sender IP is whitelisted before they send funds.</p>
+    <div style="display:flex;gap:8px">
+      <input id="t2e-ping-in" class="input-mono" placeholder="Sender terminal ID e.g. SA-TERM-001" style="flex:1">
+      <button class="btn btn-primary btn-sm" onclick="t2ePing()">Ping</button>
+    </div>
+    <div id="t2e-ping-out" style="margin-top:8px"></div>
+  </div>
+</div>
+
+<div id="t2e-send" class="tab-pane" data-g="t2e">
+  <div class="card" style="max-width:520px">
+    <div class="card-title" style="margin-bottom:16px">Execute T2T Transfer</div>
+    <div class="form-group"><label>Sender Terminal ID <span style="font-weight:400;color:var(--muted)">(external)</span></label><input id="t2e-src" class="input-mono" placeholder="e.g. SA-TERM-001"></div>
+    <div class="form-group"><label>Destination Terminal ID <span style="font-weight:400;color:var(--muted)">(yours)</span></label><input id="t2e-dst" class="input-mono" value="PST-001-PRIME"></div>
+    <div class="form-row">
+      <div class="form-group"><label>Amount</label><input id="t2e-amt" type="number" step="0.01" placeholder="1000.00"></div>
+      <div class="form-group"><label>Currency</label><select id="t2e-cur"><option>USD</option><option>EUR</option><option>INR</option><option>SGD</option><option>GBP</option><option>ZAR</option><option>AED</option></select></div>
+    </div>
+    <div class="form-group"><label>Description</label><input id="t2e-desc" placeholder="Optional description"></div>
+    <button class="btn btn-primary" onclick="t2eTx()">Execute Transfer</button>
+    <div id="t2e-tx-out" class="result"></div>
+  </div>
+</div>
+
+<div id="t2e-hist" class="tab-pane" data-g="t2e">
+  <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px">
+    <input id="t2e-hist-in" class="input-mono" placeholder="Filter by terminal ID" style="width:260px">
+    <button class="btn btn-primary btn-sm" onclick="t2eHistLoad()">Load</button>
+    <span id="t2e-hist-n" style="font-size:.75rem;color:var(--muted)"></span>
+  </div>
+  <div class="card" style="padding:0;overflow:hidden">
+    <table style="width:100%;border-collapse:collapse;font-size:.78rem">
+      <thead><tr style="background:var(--surf2)">
+        <th style="padding:8px;text-align:left;border-bottom:1px solid var(--border);color:var(--muted);font-size:.65rem;text-transform:uppercase">Reference</th>
+        <th style="padding:8px;text-align:left;border-bottom:1px solid var(--border);color:var(--muted);font-size:.65rem;text-transform:uppercase">From</th>
+        <th style="padding:8px;text-align:left;border-bottom:1px solid var(--border);color:var(--muted);font-size:.65rem;text-transform:uppercase">To</th>
+        <th style="padding:8px;text-align:left;border-bottom:1px solid var(--border);color:var(--muted);font-size:.65rem;text-transform:uppercase">Amount</th>
+        <th style="padding:8px;text-align:left;border-bottom:1px solid var(--border);color:var(--muted);font-size:.65rem;text-transform:uppercase">Status</th>
+        <th style="padding:8px;text-align:left;border-bottom:1px solid var(--border);color:var(--muted);font-size:.65rem;text-transform:uppercase">Date</th>
+      </tr></thead>
+      <tbody id="t2e-hist-body"><tr><td colspan="6" style="text-align:center;padding:24px;color:var(--muted)">Click Load to view transfers</td></tr></tbody>
+    </table>
+  </div>
+</div>
+
+<div id="t2e-bal" class="tab-pane" data-g="t2e">
+  <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">
+    <input id="t2e-bal-in" class="input-mono" placeholder="Terminal ID e.g. PST-001-PRIME" style="width:280px">
+    <button class="btn btn-primary btn-sm" onclick="t2eBalCheck()">Check Balance</button>
+    <button class="btn btn-ghost btn-sm" onclick="t2eTerminals()">All Terminals</button>
+  </div>
+  <div id="t2e-bal-out" style="margin-bottom:12px"></div>
+  <div id="t2e-term-list"></div>
+</div>
+
+<script>
+(function(){
+const B='https://primestack-global-server-network.onrender.com';
+const K='psk_8c404d74df8344f6f3c27d767bc64694c7571fdf00d6e4da';
+let S=localStorage.getItem('t2e_s')||'';
+async function sig(){if(!S){S=prompt('Enter HMAC secret for key psk_8c404d74...')||'';if(S)localStorage.setItem('t2e_s',S);}const t=Date.now().toString();const e=new TextEncoder();const k=await crypto.subtle.importKey('raw',e.encode(S),{name:'HMAC',hash:'SHA-256'},false,['sign']);const s=await crypto.subtle.sign('HMAC',k,e.encode(K+t));return{t,h:Array.from(new Uint8Array(s)).map(b=>b.toString(16).padStart(2,'0')).join('')};}
+async function go(m,p,b){try{const{t,h}=await sig();const r=await fetch(B+p,{method:m,headers:{'Content-Type':'application/json','x-primestack-key-id':K,'x-primestack-timestamp':t,'x-primestack-signature':h},body:b?JSON.stringify(b):undefined,signal:AbortSignal.timeout(12000)});return{ok:r.ok,d:await r.json()};}catch(e){return{ok:false,d:{error:{message:e.message}}};}}
+function err(d){return '<span style="color:var(--danger);font-size:.82rem">'+JSON.stringify(d.error||d)+'</span>';}
+window.t2eAdd=async function(){const ip=document.getElementById('t2e-ip-in').value.trim();if(!ip){toast('Enter an IP','err');return;}const r=await go('POST','/t2t/whitelist',{ip,action:'add'});if(r.ok){toast('IP '+ip+' whitelisted','ok');document.getElementById('t2e-ip-in').value='';t2eWlLoad();}else{document.getElementById('t2e-wl-msg').innerHTML=err(r.d);}};
+window.t2eWlLoad=async function(){const r=await go('GET','/t2t/whitelist',null);const el=document.getElementById('t2e-wl-list');if(r.ok&&r.d.data){const ips=r.d.data.whitelistedIps||[];el.innerHTML=ips.length?ips.map(x=>'<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border)"><span style="font-family:monospace">'+x.ip+'</span><span style="color:var(--muted);font-size:.72rem">'+(x.note||'')+'</span><button class="btn btn-danger btn-sm" onclick="t2eRm(\''+x.ip+'\')">Remove</button></div>').join(''):'<span style="color:var(--muted)">No IPs whitelisted yet</span>';}else{el.innerHTML=err(r.d);}};
+window.t2eRm=async function(ip){const r=await go('POST','/t2t/whitelist',{ip,action:'remove'});if(r.ok){toast('Removed','ok');t2eWlLoad();}};
+window.t2ePing=async function(){const tid=document.getElementById('t2e-ping-in').value.trim()||undefined;const r=await go('POST','/t2t/ping',{terminalId:tid});const el=document.getElementById('t2e-ping-out');if(r.ok&&r.d.data){const d=r.d.data;el.innerHTML=d.reachable?'<div style="padding:10px;background:var(--success-bg,rgba(24,116,58,.1));border:1px solid var(--success);border-radius:6px;font-size:.85rem">✅ Connected — IP <code>'+d.callerIp+'</code> is whitelisted. Ready to transfer.</div>':'<div style="padding:10px;background:rgba(181,9,9,.08);border:1px solid var(--danger);border-radius:6px;font-size:.85rem">❌ IP <code>'+d.callerIp+'</code> not whitelisted. Add it in Setup first.</div>';}else{el.innerHTML=err(r.d);}};
+window.t2eTx=async function(){const src=document.getElementById('t2e-src').value.trim(),dst=document.getElementById('t2e-dst').value.trim(),amt=document.getElementById('t2e-amt').value.trim(),cur=document.getElementById('t2e-cur').value,desc=document.getElementById('t2e-desc').value.trim();if(!src||!amt){toast('Source terminal and amount required','err');return;}const r=await go('POST','/t2t/transfer',{sourceId:src,destId:dst,amount:amt,currency:cur,description:desc||undefined});const el=document.getElementById('t2e-tx-out');if(r.ok&&r.d.data){const d=r.d.data;el.innerHTML='<div style="margin-top:12px;padding:16px;background:var(--success-bg,rgba(24,116,58,.1));border:1px solid var(--success);border-radius:8px"><strong style="font-size:.95rem">✅ '+d.reference+' — COMPLETED</strong><br><br><table style="font-size:.82rem;border-collapse:collapse"><tr><td style="color:var(--muted);padding:3px 16px 3px 0">Amount</td><td><strong>'+d.amount+' '+d.currency+'</strong></td></tr><tr><td style="color:var(--muted);padding:3px 16px 3px 0">From</td><td>'+d.sourceId+'</td></tr><tr><td style="color:var(--muted);padding:3px 16px 3px 0">To</td><td>'+d.destId+'</td></tr><tr><td style="color:var(--muted);padding:3px 16px 3px 0">Your balance</td><td><strong>'+d.destBalance+' '+d.currency+'</strong></td></tr><tr><td style="color:var(--muted);padding:3px 16px 3px 0">Journal</td><td style="font-family:monospace;font-size:.72rem">'+d.journalEntryRef+'</td></tr></table></div>';toast('Transfer completed','ok');}else{el.innerHTML='<div style="margin-top:8px;padding:12px;background:rgba(181,9,9,.08);border:1px solid var(--danger);border-radius:8px;font-size:.82rem">'+JSON.stringify(r.d.error||r.d)+'</div>';}};
+window.t2eHistLoad=async function(){const tid=document.getElementById('t2e-hist-in').value.trim();const r=await go('GET','/t2t/transfers'+(tid?'?tid='+encodeURIComponent(tid):''),null);const rows=r.d.data||[];document.getElementById('t2e-hist-n').textContent=rows.length+' transfers';document.getElementById('t2e-hist-body').innerHTML=rows.length?rows.map(t=>'<tr><td style="padding:8px;font-family:monospace;font-size:.7rem">'+t.reference+'</td><td style="padding:8px">'+t.sourceId+'</td><td style="padding:8px">'+t.destId+'</td><td style="padding:8px;font-weight:600">'+t.amount+' '+t.currency+'</td><td style="padding:8px"><span class="badge badge-green">'+t.status+'</span></td><td style="padding:8px;font-size:.72rem;color:var(--muted)">'+(t.completedAt?new Date(t.completedAt).toLocaleString():'-')+'</td></tr>').join(''):'<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--muted)">No transfers yet</td></tr>';};
+window.t2eBalCheck=async function(){const tid=document.getElementById('t2e-bal-in').value.trim();if(!tid){toast('Enter terminal ID','err');return;}const r=await go('GET','/t2t/balance/'+encodeURIComponent(tid),null);const el=document.getElementById('t2e-bal-out');if(r.ok&&r.d.data){const d=r.d.data;el.innerHTML='<div style="padding:16px;background:var(--surf2);border:1px solid var(--border);border-radius:8px;display:inline-block"><div style="font-size:.78rem;color:var(--muted)">'+d.terminalId+'</div><div style="font-size:2rem;font-weight:700;letter-spacing:-.04em">'+d.balance+' '+d.currency+'</div></div>';}else{el.innerHTML=err(r.d);}};
+window.t2eTerminals=async function(){const r=await go('GET','/t2t/terminals',null);const rows=r.d.data||[];document.getElementById('t2e-term-list').innerHTML=rows.length?'<div class="card" style="padding:0;overflow:hidden;margin-top:8px"><table style="width:100%;border-collapse:collapse;font-size:.82rem"><thead><tr style="background:var(--surf2)"><th style="padding:8px;text-align:left;border-bottom:1px solid var(--border)">Terminal ID</th><th style="padding:8px;text-align:left;border-bottom:1px solid var(--border)">Model</th><th style="padding:8px;text-align:left;border-bottom:1px solid var(--border)">Location</th></tr></thead><tbody>'+rows.map(t=>'<tr><td style="padding:8px;font-family:monospace">'+t.tid+'</td><td style="padding:8px">'+(t.model||'External')+'</td><td style="padding:8px">'+(t.location||'-')+'</td></tr>').join('')+'</tbody></table></div>':'<div style="color:var(--muted);padding:12px">No terminals yet</div>';};
+document.addEventListener('DOMContentLoaded',function(){initTabs('t2e');t2eWlLoad();});
+})();
+</script>
+`);
+}

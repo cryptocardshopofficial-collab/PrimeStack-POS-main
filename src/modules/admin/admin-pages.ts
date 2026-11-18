@@ -97,6 +97,7 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
     <p class="sub">Admin Dashboard — Sign in</p>
     <input type="email" id="email" value="admin@primestack.io" placeholder="Email">
     <input type="password" id="password" value="Admin@2026" placeholder="Password">
+    <input type="password" id="pin" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="one-time-code" placeholder="Access PIN (if issued)">
     <button onclick="doLogin()">Sign In</button>
     <div class="login-cred"><b>Demo Credentials:</b><br>Email: admin@primestack.io<br>Password: Admin@2026</div>
   </div>
@@ -222,7 +223,8 @@ const SERVICES=[{n:"Ledger",p:9010},{n:"IP Whitelist",p:9011},{n:"Auth",p:9012},
 function doLogin(){
   const email=document.getElementById('email').value;
   const pass=document.getElementById('password').value;
-  fetch('/admin/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password:pass})})
+  const pin=document.getElementById('pin').value;
+  fetch('/admin/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password:pass,pin})})
   .then(r=>r.json())
   .then(data=>{
     if(data.success){
