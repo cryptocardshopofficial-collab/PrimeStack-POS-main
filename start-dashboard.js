@@ -8548,17 +8548,8 @@ document.getElementById('merchantLoginForm').addEventListener('submit', function
 
 function handleLogin(req, res) {
   if (req.method === 'GET') {
-    const existing = readSession(req);
-    if (existing) {
-      const location = roleAllowedByPortal(existing.claims.role)
-        ? dashboardHome(existing.claims.role)
-        : existing.claims.role === 'MERCHANT'
-          ? `${MERCHANT_PORTAL_ORIGIN}/merchant-dashboard`
-          : '/login';
-      res.writeHead(302, { Location: location });
-      res.end();
-      return;
-    }
+    // Always present the sign-in form. Never auto-resume a stored session, so
+    // the operator must enter the password on every visit.
     const pageHeaders = {
       'Content-Type': 'text/html; charset=utf-8',
       'Cache-Control': 'no-store',
