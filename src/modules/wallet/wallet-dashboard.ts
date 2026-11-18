@@ -36,6 +36,7 @@ export const walletDashboardHtml = `<!doctype html>
     <div id="login-error" class="notice error" role="alert"></div>
     <form id="login-form"><label>Email<input name="email" type="email" autocomplete="username" required></label>
       <label>Password<input name="password" type="password" autocomplete="current-password" required></label>
+      <label>Access PIN (if issued)<input name="pin" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="one-time-code" placeholder="6-digit PIN"></label>
       <button class="primary" type="submit">Sign in</button></form>
   </section>
   <main id="wallet-main" class="hidden">
@@ -79,6 +80,7 @@ export const walletDashboardHtml = `<!doctype html>
           <button type="submit">Add beneficiary</button></form>
       </article>
       <article class="panel"><div class="panel-head"><h2>Virtual account</h2></div>
+        <p class="muted">Creates a receiving-account record for the wallet. When Wise provisioning is enabled on the server it returns real Wise account details (IBAN / local account number); otherwise a local identifier is stored.</p>
         <form id="virtual-form"><label>Wallet<select name="walletAddress" class="wallet-select" required></select></label>
           <label>Currency<input name="currency" value="USD" minlength="3" maxlength="3" required></label><button type="submit">Create virtual account</button></form>
         <div id="virtual-list" class="list"></div>
@@ -112,7 +114,7 @@ export const walletDashboardHtml = `<!doctype html>
     const canManage=()=>["SUPER_ADMIN","ADMIN","OPERATOR"].includes(sessionStorage.getItem("walletAdminRole")||"");
     function clearAdminSession(){for(const key of ["walletAdminToken","walletAdminRole","walletAdminEmail"])sessionStorage.removeItem(key);}
     function showLogin(){ $("login-panel").classList.remove("hidden");$("wallet-main").classList.add("hidden");$("logout").classList.add("hidden");$("signed-in").textContent=""; }
-    function showWalletCenter(){ $("login-panel").classList.add("hidden");$("wallet-main").classList.remove("hidden");$("logout").classList.remove("hidden");$("signed-in").textContent=sessionStorage.getItem("walletAdminEmail")||""; }
+    function showWalletCenter(){ $("login-panel").classList.add("hidden");$("wallet-main").classList.remove("hidden");$("logout").classList.remove("hidden");$("signed-in").textContent=sessionStorage.getItem("walletAdminEmail")||"";if(location.hash==="#virtual-form")$("virtual-form").scrollIntoView({block:"start"}); }
     async function request(path,options={}) {
       const token=sessionStorage.getItem("walletAdminToken");
       const response=await fetch(api+path,{...options,headers:{Accept:"application/json",...(options.body?{"Content-Type":"application/json"}:{}),...(token?{Authorization:"Bearer "+token}:{}),...(options.headers||{})},cache:"no-store"});

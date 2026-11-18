@@ -82,8 +82,37 @@ export const config = {
   },
 
   hmac: {
-    algorithm: required("HMAC_ALGORITHM", "sha256"),
-    headerPrefix: required("HMAC_HEADER_PREFIX", "x-primestack"),
+    algorithm: required("HMAC_ALGORITHM", "sha256").trim().toLowerCase(),
+    headerPrefix: required("HMAC_HEADER_PREFIX", "x-primestack").trim().toLowerCase(),
+  },
+
+  inboundWebhook: {
+    /**
+     * Shared secret for the inbound real-funds webhook. Left empty by default:
+     * an unconfigured secret makes the webhook reject every request rather than
+     * accept unsigned credits.
+     */
+    secret: process.env.INBOUND_WEBHOOK_SECRET?.trim() ?? "",
+    maxTimestampDriftMs: int("INBOUND_WEBHOOK_MAX_TIMESTAMP_DRIFT_MS", 300000),
+    /**
+     * Ledger account that is debited when external funds are credited to a
+     * terminal. It must be an ASSET account, because ASSET debits are the only
+     * ones the ledger engine allows to go unbacked.
+     */
+    fundingAccountPrefix: required("INBOUND_FUNDING_ACCOUNT_PREFIX", "SYSTEM-FUNDING"),
+  },
+
+  /**
+   * Outbound notice sent to a whitelisted sender's callback URL when the
+   * operator pings it. Reuses the inbound webhook secret unless a dedicated
+   * secret is supplied, so a single configured secret signs both directions.
+   */
+  t2tNotify: {
+    secret:
+      process.env.T2T_NOTIFY_SECRET?.trim() ||
+      process.env.INBOUND_WEBHOOK_SECRET?.trim() ||
+      "",
+    timeoutMs: int("T2T_NOTIFY_TIMEOUT_MS", 5000),
   },
 
   rateLimit: {

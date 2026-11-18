@@ -1,5 +1,10 @@
 import { z } from "zod";
 
+const currencyListSchema = z
+  .array(z.string().trim().regex(/^[A-Za-z]{3}$/, "currency must be a three-letter code"))
+  .min(1)
+  .max(10);
+
 export const registerTerminalSchema = z.object({
   tid: z.string().min(1).max(8),
   mid: z.string().max(15).optional(),
@@ -12,6 +17,11 @@ export const registerTerminalSchema = z.object({
   city: z.string().max(100).optional(),
   country: z.string().min(2).max(3).default("US"),
   timezone: z.string().max(50).default("UTC"),
+  /**
+   * Currencies this terminal may receive funds in. Receiving accounts are
+   * provisioned for each of them at registration.
+   */
+  currencies: currencyListSchema.default(["USD"]),
   config: z.record(z.unknown()).optional(),
 });
 
@@ -24,6 +34,7 @@ export const updateTerminalSchema = z.object({
   country: z.string().max(3).optional(),
   timezone: z.string().max(50).optional(),
   status: z.enum(["REGISTERED", "ACTIVE", "INACTIVE", "DISABLED", "DECOMMISSIONED"]).optional(),
+  currencies: currencyListSchema.optional(),
   config: z.record(z.unknown()).optional(),
 });
 

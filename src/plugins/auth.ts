@@ -71,7 +71,14 @@ export async function hmacAuthPlugin(app: FastifyInstance): Promise<void> {
         path === "/public/agent-portal/login" ||
         path.startsWith("/public/agent-portal/") ||
         path === "/t2t/whitelist" ||
-        path.startsWith("/t2t/whitelist/")
+        path.startsWith("/t2t/whitelist/") ||
+        // Administrator-only inbound credit uses the JWT session, not merchant HMAC.
+        path === "/t2t/inbound" ||
+        // The inbound funds webhook carries its own shared-secret signature.
+        path === "/webhooks/inbound" ||
+        // Wise signs its webhook body with RSA (X-Signature-SHA256), verified
+        // inside the route.
+        path === "/wise/webhook"
       ) {
         return;
       }
@@ -81,12 +88,15 @@ export async function hmacAuthPlugin(app: FastifyInstance): Promise<void> {
         return;
       }
 
-      const prefix = config.hmac.headerPrefix;
+      const prefix = config.hmac.headerPrefix.toLowerCase();
+      const normalizedHeaders = Object.fromEntries(
+        Object.entries(request.headers).map(([name, value]) => [name.toLowerCase(), value]),
+      );
       const isAgentRoute = path === "/agent" || path.startsWith("/agent/");
-      const keyId = request.headers[`${prefix}-key-id`];
-      const timestamp = request.headers[`${prefix}-timestamp`];
-      const nonce = request.headers[`${prefix}-nonce`];
-      const signature = request.headers[`${prefix}-signature`];
+      const keyId = normalizedHeaders[`${prefix}-key-id`];
+      const timestamp = normalizedHeaders[`${prefix}-timestamp`];
+      const nonce = normalizedHeaders[`${prefix}-nonce`];
+      const signature = normalizedHeaders[`${prefix}-signature`];
 
       if (
         typeof keyId !== "string" ||

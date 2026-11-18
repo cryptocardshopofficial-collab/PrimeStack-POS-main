@@ -3,8 +3,8 @@ import { z } from "zod";
 export const loginSchema = z.object({
   email: z.string().min(1),
   password: z.string().min(1),
-  // Admin-issued numeric PIN. Required for merchant accounts only; staff
-  // sign-in continues to use email + password.
+  // Administrator-issued numeric PIN. Required whenever the account has one
+  // configured — merchant accounts always do; staff PINs are optional.
   pin: z.string().min(1).max(16).optional(),
 });
 

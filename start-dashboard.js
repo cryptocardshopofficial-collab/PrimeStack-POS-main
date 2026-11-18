@@ -6,6 +6,7 @@ import { request as httpsRequest } from 'https';
 import { randomUUID, createHmac, timingSafeEqual } from 'crypto';
 import { readFileSync } from 'fs';
 import { dashboardLocalizationScript } from './dashboard-localization.js';
+import { resolveDeveloperPage } from './src/public-site/developer-pages.mjs';
 
 function readOptional(relativePath, encoding) {
   try {
@@ -425,7 +426,7 @@ function showResult(id, data, isOk) {
 }
 
 // Tab init — uses event delegation on data-g / data-t attributes
-function initTabs(groupId) {
+function initTabs(groupId, onActivate) {
   var tabs = Array.prototype.slice.call(document.querySelectorAll('[data-g="' + groupId + '"].tab'));
   var panels = Array.prototype.slice.call(document.querySelectorAll('[data-g="' + groupId + '"].tab-pane'));
   function activate(tab, focus) {
@@ -441,6 +442,7 @@ function initTabs(groupId) {
       panel.classList.toggle('active', selected);
       panel.hidden = !selected;
     });
+    if (typeof onActivate === 'function') onActivate(tab.dataset.t);
     if (focus) tab.focus();
   }
   tabs.forEach(function(tab, index) {
@@ -784,11 +786,21 @@ function platformMerchantPortalAccess() {
   <div id="portal-credentials" class="result" role="status" aria-live="polite"></div>
   <div id="portal-error" class="error" role="alert"></div>
 </div>
+<div class="card" style="max-width:680px;margin-top:20px">
+  <div class="card-title" style="margin-bottom:12px">Merchant access PIN</div>
+  <p class="muted">The PIN is required in addition to the merchant password at sign-in and is stored hashed, so it can never be displayed. Reset to issue a new PIN and hand it to the merchant securely.</p>
+  <div style="display:flex;gap:10px;flex-wrap:wrap">
+    <button class="btn btn-ghost btn-sm" type="button" id="portal-pin-check">Check PIN status</button>
+    <button class="btn btn-primary btn-sm" type="button" id="portal-pin-reset">Reset PIN</button>
+  </div>
+  <div id="portal-pin-result" class="result" role="status" aria-live="polite"></div>
+</div>
 <script>
 (function(){
   var select=document.getElementById('portal-merchant');
   var result=document.getElementById('portal-credentials');
   var error=document.getElementById('portal-error');
+  var pinResult=document.getElementById('portal-pin-result');
   function loadMerchants(){
     api('GET','/merchants?pageSize=100').then(function(response){
       var merchants=response.data&&Array.isArray(response.data.data)?response.data.data:[];
@@ -810,6 +822,31 @@ function platformMerchantPortalAccess() {
       if(!response.ok||!credentials||!credentials.temporaryPassword){throw new Error(response.error||'Unable to create merchant credentials.');}
       result.textContent='Sign-in: '+credentials.email+' | Temporary password: '+credentials.temporaryPassword+' | Access PIN: '+(credentials.portalPin||'—')+' | Give the merchant this PIN to enter alongside the password at sign-in.';
     }).catch(function(cause){error.textContent=cause.message;}).finally(function(){button.disabled=false;});
+  });
+  document.getElementById('portal-pin-check').addEventListener('click',function(){
+    pinResult.className='result';pinResult.textContent='';
+    if(!select.value){pinResult.className='result show err';pinResult.textContent='Select a merchant first.';return;}
+    api('GET','/merchants/'+encodeURIComponent(select.value)+'/portal-pin').then(function(response){
+      var status=response.data&&response.data.data;
+      if(!response.ok||!status)throw new Error(apiErrorMessage(response.data,'Unable to read PIN status.'));
+      pinResult.className='result show ok';
+      pinResult.textContent=status.hasPin
+        ? 'An access PIN is configured for '+status.email+'. It is stored hashed and cannot be displayed.'
+        : 'No access PIN is configured for '+status.email+' yet. Use Reset PIN to issue one.';
+    }).catch(function(cause){pinResult.className='result show err';pinResult.textContent=cause.message;});
+  });
+  document.getElementById('portal-pin-reset').addEventListener('click',function(){
+    pinResult.className='result';pinResult.textContent='';
+    if(!select.value){pinResult.className='result show err';pinResult.textContent='Select a merchant first.';return;}
+    if(!window.confirm('Issue a new access PIN? The previous PIN stops working immediately.'))return;
+    var button=this;
+    button.disabled=true;
+    api('POST','/merchants/'+encodeURIComponent(select.value)+'/portal-pin',{}).then(function(response){
+      var issued=response.data&&response.data.data;
+      if(!response.ok||!issued||!issued.portalPin)throw new Error(apiErrorMessage(response.data,'Unable to reset the merchant PIN.'));
+      pinResult.className='result show ok';
+      pinResult.textContent='New PIN for '+issued.email+': '+issued.portalPin+' — share it securely; it will not be shown again.';
+    }).catch(function(cause){pinResult.className='result show err';pinResult.textContent=cause.message;}).finally(function(){button.disabled=false;});
   });
   loadMerchants();
 })();
@@ -1227,6 +1264,26 @@ function platformApprovals() {
   </div>
   <div id="appr-result" class="result"></div>
 </div>
+<div class="card" style="margin-top:20px">
+  <div class="card-header">
+    <div class="card-title">Merchant pause / resume requests</div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <select id="mc-status" onchange="loadMerchantRequests()" style="height:34px">
+        <option value="PENDING" selected>Pending review</option>
+        <option value="">All statuses</option>
+        <option value="APPROVED">Approved</option>
+        <option value="REJECTED">Rejected</option>
+      </select>
+      <button class="btn btn-ghost btn-sm" onclick="loadMerchantRequests()">${svgIcon("refresh")} Refresh</button>
+    </div>
+  </div>
+  <p class="muted">Merchants report a suspicious transaction or ask to pause/release a payment. Approving changes the transaction status; an administrator remark is mandatory.</p>
+  <div class="table-wrap">
+    <table><thead><tr><th>Transaction</th><th>Merchant</th><th>Request</th><th>Suspicious</th><th>Reason</th><th>Status / remarks</th><th>Actions</th></tr></thead>
+    <tbody id="mc-tbody"><tr><td colspan="7" style="text-align:center;color:var(--muted)">Click refresh to load</td></tr></tbody></table>
+  </div>
+  <div id="mc-result" class="result"></div>
+</div>
 <script>
 function apprApiError(result){var body=result&&result.data;return body&&body.error&&body.error.message||body&&body.message||'Payout approval request failed (HTTP '+(result&&result.status||'unknown')+').';}
 function loadApprovals(){
@@ -1276,7 +1333,49 @@ function rejectTransfer(reference){
     toast('Payout rejected','ok');loadApprovals();
   }).catch(function(error){showResult('appr-result',{error:error.message},false);toast(error.message,'err');});
 }
-document.addEventListener('DOMContentLoaded', loadApprovals);
+document.addEventListener('DOMContentLoaded', function(){loadApprovals();loadMerchantRequests();});
+function loadMerchantRequests(){
+  var body=document.getElementById('mc-tbody');
+  var status=document.getElementById('mc-status').value;
+  var query='?page=1&pageSize=50'+(status?'&status='+encodeURIComponent(status):'');
+  api('GET','/admin/merchant-transaction-requests'+query).then(function(r){
+    if(!r.ok||!r.data||r.data.success===false)throw new Error(apprApiError(r));
+    var rows=Array.isArray(r.data.data)?r.data.data:[];
+    body.replaceChildren();
+    if(!rows.length){body.innerHTML='<tr><td colspan="7" style="text-align:center;color:var(--muted)">No merchant requests found</td></tr>';return;}
+    rows.forEach(function(item){
+      var row=document.createElement('tr');
+      function cell(text,mono){var td=document.createElement('td');if(mono){var code=document.createElement('code');code.textContent=text;td.appendChild(code);}else{td.textContent=text;}return td;}
+      var actions=document.createElement('td');
+      if(item.status==='PENDING'){
+        var approve=document.createElement('button');approve.type='button';approve.className='btn btn-success btn-sm';approve.textContent='Approve';
+        approve.addEventListener('click',function(){reviewMerchantRequest(item.id,'APPROVE');});
+        var reject=document.createElement('button');reject.type='button';reject.className='btn btn-danger btn-sm';reject.textContent='Reject';reject.style.marginLeft='6px';
+        reject.addEventListener('click',function(){reviewMerchantRequest(item.id,'REJECT');});
+        actions.append(approve,reject);
+      }else{actions.textContent='—';}
+      row.append(
+        cell((item.transaction.stan||item.transaction.id)+' · '+item.transaction.status,true),
+        cell(item.merchant.code+' · '+item.merchant.legalName),
+        cell(item.action+' · '+item.status),
+        cell(item.suspicious?'Yes':'No'),
+        cell(item.reason),
+        cell(item.adminRemarks||'No administrator remarks yet'),
+        actions
+      );
+      body.appendChild(row);
+    });
+  }).catch(function(error){body.replaceChildren();body.innerHTML='<tr><td colspan="7" style="text-align:center;color:var(--muted)">Unable to load merchant requests</td></tr>';toast(error.message,'err');});
+}
+function reviewMerchantRequest(requestId,decision){
+  var remarks=window.prompt('Enter mandatory administrator remarks for this decision:');
+  if(remarks===null)return;remarks=remarks.trim();
+  if(remarks.length<3){toast('Administrator remarks are required (minimum 3 characters)','err');return;}
+  api('POST','/admin/merchant-transaction-requests/'+encodeURIComponent(requestId)+'/review',{decision:decision,adminRemarks:remarks}).then(function(r){
+    if(!r.ok||!r.data||r.data.success===false){toast(apprApiError(r),'err');return;}
+    toast('Merchant request '+(decision==='APPROVE'?'approved':'rejected'),'ok');loadMerchantRequests();
+  }).catch(function(error){toast(error.message,'err');});
+}
 <\/script>
 `);
 }
@@ -6114,16 +6213,27 @@ function canProxyDashboardApi(role, method, targetPath) {
   const verb = method.toUpperCase();
   if (role === 'MERCHANT') {
     // Merchant fund-movement surfaces: T2T engine + payouts (which are held for
-    // administrator approval) and the JWT merchant-portal endpoints.
+    // administrator approval), saved commission bank accounts, transaction
+    // pause/report/resume requests and the JWT merchant-portal endpoints.
     if (path.startsWith('/t2t/')) return true;
     if (path === '/merchant-portal/payouts') return verb === 'GET' || verb === 'POST';
-    if (verb === 'POST') return path === '/merchant-portal/change-password';
+    if (verb === 'POST') {
+      return path === '/merchant-portal/change-password' ||
+        /^\/merchant-portal\/merchants\/[^/]+\/bank-accounts$/.test(path) ||
+        /^\/merchant-portal\/merchants\/[^/]+\/transactions\/[^/]+\/control-request$/.test(path);
+    }
+    if (verb === 'PATCH') {
+      return /^\/merchant-portal\/merchants\/[^/]+\/bank-accounts\/[^/]+\/default$/.test(path);
+    }
+    if (verb === 'DELETE') {
+      return /^\/merchant-portal\/merchants\/[^/]+\/bank-accounts\/[^/]+$/.test(path);
+    }
     if (verb !== 'GET') return false;
     return [
       '/merchant-portal/me',
       '/merchant-portal/merchants',
     ].includes(path) ||
-      /^\/merchant-portal\/merchants\/[^/]+(?:\/transactions|\/terminals)?$/.test(path);
+      /^\/merchant-portal\/merchants\/[^/]+(?:\/transactions|\/terminals|\/bank-accounts|\/transaction-control-requests)?$/.test(path);
   }
   if (!['OPERATOR', 'REVIEWER', 'READONLY'].includes(role)) return false;
   if (verb === 'GET') {
@@ -7473,7 +7583,8 @@ function t2tEnginePage() {
 <div class="page-header">
   <div class="breadcrumb"><a href="/">Home</a><span>/</span>T2T Engine</div>
   <h1>Terminal-to-Terminal Engine</h1>
-  <p>Accept funds from any external terminal worldwide — South Africa, UAE, UK, anywhere. Add the sender IP, verify with ping, then receive transfers instantly.</p>
+  <p>T2T records internal ledger transfers only. Both terminals must be active and belong to the same merchant; it does not send funds to another merchant, bank, or external payment network.</p>
+  <a class="btn btn-ghost" data-admin-only="true" href="/api/admin/merchant-dashboard#merchant-onboarding">Create Merchant</a>
 </div>
 
 <div class="tabs">
@@ -7487,21 +7598,25 @@ function t2tEnginePage() {
 <div id="t2e-setup" class="tab-pane active" data-g="t2e">
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px">
     <div class="card">
-      <div class="card-title" style="margin-bottom:12px">Your Receiving Details</div>
-      <p style="font-size:.82rem;color:var(--muted);margin-bottom:12px">Send these to your customer:</p>
+      <div class="card-title" style="margin-bottom:12px">T2T Deployment Details</div>
+      <p style="font-size:.82rem;color:var(--muted);margin-bottom:12px">Verify these with your administrator. They are not partner-ready connection instructions.</p>
       <table class="t2e-cred" style="width:100%;border-collapse:collapse">
-        <tr><td>Server URL</td><td>https://primestack-global-server-network.onrender.com</td></tr>
-        <tr style="border-top:1px solid var(--border)"><td>Your Terminal</td><td style="font-weight:700;color:var(--accent);font-size:.85rem">PST-001-PRIME</td></tr>
-        <tr style="border-top:1px solid var(--border)"><td>Transfer endpoint</td><td>POST /t2t/transfer</td></tr>
-        <tr style="border-top:1px solid var(--border)"><td>Ping endpoint</td><td>POST /t2t/ping</td></tr>
+        <tr><td>Dashboard URL</td><td id="t2e-server-url">Loading current origin...</td></tr>
+        <tr style="border-top:1px solid var(--border)"><td>Receiver terminal</td><td style="font-weight:700;color:var(--warn)">Not verified - select an active terminal for this merchant</td></tr>
+        <tr style="border-top:1px solid var(--border)"><td>External transfer API</td><td>Not exposed for partner requests in this deployment</td></tr>
+        <tr style="border-top:1px solid var(--border)"><td>External ping API</td><td>Not exposed for partner requests in this deployment</td></tr>
       </table>
+      <div class="alert alert-warn" style="margin-top:12px">Do not send the dashboard URL or attempt a real external transaction. The hard-coded terminal previously shown here was not verified against the database.</div>
     </div>
     <div class="card">
       <div class="card-title" style="margin-bottom:12px">IP Whitelist</div>
-      <p style="font-size:.82rem;color:var(--muted);margin-bottom:12px">Only whitelisted IPs can send you transfers.</p>
+      <p style="font-size:.82rem;color:var(--muted);margin-bottom:12px">Only whitelisted IPs can send you transfers. Optionally add the sender&rsquo;s callback URL so pinging this IP also pushes a signed notice to their system.</p>
       <div style="display:flex;gap:8px;margin-bottom:8px">
         <input id="t2e-ip-in" class="input-mono" placeholder="e.g. 216.24.57.16" style="flex:1">
         <button class="btn btn-success btn-sm" onclick="t2eAdd()">+ Add IP</button>
+      </div>
+      <div style="margin-bottom:8px">
+        <input id="t2e-cb-in" class="input-mono" placeholder="Sender callback URL, https://sender.example/t2t/notice (optional)" style="width:100%">
       </div>
       <div id="t2e-wl-msg" style="font-size:.78rem;margin-bottom:6px"></div>
       <button class="btn btn-ghost btn-sm" onclick="t2eWlLoad()" style="margin-bottom:8px">Refresh list</button>
@@ -7509,28 +7624,28 @@ function t2tEnginePage() {
     </div>
   </div>
   <div class="card">
-    <div class="card-title" style="margin-bottom:12px">Ping — Verify Sender Connection</div>
-    <p style="font-size:.82rem;color:var(--muted);margin-bottom:12px">Test that the sender IP is whitelisted before they send funds.</p>
+    <div class="card-title" style="margin-bottom:12px">Test Whitelisted Sender IP</div>
+    <p style="font-size:.82rem;color:var(--muted);margin-bottom:12px">Probe this IP from the API server on TCP 443, then 80. This does not send your IP to a partner.</p>
     <div style="display:flex;gap:8px">
-      <input id="t2e-ping-in-setup" class="input-mono" placeholder="Sender terminal ID e.g. SA-TERM-001" style="flex:1">
-      <button class="btn btn-primary btn-sm" onclick="t2ePing()">Ping</button>
+      <input id="t2e-ping-in-setup" class="input-mono" placeholder="Whitelisted sender IP e.g. 212.159.69.89" style="flex:1">
+      <button class="btn btn-primary btn-sm" onclick="t2ePingSetup()">Test IP</button>
     </div>
-    <div id="t2e-ping-out" style="margin-top:8px"></div>
+    <div id="t2e-ping-out-setup" style="margin-top:8px"></div>
   </div>
 </div>
 
 <div id="t2e-ping" class="tab-pane" data-g="t2e">
   <div class="card" style="max-width:520px">
-    <div class="card-title" style="margin-bottom:12px">Ping ? Verify Sender Connectivity</div>
-    <p style="font-size:.82rem;color:var(--muted);margin-bottom:16px">Before accepting funds, verify the sender IP is whitelisted and the connection is working. The sender calls this endpoint from their server to confirm they can reach you.</p>
+    <div class="card-title" style="margin-bottom:12px">Test a Sender IP</div>
+    <p style="font-size:.82rem;color:var(--muted);margin-bottom:16px">Choose an IP already in your whitelist, then click Ping IP. This tests TCP 443, then 80, from the API server; opening this tab alone does not send a probe.</p>
     <div class="form-group">
-      <label>Sender Terminal ID</label>
-      <input id="t2e-ping-in" class="input-mono" placeholder="e.g. SA-TERM-001 or UAE-BANK-007">
+      <label>Whitelisted Sender IP</label>
+      <input id="t2e-ping-in" class="input-mono" placeholder="e.g. 212.159.69.89">
     </div>
-    <button class="btn btn-primary" onclick="t2ePing()" style="margin-bottom:12px">Send Ping Request</button>
+    <button class="btn btn-primary" onclick="t2ePing()" style="margin-bottom:12px">Test IP from this server</button>
     <div id="t2e-ping-out"></div>
     <div style="margin-top:16px;padding:12px;background:var(--surf2);border-radius:8px;font-size:.78rem;color:var(--muted)">
-      <strong>How the sender calls this:</strong><br>
+      <strong>Partner source-IP check:</strong> The partner must call this endpoint from their own server. A dashboard test goes through the local API proxy and only checks that proxy's IP.<br><br>
       <code style="font-size:.72rem">POST https://primestack-global-server-network.onrender.com/t2t/ping</code><br>
       Body: <code>{"terminalId": "THEIR-TERMINAL-ID"}</code><br><br>
       Response if whitelisted: <code>{"reachable": true, "whitelisted": true}</code><br>
@@ -7551,9 +7666,10 @@ function t2tEnginePage() {
 
 <div id="t2e-send" class="tab-pane" data-g="t2e">
   <div class="card" style="max-width:520px">
-    <div class="card-title" style="margin-bottom:16px">Execute T2T Transfer</div>
-    <div class="form-group"><label>Sender Terminal ID <span style="font-weight:400;color:var(--muted)">(external)</span></label><input id="t2e-src" class="input-mono" placeholder="e.g. SA-TERM-001"></div>
-    <div class="form-group"><label>Destination Terminal ID <span style="font-weight:400;color:var(--muted)">(yours)</span></label><input id="t2e-dst" class="input-mono" value="PST-001-PRIME"></div>
+    <div class="card-title" style="margin-bottom:16px">Internal T2T Ledger Transfer</div>
+    <div class="alert alert-warn">This is not an external payment. Use only for an authorized internal test between active terminals owned by the same merchant.</div>
+    <div class="form-group"><label>Source Terminal ID <span style="font-weight:400;color:var(--muted)">(same merchant)</span></label><input id="t2e-src" class="input-mono" placeholder="Active terminal ID"></div>
+    <div class="form-group"><label>Destination Terminal ID <span style="font-weight:400;color:var(--muted)">(same merchant)</span></label><input id="t2e-dst" class="input-mono" placeholder="Active terminal ID"></div>
     <div class="form-row">
       <div class="form-group"><label>Amount</label><input id="t2e-amt" type="number" step="0.01" placeholder="1000.00"></div>
       <div class="form-group"><label>Currency</label><select id="t2e-cur"><option>USD</option><option>EUR</option><option>INR</option><option>SGD</option><option>GBP</option><option>ZAR</option><option>AED</option></select></div>
@@ -7580,14 +7696,14 @@ function t2tEnginePage() {
         <th style="padding:8px;text-align:left;border-bottom:1px solid var(--border);color:var(--muted);font-size:.65rem;text-transform:uppercase">Status</th>
         <th style="padding:8px;text-align:left;border-bottom:1px solid var(--border);color:var(--muted);font-size:.65rem;text-transform:uppercase">Date</th>
       </tr></thead>
-      <tbody id="t2e-hist-body"><tr><td colspan="6" style="text-align:center;padding:24px;color:var(--muted)">Click Load to view transfers</td></tr></tbody>
+      <tbody id="t2e-hist-body"><tr><td colspan="6" style="text-align:center;padding:24px;color:var(--muted)">Open History to load transfers</td></tr></tbody>
     </table>
   </div>
 </div>
 
 <div id="t2e-bal" class="tab-pane" data-g="t2e">
   <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">
-    <input id="t2e-bal-in" class="input-mono" placeholder="Terminal ID e.g. PST-001-PRIME" style="width:280px">
+    <input id="t2e-bal-in" class="input-mono" placeholder="Terminal ID" style="width:280px">
     <button class="btn btn-primary btn-sm" onclick="t2eBalCheck()">Check Balance</button>
     <button class="btn btn-ghost btn-sm" onclick="t2eTerminals()">All Terminals</button>
   </div>
@@ -7599,18 +7715,52 @@ function t2tEnginePage() {
 (function(){
 async function go(m,p,b){try{const headers={'Content-Type':'application/json'};if(m==='POST'&&p==='/t2t/transfer'){headers['x-primestack-idempotency-key']=crypto.randomUUID?crypto.randomUUID():Math.random().toString(36).slice(2)+Date.now().toString(36);}const r=await fetch('/api'+p,{method:m,headers,body:b?JSON.stringify(b):undefined,credentials:'same-origin',signal:AbortSignal.timeout(12000)});return{ok:r.ok,d:await r.json()};}catch(e){return{ok:false,d:{error:{message:e.message}}};}}
 function err(d){return '<span style="color:var(--danger);font-size:.82rem">'+escapeHtml(apiErrorMessage(d,'Request failed'))+'</span>';}
-window.t2eAdd=async function(){const ip=document.getElementById('t2e-ip-in').value.trim();if(!ip){toast('Enter an IP','err');return;}const r=await go('POST','/t2t/whitelist',{ip,action:'add'});if(r.ok){toast('IP '+ip+' whitelisted','ok');document.getElementById('t2e-ip-in').value='';t2eWlLoad();}else{document.getElementById('t2e-wl-msg').innerHTML=err(r.d);}};
-window.t2eWlLoad=async function(){const r=await go('GET','/t2t/whitelist',null);const el=document.getElementById('t2e-wl-list');if(r.ok&&r.d.data){const ips=r.d.data.whitelistedIps||[];el.innerHTML=ips.length?ips.map(x=>'<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border)"><span style="font-family:monospace">'+x.ip+'</span><span style="color:var(--muted);font-size:.72rem">'+(x.note||'')+'</span><button class="btn btn-danger btn-sm" onclick="t2eRm(\''+x.ip+'\')">Remove</button></div>').join(''):'<span style="color:var(--muted)">No IPs whitelisted yet</span>';}else{el.innerHTML=err(r.d);}};
+window.t2eAdd=async function(){const ip=document.getElementById('t2e-ip-in').value.trim();if(!ip){toast('Enter an IP','err');return;}const cb=document.getElementById('t2e-cb-in');const callbackUrl=cb?cb.value.trim():'';const body={ip,action:'add'};if(callbackUrl)body.callbackUrl=callbackUrl;const r=await go('POST','/t2t/whitelist',body);if(r.ok){toast('IP '+ip+' whitelisted','ok');document.getElementById('t2e-ip-in').value='';if(cb)cb.value='';document.getElementById('t2e-wl-msg').innerHTML='';t2eWlLoad();}else{document.getElementById('t2e-wl-msg').innerHTML=err(r.d);}};
+window.t2eWlLoad=async function(){
+  const r=await go('GET','/t2t/whitelist',null);
+  const el=document.getElementById('t2e-wl-list');
+  if(!r.ok||!r.d||!r.d.data){el.textContent=apiErrorMessage(r.d,'Unable to load the whitelist.');return;}
+  const ips=r.d.data.whitelistedIps||[];
+  el.replaceChildren();
+  if(!ips.length){
+    const empty=document.createElement('span');
+    empty.style.color='var(--muted)';
+    empty.textContent='No IPs whitelisted yet';
+    el.appendChild(empty);
+    return;
+  }
+  ips.forEach(function(entry){
+    const row=document.createElement('div');
+    row.style.cssText='display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border)';
+    const address=document.createElement('span');
+    address.style.fontFamily='monospace';
+    address.textContent=entry.ip;
+    const note=document.createElement('span');
+    note.style.cssText='color:var(--muted);font-size:.72rem;word-break:break-all';
+    note.textContent=[entry.note||'',entry.callbackUrl?('callback: '+entry.callbackUrl):''].filter(Boolean).join(' · ');
+    const remove=document.createElement('button');
+    remove.type='button';
+    remove.className='btn btn-danger btn-sm';
+    remove.textContent='Remove';
+    remove.addEventListener('click',function(){window.t2eRm(entry.ip);});
+    row.append(address,note,remove);
+    el.appendChild(row);
+  });
+  ['t2e-ping-in','t2e-ping-in-setup','t2e-ip-ping-in'].forEach(function(id){
+    const input=document.getElementById(id);
+    if(input&&!input.value)input.value=ips[0].ip;
+  });
+};
 window.t2eRm=async function(ip){const r=await go('POST','/t2t/whitelist',{ip,action:'remove'});if(r.ok){toast('Removed','ok');t2eWlLoad();}};
-async function _doPing(inputId,outId){const tid=document.getElementById(inputId).value.trim()||undefined;const r=await go('POST','/t2t/ping',{terminalId:tid});const el=document.getElementById(outId);if(r.ok&&r.d.data){const d=r.d.data;el.innerHTML=d.reachable?'<div style="padding:10px;background:var(--success-bg,rgba(24,116,58,.1));border:1px solid var(--success);border-radius:6px;font-size:.85rem">✅ Connected — IP <code>'+d.callerIp+'</code> is whitelisted. Ready to transfer.</div>':'<div style="padding:10px;background:rgba(181,9,9,.08);border:1px solid var(--danger);border-radius:6px;font-size:.85rem">❌ IP <code>'+d.callerIp+'</code> not whitelisted. Add it in Setup first.</div>';}else{el.innerHTML=err(r.d);}}window.t2ePingSetup=async function(){await _doPing('t2e-ping-in-setup','t2e-ping-out-setup');};window.t2ePing=async function(){await _doPing('t2e-ping-in','t2e-ping-out');};
-function _renderIpPing(el,d){if(!d||!d.results){el.innerHTML=err(d||{});return;}const rows=d.results;const s=d.summary||{};const head='<div style="font-size:.78rem;color:var(--muted);margin-bottom:8px">'+s.total+' sender(s) probed on port(s) '+(s.ports||[]).join('/')+' — '+s.reachable+' reachable, '+s.unreachable+' unreachable'+(s.avgLatencyMs!=null?' · avg '+(s.avgLatencyMs)+' ms':'')+'</div>';const body=rows.map(function(x){var ok=x.reachable;var badge=ok?'<span class="badge badge-green">REACHABLE</span>':'<span class="badge badge-red">UNREACHABLE</span>';var detail=ok?('port '+x.port+' · '+x.latencyMs+' ms'):(x.error||'unreachable');return '<tr><td style="padding:7px 8px;font-family:monospace">'+x.ip+'</td><td style="padding:7px 8px">'+badge+'</td><td style="padding:7px 8px;font-size:.74rem;color:var(--muted)">'+detail+'</td><td style="padding:7px 8px;font-size:.72rem;color:var(--muted)">'+(x.note||'')+'</td></tr>';}).join('');el.innerHTML=head+'<div class="card" style="padding:0;overflow:hidden"><table style="width:100%;border-collapse:collapse;font-size:.8rem"><thead><tr style="background:var(--surf2)"><th style="padding:7px 8px;text-align:left;font-size:.65rem;text-transform:uppercase;color:var(--muted)">IP</th><th style="padding:7px 8px;text-align:left;font-size:.65rem;text-transform:uppercase;color:var(--muted)">Status</th><th style="padding:7px 8px;text-align:left;font-size:.65rem;text-transform:uppercase;color:var(--muted)">Detail</th><th style="padding:7px 8px;text-align:left;font-size:.65rem;text-transform:uppercase;color:var(--muted)">Note</th></tr></thead><tbody>'+body+'</tbody></table></div>';}
+async function _doPing(inputId,outId){const ip=document.getElementById(inputId).value.trim();const el=document.getElementById(outId);if(!ip){el.textContent='Enter a whitelisted sender IP first.';return;}el.innerHTML='<div style="color:var(--muted);font-size:.8rem;padding:8px 0">Pinging '+escapeHtml(ip)+'…</div>';const r=await go('POST','/t2t/whitelist/ping',{ip});if(r.ok)_renderIpPing(el,r.d.data);else el.innerHTML=err(r.d);}window.t2ePingSetup=async function(){await _doPing('t2e-ping-in-setup','t2e-ping-out-setup');};window.t2ePing=async function(){await _doPing('t2e-ping-in','t2e-ping-out');};
+function _renderIpPing(el,d){if(!d||!d.results){el.innerHTML=err(d||{});return;}const rows=d.results;const s=d.summary||{};const head='<div style="font-size:.78rem;color:var(--muted);margin-bottom:8px">'+s.total+' sender(s) probed on port(s) '+(s.ports||[]).join('/')+' — '+s.reachable+' reachable, '+s.unreachable+' unreachable'+(s.avgLatencyMs!=null?' · avg '+(s.avgLatencyMs)+' ms':'')+(s.callbacksConfigured!=null?' · '+s.notified+' notice(s) delivered to '+s.callbacksConfigured+' callback(s)':'')+'</div>';const body=rows.map(function(x){var ok=x.reachable;var badge=ok?'<span class="badge badge-green">REACHABLE</span>':'<span class="badge badge-red">UNREACHABLE</span>';var detail=ok?('port '+x.port+' · '+x.latencyMs+' ms'):(x.error||'unreachable');var notice=x.notified?'<span class="badge badge-green">DELIVERED'+(x.notifyStatus!=null?' '+x.notifyStatus:'')+'</span>':'<span class="badge badge-red">'+(x.notifyError==='NO_CALLBACK_URL'?'NO CALLBACK':'NOT DELIVERED')+'</span>';var noticeDetail=x.callbackUrl?escapeHtml(x.callbackUrl)+(x.notifyError&&x.notifyError!=='NO_CALLBACK_URL'?' — '+escapeHtml(x.notifyError):''):'No callback URL on this entry';return '<tr><td style="padding:7px 8px;font-family:monospace">'+escapeHtml(x.ip)+'</td><td style="padding:7px 8px">'+badge+'</td><td style="padding:7px 8px;font-size:.74rem;color:var(--muted)">'+escapeHtml(detail)+'</td><td style="padding:7px 8px;font-size:.72rem">'+notice+'<div style="color:var(--muted);font-size:.68rem;word-break:break-all">'+noticeDetail+'</div></td><td style="padding:7px 8px;font-size:.72rem;color:var(--muted)">'+escapeHtml(x.note||'')+'</td></tr>';}).join('');el.innerHTML=head+'<div class="card" style="padding:0;overflow:hidden"><table style="width:100%;border-collapse:collapse;font-size:.8rem"><thead><tr style="background:var(--surf2)"><th style="padding:7px 8px;text-align:left;font-size:.65rem;text-transform:uppercase;color:var(--muted)">IP</th><th style="padding:7px 8px;text-align:left;font-size:.65rem;text-transform:uppercase;color:var(--muted)">Status</th><th style="padding:7px 8px;text-align:left;font-size:.65rem;text-transform:uppercase;color:var(--muted)">Detail</th><th style="padding:7px 8px;text-align:left;font-size:.65rem;text-transform:uppercase;color:var(--muted)">Sender notice</th><th style="padding:7px 8px;text-align:left;font-size:.65rem;text-transform:uppercase;color:var(--muted)">Note</th></tr></thead><tbody>'+body+'</tbody></table></div>';}
 window.t2ePingIp=async function(){const ip=document.getElementById('t2e-ip-ping-in').value.trim();if(!ip){toast('Enter a sender IP','err');return;}const el=document.getElementById('t2e-ip-ping-out');el.innerHTML='<div style="color:var(--muted);font-size:.8rem;padding:8px 0">Pinging '+ip+'…</div>';const r=await go('POST','/t2t/whitelist/ping',{ip});if(r.ok)_renderIpPing(el,r.d.data);else el.innerHTML=err(r.d);};
 window.t2ePingSenders=async function(){const el=document.getElementById('t2e-ip-ping-out');el.innerHTML='<div style="color:var(--muted);font-size:.8rem;padding:8px 0">Pinging all whitelisted senders…</div>';const r=await go('POST','/t2t/whitelist/ping',{});if(r.ok)_renderIpPing(el,r.d.data);else el.innerHTML=err(r.d);};
 window.t2eTx=async function(){const src=document.getElementById('t2e-src').value.trim(),dst=document.getElementById('t2e-dst').value.trim(),amt=document.getElementById('t2e-amt').value.trim(),cur=document.getElementById('t2e-cur').value,desc=document.getElementById('t2e-desc').value.trim();if(!src||!amt){toast('Source terminal and amount required','err');return;}const r=await go('POST','/t2t/transfer',{sourceId:src,destId:dst,amount:amt,currency:cur,description:desc||undefined});const el=document.getElementById('t2e-tx-out');if(r.ok&&r.d.data){const d=r.d.data;el.innerHTML='<div style="margin-top:12px;padding:16px;background:var(--success-bg,rgba(24,116,58,.1));border:1px solid var(--success);border-radius:8px"><strong style="font-size:.95rem">✅ '+d.reference+' — COMPLETED</strong><br><br><table style="font-size:.82rem;border-collapse:collapse"><tr><td style="color:var(--muted);padding:3px 16px 3px 0">Amount</td><td><strong>'+d.amount+' '+d.currency+'</strong></td></tr><tr><td style="color:var(--muted);padding:3px 16px 3px 0">From</td><td>'+d.sourceId+'</td></tr><tr><td style="color:var(--muted);padding:3px 16px 3px 0">To</td><td>'+d.destId+'</td></tr><tr><td style="color:var(--muted);padding:3px 16px 3px 0">Your balance</td><td><strong>'+d.destBalance+' '+d.currency+'</strong></td></tr><tr><td style="color:var(--muted);padding:3px 16px 3px 0">Journal</td><td style="font-family:monospace;font-size:.72rem">'+d.journalEntryRef+'</td></tr></table></div>';toast('Transfer completed','ok');}else{el.innerHTML='<div style="margin-top:8px;padding:12px;background:rgba(181,9,9,.08);border:1px solid var(--danger);border-radius:8px;font-size:.82rem">'+JSON.stringify(r.d.error||r.d)+'</div>';}};
-window.t2eHistLoad=async function(){const tid=document.getElementById('t2e-hist-in').value.trim();const r=await go('GET','/t2t/transfers'+(tid?'?tid='+encodeURIComponent(tid):''),null);const rows=r.d.data||[];document.getElementById('t2e-hist-n').textContent=rows.length+' transfers';document.getElementById('t2e-hist-body').innerHTML=rows.length?rows.map(t=>'<tr><td style="padding:8px;font-family:monospace;font-size:.7rem">'+t.reference+'</td><td style="padding:8px">'+t.sourceId+'</td><td style="padding:8px">'+t.destId+'</td><td style="padding:8px;font-weight:600">'+t.amount+' '+t.currency+'</td><td style="padding:8px"><span class="badge badge-green">'+t.status+'</span></td><td style="padding:8px;font-size:.72rem;color:var(--muted)">'+(t.completedAt?new Date(t.completedAt).toLocaleString():'-')+'</td></tr>').join(''):'<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--muted)">No transfers yet</td></tr>';};
-window.t2eBalCheck=async function(){const tid=document.getElementById('t2e-bal-in').value.trim();if(!tid){toast('Enter terminal ID','err');return;}const r=await go('GET','/t2t/balance/'+encodeURIComponent(tid),null);const el=document.getElementById('t2e-bal-out');if(r.ok&&r.d.data){const d=r.d.data;el.innerHTML='<div style="padding:16px;background:var(--surf2);border:1px solid var(--border);border-radius:8px;display:inline-block"><div style="font-size:.78rem;color:var(--muted)">'+d.terminalId+'</div><div style="font-size:2rem;font-weight:700;letter-spacing:-.04em">'+d.balance+' '+d.currency+'</div></div>';}else{el.innerHTML=err(r.d);}};
-window.t2eTerminals=async function(){const r=await go('GET','/t2t/terminals',null);const rows=r.d.data||[];document.getElementById('t2e-term-list').innerHTML=rows.length?'<div class="card" style="padding:0;overflow:hidden;margin-top:8px"><table style="width:100%;border-collapse:collapse;font-size:.82rem"><thead><tr style="background:var(--surf2)"><th style="padding:8px;text-align:left;border-bottom:1px solid var(--border)">Terminal ID</th><th style="padding:8px;text-align:left;border-bottom:1px solid var(--border)">Model</th><th style="padding:8px;text-align:left;border-bottom:1px solid var(--border)">Location</th></tr></thead><tbody>'+rows.map(t=>'<tr><td style="padding:8px;font-family:monospace">'+t.tid+'</td><td style="padding:8px">'+(t.model||'External')+'</td><td style="padding:8px">'+(t.location||'-')+'</td></tr>').join('')+'</tbody></table></div>':'<div style="color:var(--muted);padding:12px">No terminals yet</div>';};
-document.addEventListener('DOMContentLoaded',function(){initTabs('t2e');t2eWlLoad();});
+window.t2eHistLoad=async function(){const tid=document.getElementById('t2e-hist-in').value.trim();const count=document.getElementById('t2e-hist-n'),body=document.getElementById('t2e-hist-body');count.textContent='Loading…';body.innerHTML='<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--muted)">Loading transfers…</td></tr>';const r=await go('GET','/t2t/transfers'+(tid?'?tid='+encodeURIComponent(tid):''),null);if(!r.ok){count.textContent='Unable to load transfers';body.innerHTML='<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--danger)"></td></tr>';body.querySelector('td').textContent=apiErrorMessage(r.d,'Request failed');return;}const rows=r.d&&Array.isArray(r.d.data)?r.d.data:null;if(!rows){count.textContent='Unable to load transfers';body.innerHTML='<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--danger)">The server returned an unexpected response.</td></tr>';return;}count.textContent=rows.length+' transfers';body.innerHTML=rows.length?rows.map(t=>'<tr><td style="padding:8px;font-family:monospace;font-size:.7rem">'+escapeHtml(t.reference)+'</td><td style="padding:8px">'+escapeHtml(t.sourceId)+'</td><td style="padding:8px">'+escapeHtml(t.destId)+'</td><td style="padding:8px;font-weight:600">'+escapeHtml(t.amount)+' '+escapeHtml(t.currency)+'</td><td style="padding:8px"><span class="badge badge-green">'+escapeHtml(t.status)+'</span></td><td style="padding:8px;font-size:.72rem;color:var(--muted)">'+(t.completedAt?new Date(t.completedAt).toLocaleString():'-')+'</td></tr>').join(''):'<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--muted)">No transfers yet</td></tr>';};
+window.t2eBalCheck=async function(){const tid=document.getElementById('t2e-bal-in').value.trim();const el=document.getElementById('t2e-bal-out');if(!tid){el.textContent='Enter a terminal ID. Open this tab to load your terminals.';return;}el.textContent='Loading balance…';const r=await go('GET','/t2t/balance/'+encodeURIComponent(tid),null);if(r.ok&&r.d&&r.d.data){const d=r.d.data;el.innerHTML='<div style="padding:16px;background:var(--surf2);border:1px solid var(--border);border-radius:8px;display:inline-block"><div style="font-size:.78rem;color:var(--muted)">'+escapeHtml(d.terminalId)+'</div><div style="font-size:2rem;font-weight:700;letter-spacing:-.04em">'+escapeHtml(d.balance)+' '+escapeHtml(d.currency)+'</div></div>';}else{el.textContent=apiErrorMessage(r.d,'Unable to load balance.');}};
+window.t2eTerminals=async function(){const el=document.getElementById('t2e-term-list');el.textContent='Loading terminals…';const r=await go('GET','/t2t/terminals',null);if(!r.ok){el.textContent=apiErrorMessage(r.d,'Unable to load terminals.');return;}const rows=r.d&&Array.isArray(r.d.data)?r.d.data:null;if(!rows){el.textContent='The server returned an unexpected terminals response.';return;}el.innerHTML=rows.length?'<div class="card" style="padding:0;overflow:hidden;margin-top:8px"><table style="width:100%;border-collapse:collapse;font-size:.82rem"><thead><tr style="background:var(--surf2)"><th style="padding:8px;text-align:left;border-bottom:1px solid var(--border)">Terminal ID</th><th style="padding:8px;text-align:left;border-bottom:1px solid var(--border)">Model</th><th style="padding:8px;text-align:left;border-bottom:1px solid var(--border)">Location</th></tr></thead><tbody>'+rows.map(t=>'<tr><td style="padding:8px;font-family:monospace">'+escapeHtml(t.tid)+'</td><td style="padding:8px">'+escapeHtml(t.model||'External')+'</td><td style="padding:8px">'+escapeHtml(t.location||'-')+'</td></tr>').join('')+'</tbody></table></div>':'<div style="color:var(--muted);padding:12px">No terminals are registered for this account.</div>';const input=document.getElementById('t2e-bal-in');if(rows.length&&!input.value)input.value=rows[0].tid;if(input.value)await t2eBalCheck();};
+document.addEventListener('DOMContentLoaded',function(){const url=document.getElementById('t2e-server-url');if(url)url.textContent=window.location.origin;initTabs('t2e',function(target){if(target==='t2e-hist')t2eHistLoad();if(target==='t2e-bal')t2eTerminals();if(target==='t2e-ping')document.getElementById('t2e-ping-in').focus();if(target==='t2e-send')document.getElementById('t2e-src').focus();});t2eWlLoad();});
 })();
 <\/script>
 `);
@@ -8333,6 +8483,8 @@ ${CSS}
     <input id="email" name="email" type="text" autocomplete="username" required autofocus>
     <label for="password">Password</label>
     <input id="password" name="password" type="password" autocomplete="current-password" required>
+    <label for="pin">Access PIN <span style="text-transform:none;font-weight:500">(if one was issued)</span></label>
+    <input id="pin" name="pin" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="one-time-code" placeholder="6-digit PIN">
     ${errorMessage ? `<div class="login-err">${errorMessage}</div>` : ''}
     <button type="submit" id="loginBtn">Sign in</button>
   </form>
@@ -8427,6 +8579,7 @@ function handleLogin(req, res) {
     const params = new URLSearchParams(Buffer.concat(body).toString('utf8'));
     const email = (params.get('email') || '').trim();
     const password = params.get('password') || '';
+    const pin = (params.get('pin') || '').trim();
 
     if (!email || !password) {
       res.writeHead(400, { 'Content-Type': 'text/html; charset=utf-8' });
@@ -8434,7 +8587,7 @@ function handleLogin(req, res) {
       return;
     }
 
-    const payload = JSON.stringify({ email, password });
+    const payload = JSON.stringify(pin ? { email, password, pin } : { email, password });
     const base = new URL(API_ORIGIN);
     const useTls = base.protocol === 'https:';
     const loginReq = (useTls ? httpsRequest : httpRequest)(
@@ -8618,7 +8771,7 @@ const server = createServer((req, res) => {
   }
 
   const url = req.url || '/';
-  const path = url.split('?')[0];
+  const path = (url.split('?')[0]).replace(/\/+/g, '/').replace(/\/+$/, '') || '/';
 
   // -- Health endpoint (public) --
   if (req.method === 'GET' && path === '/health') {
@@ -8674,6 +8827,38 @@ const server = createServer((req, res) => {
   }
   if (req.method === 'POST' && path === '/api/rails/webhook') {
     proxyRawRequest(req, res, RAILS_ORIGIN, '/rails/webhook');
+    return;
+  }
+
+  // -- Wise inbound webhook passthrough (public) --
+  // Wise signs the raw body with RSA (X-Signature-SHA256), verified inside the
+  // API route, so this must bypass the console sign-in gate and forward the
+  // exact bytes. Do NOT point Wise at /webhooks/inbound (shared-secret HMAC).
+  if (req.method === 'POST' && path === '/wise/webhook') {
+    proxyRawRequest(req, res, API_ORIGIN, '/wise/webhook');
+    return;
+  }
+
+  if (path === '/developer' || path.startsWith('/developer/') || path === '/developer-theme.css') {
+    const developerPage = resolveDeveloperPage(path);
+    if (!developerPage) {
+      res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
+      res.end(`Page not found: ${path}`);
+      return;
+    }
+    if (req.method !== 'GET' && req.method !== 'HEAD') {
+      res.writeHead(405, { Allow: 'GET, HEAD', 'Content-Type': 'text/plain; charset=utf-8' });
+      res.end('Method Not Allowed');
+      return;
+    }
+    res.writeHead(developerPage.status, {
+      'Content-Type': developerPage.contentType,
+      'Cache-Control': developerPage.headers['Cache-Control'] ||
+        (developerPage.contentType.startsWith('text/html') ? 'no-store' : 'no-cache'),
+      'X-Content-Type-Options': 'nosniff',
+      ...developerPage.headers,
+    });
+    res.end(req.method === 'HEAD' ? '' : developerPage.body);
     return;
   }
 
@@ -8906,6 +9091,7 @@ ${roleHidden.map(selector => `body[data-dashboard-role="${safeRole}"] ${selector
 body[data-dashboard-role="${safeRole}"] a[href="/ops/network"],
 body[data-dashboard-role="${safeRole}"] a.card[href^="/admin/"],
 body[data-dashboard-role="${safeRole}"] a.card[href^="/platform/"],
+body[data-dashboard-role="${safeRole}"] [data-admin-only="true"],
 body[data-dashboard-role="${safeRole}"] .tab[data-t="iso-sim"],
 body[data-dashboard-role="${safeRole}"] #iso-sim { display:none!important; }
 </style>`;

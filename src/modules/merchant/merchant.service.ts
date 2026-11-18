@@ -9,7 +9,12 @@ import {
 } from "../../core/errors.js";
 import { logger } from "../../core/logger.js";
 import { hashPassword, verifyPassword } from "../../shared/utils/crypto.js";
+import {
+  encryptVaultPayload,
+  lastFour,
+} from "../admin/bank-account-vault.js";
 import type {
+  CreateMerchantBankAccountInput,
   CreateMerchantInput,
   UpdateMerchantInput,
 } from "./merchant.types.js";
@@ -314,6 +319,695 @@ export class MerchantService {
     });
 
     return { mustChangePassword: false };
+  }
+
+  // ── Merchant bank accounts (commission payout destinations) ──────
+
+  /** Masked projection — full account details never leave the server. */
+  private presentBankAccount(account: {
+    id: string;
+    label: string;
+    bankName: string;
+    accountName: string;
+    accountLast4: string;
+    currency: string;
+    isDefault: boolean;
+    createdAt: Date;
+  }) {
+    return {
+      id: account.id,
+      label: account.label,
+      bankName: account.bankName,
+      accountName: account.accountName,
+      maskedAccountNumber: `••••${account.accountLast4}`,
+      currency: account.currency,
+      isDefault: account.isDefault,
+      createdAt: account.createdAt,
+    };
+  }
+
+  async listMerchantBankAccounts(merchantId: string) {
+    await this.requireMerchant(merchantId);
+    const accounts = await this.prisma.merchantBankAccount.findMany({
+      where: { merchantId },
+      orderBy: [{ isDefault: "desc" }, { createdAt: "desc" }],
+    });
+    return accounts.map((account) => this.presentBankAccount(account));
+  }
+
+  async createMerchantBankAccount(
+    merchantId: string,
+    createdByUserId: string,
+    input: CreateMerchantBankAccountInput,
+    ipAddress?: string,
+    userAgent?: string,
+  ) {
+    await this.requireMerchant(merchantId);
+    const encryptedDetails = encryptVaultPayload({
+      accountNumber: input.accountNumber.replace(/\s+/g, ""),
+      routingNumber: input.routingNumber ?? null,
+      swiftCode: input.swiftCode ?? null,
+      bankAddress: input.bankAddress ?? null,
+    });
+    const accountLast4 = lastFour(input.accountNumber);
+
+    const account = await this.prisma.$transaction(async (tx) => {
+      // Only one default at a time; a new default demotes the previous one.
+      if (input.isDefault) {
+        await tx.merchantBankAccount.updateMany({
+          where: { merchantId, isDefault: true },
+          data: { isDefault: false },
+        });
+      }
+      const created = await tx.merchantBankAccount.create({
+        data: {
+          merchantId,
+          label: input.label.trim(),
+          bankName: input.bankName.trim(),
+          accountName: input.accountName.trim(),
+          accountLast4,
+          currency: input.currency,
+          encryptedDetails,
+          isDefault: input.isDefault ?? false,
+          createdByUserId,
+        },
+      });
+      await tx.auditLog.create({
+        data: {
+          userId: createdByUserId,
+          merchantId,
+          action: "CREATE_MERCHANT_BANK_ACCOUNT",
+          entity: "MerchantBankAccount",
+          entityId: created.id,
+          after: {
+            label: created.label,
+            bankName: created.bankName,
+            accountLast4: created.accountLast4,
+            currency: created.currency,
+            isDefault: created.isDefault,
+          },
+          ipAddress,
+          userAgent,
+        },
+      });
+      return created;
+    });
+
+    return this.presentBankAccount(account);
+  }
+
+  async setDefaultMerchantBankAccount(
+    merchantId: string,
+    accountId: string,
+    userId: string,
+    ipAddress?: string,
+    userAgent?: string,
+  ) {
+    return this.prisma.$transaction(async (tx) => {
+      const account = await tx.merchantBankAccount.findFirst({
+        where: { id: accountId, merchantId },
+      });
+      if (!account) throw new NotFoundError("Merchant bank account", accountId);
+
+      await tx.merchantBankAccount.updateMany({
+        where: { merchantId, isDefault: true },
+        data: { isDefault: false },
+      });
+      const updated = await tx.merchantBankAccount.update({
+        where: { id: accountId },
+        data: { isDefault: true },
+      });
+      await tx.auditLog.create({
+        data: {
+          userId,
+          merchantId,
+          action: "SET_DEFAULT_MERCHANT_BANK_ACCOUNT",
+          entity: "MerchantBankAccount",
+          entityId: accountId,
+          after: { isDefault: true },
+          ipAddress,
+          userAgent,
+        },
+      });
+      return this.presentBankAccount(updated);
+    });
+  }
+
+  async deleteMerchantBankAccount(
+    merchantId: string,
+    accountId: string,
+    userId: string,
+    ipAddress?: string,
+    userAgent?: string,
+  ) {
+    return this.prisma.$transaction(async (tx) => {
+      const account = await tx.merchantBankAccount.findFirst({
+        where: { id: accountId, merchantId },
+      });
+      if (!account) throw new NotFoundError("Merchant bank account", accountId);
+
+      await tx.merchantBankAccount.delete({ where: { id: accountId } });
+      await tx.auditLog.create({
+        data: {
+          userId,
+          merchantId,
+          action: "DELETE_MERCHANT_BANK_ACCOUNT",
+          entity: "MerchantBankAccount",
+          entityId: accountId,
+          before: {
+            label: account.label,
+            bankName: account.bankName,
+            accountLast4: account.accountLast4,
+          },
+          ipAddress,
+          userAgent,
+        },
+      });
+      return { id: accountId, deleted: true };
+    });
+  }
+
+  // ── Merchant portal PIN management ──────────────
+
+  async getMerchantPortalPinStatus(merchantId: string) {
+    await this.requireMerchant(merchantId);
+    const user = await this.prisma.user.findUnique({
+      where: { merchantId },
+      select: { id: true, email: true, portalPinHash: true, isActive: true },
+    });
+    if (!user) throw new NotFoundError("Merchant portal account", merchantId);
+    return {
+      userId: user.id,
+      email: user.email,
+      hasPin: Boolean(user.portalPinHash),
+      isActive: user.isActive,
+    };
+  }
+
+  /** Issue a fresh 6-digit PIN. The plaintext is returned exactly once. */
+  async resetMerchantPortalPin(
+    merchantId: string,
+    actorId: string,
+    ipAddress?: string,
+    userAgent?: string,
+  ) {
+    await this.requireMerchant(merchantId);
+    const portalPin = String(randomInt(0, 1_000_000)).padStart(6, "0");
+    const portalPinHash = await hashPassword(portalPin);
+
+    const user = await this.prisma.$transaction(async (tx) => {
+      const existing = await tx.user.findUnique({ where: { merchantId } });
+      if (!existing || existing.role !== "MERCHANT") {
+        throw new NotFoundError("Merchant portal account", merchantId);
+      }
+      const updated = await tx.user.update({
+        where: { id: existing.id },
+        data: { portalPinHash },
+        select: { id: true, email: true },
+      });
+      await tx.auditLog.create({
+        data: {
+          userId: actorId,
+          merchantId,
+          action: "RESET_MERCHANT_PORTAL_PIN",
+          entity: "User",
+          entityId: updated.id,
+          after: { email: updated.email, pinReset: true },
+          ipAddress,
+          userAgent,
+        },
+      });
+      return updated;
+    });
+
+    return { userId: user.id, email: user.email, portalPin };
+  }
+
+  // ── Merchant transaction pause / resume requests ─────────────────
+
+  async listMerchantControlRequests(
+    merchantId: string,
+    page: number,
+    pageSize: number,
+  ) {
+    await this.requireMerchant(merchantId);
+    const where: Prisma.MerchantTransactionControlRequestWhereInput = { merchantId };
+    const [data, total] = await Promise.all([
+      this.prisma.merchantTransactionControlRequest.findMany({
+        where,
+        include: {
+          transaction: {
+            select: {
+              id: true,
+              stan: true,
+              rrn: true,
+              status: true,
+              amount: true,
+              currency: true,
+            },
+          },
+        },
+        orderBy: { createdAt: "desc" },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+      this.prisma.merchantTransactionControlRequest.count({ where }),
+    ]);
+    return {
+      data: data.map((item) => ({
+        ...item,
+        transaction: { ...item.transaction, amount: item.transaction.amount.toString() },
+      })),
+      meta: { page, pageSize, total, totalPages: Math.ceil(total / pageSize) },
+    };
+  }
+
+  /**
+   * A merchant asks an administrator to pause a transaction (optionally
+   * reported as suspicious) or to release an existing hold. The transaction
+   * status only changes once an administrator approves the request.
+   */
+  async requestMerchantTransactionControl(
+    merchantId: string,
+    requestedByUserId: string,
+    transactionId: string,
+    action: "HOLD" | "RESUME",
+    reason: string,
+    suspicious: boolean,
+    ipAddress?: string,
+    userAgent?: string,
+  ) {
+    await this.requireMerchant(merchantId);
+    const transaction = await this.prisma.transaction.findFirst({
+      where: { id: transactionId, merchantId },
+      select: { id: true, stan: true, status: true, settledAt: true, merchantId: true },
+    });
+    if (!transaction) throw new NotFoundError("Transaction", transactionId);
+
+    let previousStatus: "AUTHORIZED" | "CAPTURED" | null = null;
+    if (action === "HOLD") {
+      if (
+        transaction.settledAt ||
+        (transaction.status !== "AUTHORIZED" && transaction.status !== "CAPTURED")
+      ) {
+        throw new ConflictError(
+          "Only unsettled authorized or captured transactions can be paused",
+        );
+      }
+      previousStatus = transaction.status;
+    } else {
+      if (transaction.status !== "ON_HOLD" || transaction.settledAt) {
+        throw new ConflictError("Only held, unsettled transactions can be resumed");
+      }
+      const priorHold = await this.prisma.merchantTransactionControlRequest.findFirst({
+        where: {
+          transactionId,
+          action: "HOLD",
+          status: "APPROVED",
+          previousStatus: { in: ["AUTHORIZED", "CAPTURED"] },
+        },
+        orderBy: { reviewedAt: "desc" },
+        select: { previousStatus: true },
+      });
+      if (
+        priorHold?.previousStatus !== "AUTHORIZED" &&
+        priorHold?.previousStatus !== "CAPTURED"
+      ) {
+        throw new ConflictError("The transaction has no approved pause to resume");
+      }
+      previousStatus = priorHold.previousStatus;
+    }
+
+    const pending = await this.prisma.merchantTransactionControlRequest.findFirst({
+      where: { transactionId, action, status: { in: ["PENDING", "INFO_REQUESTED"] } },
+      select: { id: true },
+    });
+    if (pending) {
+      throw new ConflictError("A request for this transaction is already awaiting review");
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      const request = await tx.merchantTransactionControlRequest.create({
+        data: {
+          transactionId,
+          merchantId,
+          requestedByUserId,
+          action,
+          suspicious,
+          reason: reason.trim(),
+          previousStatus,
+        },
+        select: {
+          id: true,
+          transactionId: true,
+          merchantId: true,
+          action: true,
+          suspicious: true,
+          status: true,
+          reason: true,
+          previousStatus: true,
+          createdAt: true,
+        },
+      });
+
+      const admins = await tx.user.findMany({
+        where: { role: { in: ["SUPER_ADMIN", "ADMIN"] }, isActive: true },
+        select: { id: true },
+      });
+      if (admins.length) {
+        await tx.notification.createMany({
+          data: admins.map(({ id }) => ({
+            merchantId,
+            type: "ALERT",
+            channel: "IN_APP",
+            title: suspicious
+              ? "Suspicious transaction reported by merchant"
+              : `Merchant ${action === "HOLD" ? "pause" : "resume"} request`,
+            message: `Merchant requested to ${action === "HOLD" ? "pause" : "resume"} transaction ${transaction.stan}. Reason: ${reason.trim()}`,
+            recipient: id,
+            metadata: {
+              requestId: request.id,
+              transactionId,
+              merchantId,
+              action,
+              suspicious,
+            },
+          })),
+        });
+      }
+
+      await tx.auditLog.create({
+        data: {
+          userId: requestedByUserId,
+          merchantId,
+          action: `MERCHANT_TRANSACTION_${action}_REQUESTED`,
+          entity: "Transaction",
+          entityId: transactionId,
+          before: { status: transaction.status },
+          after: { requestId: request.id, action, reason: reason.trim(), suspicious },
+          ipAddress,
+          userAgent,
+        },
+      });
+
+      return request;
+    });
+  }
+
+  /** Administrator queue of merchant pause/resume requests. */
+  async listMerchantControlRequestsForAdmin(
+    status: "PENDING" | "INFO_REQUESTED" | "APPROVED" | "REJECTED" | undefined,
+    page: number,
+    pageSize: number,
+  ) {
+    const where: Prisma.MerchantTransactionControlRequestWhereInput = status
+      ? { status }
+      : {};
+    const [data, total] = await Promise.all([
+      this.prisma.merchantTransactionControlRequest.findMany({
+        where,
+        include: {
+          merchant: { select: { id: true, code: true, legalName: true } },
+          transaction: {
+            select: {
+              id: true,
+              stan: true,
+              rrn: true,
+              status: true,
+              amount: true,
+              currency: true,
+            },
+          },
+        },
+        orderBy: { createdAt: "desc" },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+      this.prisma.merchantTransactionControlRequest.count({ where }),
+    ]);
+    return {
+      data: data.map((item) => ({
+        ...item,
+        transaction: { ...item.transaction, amount: item.transaction.amount.toString() },
+      })),
+      meta: { page, pageSize, total, totalPages: Math.ceil(total / pageSize) },
+    };
+  }
+
+  /** Administrator approves or rejects a merchant pause/resume request. */
+  async reviewMerchantTransactionControlRequest(
+    requestId: string,
+    decision: "APPROVE" | "REJECT",
+    adminRemarks: string,
+    reviewedBy: string,
+    ipAddress?: string,
+    userAgent?: string,
+  ) {
+    return this.prisma.$transaction(async (tx) => {
+      const request = await tx.merchantTransactionControlRequest.findUnique({
+        where: { id: requestId },
+        include: {
+          transaction: {
+            select: { id: true, status: true, settledAt: true, merchantId: true },
+          },
+        },
+      });
+      if (!request) throw new NotFoundError("Merchant transaction control request", requestId);
+      if (request.status !== "PENDING") {
+        throw new ConflictError(`Request is ${request.status} and cannot be reviewed`);
+      }
+
+      const nextStatus = decision === "APPROVE" ? "APPROVED" : "REJECTED";
+
+      if (decision === "APPROVE") {
+        let expectedStatus: "AUTHORIZED" | "CAPTURED" | "ON_HOLD";
+        let nextTransactionStatus: "AUTHORIZED" | "CAPTURED" | "ON_HOLD";
+        if (request.action === "HOLD") {
+          if (
+            request.previousStatus !== "AUTHORIZED" &&
+            request.previousStatus !== "CAPTURED"
+          ) {
+            throw new ConflictError(
+              "The request does not contain a valid transaction status to hold",
+            );
+          }
+          expectedStatus = request.previousStatus;
+          nextTransactionStatus = "ON_HOLD";
+        } else {
+          if (
+            request.previousStatus !== "AUTHORIZED" &&
+            request.previousStatus !== "CAPTURED"
+          ) {
+            throw new ConflictError(
+              "The request does not contain a valid transaction status to restore",
+            );
+          }
+          expectedStatus = "ON_HOLD";
+          nextTransactionStatus = request.previousStatus;
+        }
+        const updated = await tx.transaction.updateMany({
+          where: { id: request.transactionId, status: expectedStatus, settledAt: null },
+          data: { status: nextTransactionStatus },
+        });
+        if (updated.count !== 1) {
+          throw new ConflictError(
+            "Transaction status changed or settled before the request was approved",
+          );
+        }
+        await tx.transactionLog.create({
+          data: {
+            transactionId: request.transactionId,
+            stage:
+              request.action === "HOLD"
+                ? "MERCHANT_HOLD_APPROVED"
+                : "MERCHANT_RESUME_APPROVED",
+            message: adminRemarks.trim(),
+          },
+        });
+      }
+
+      const updatedRequest = await tx.merchantTransactionControlRequest.updateMany({
+        where: { id: requestId, status: "PENDING" },
+        data: {
+          status: nextStatus,
+          adminRemarks: adminRemarks.trim(),
+          reviewedBy,
+          reviewedAt: new Date(),
+        },
+      });
+      if (updatedRequest.count !== 1) {
+        throw new ConflictError("The request was reviewed by another administrator");
+      }
+
+      await tx.auditLog.create({
+        data: {
+          userId: reviewedBy,
+          merchantId: request.merchantId,
+          action: `ADMIN_MERCHANT_TRANSACTION_${request.action}_${decision}`,
+          entity: "MerchantTransactionControlRequest",
+          entityId: requestId,
+          before: {
+            requestStatus: request.status,
+            transactionStatus: request.transaction.status,
+          },
+          after: {
+            requestStatus: nextStatus,
+            transactionStatus:
+              decision === "APPROVE"
+                ? request.action === "HOLD"
+                  ? "ON_HOLD"
+                  : request.previousStatus
+                : request.transaction.status,
+            adminRemarks: adminRemarks.trim(),
+          },
+          ipAddress,
+          userAgent,
+        },
+      });
+
+      await tx.notification.create({
+        data: {
+          merchantId: request.merchantId,
+          type: "ALERT",
+          channel: "IN_APP",
+          title: `Transaction ${request.action === "HOLD" ? "pause" : "resume"} request update`,
+          message: `Your ${request.action === "HOLD" ? "pause" : "resume"} request was ${decision === "APPROVE" ? "approved" : "rejected"}.`,
+          recipient: `merchant:${request.merchantId}`,
+          metadata: { requestId, decision, status: nextStatus },
+        },
+      });
+
+      return tx.merchantTransactionControlRequest.findUniqueOrThrow({
+        where: { id: requestId },
+        include: {
+          transaction: { select: { id: true, stan: true, status: true, settledAt: true } },
+        },
+      });
+    });
+  }
+
+  /**
+   * An administrator directly pauses or resumes a transaction without waiting
+   * for a merchant request. The action is recorded as an approved control
+   * request so the original status can be restored on resume.
+   */
+  async adminSetTransactionHold(
+    merchantId: string,
+    transactionId: string,
+    action: "HOLD" | "RESUME",
+    reason: string,
+    reviewedBy: string,
+    ipAddress?: string,
+    userAgent?: string,
+  ) {
+    await this.requireMerchant(merchantId);
+    return this.prisma.$transaction(async (tx) => {
+      const transaction = await tx.transaction.findFirst({
+        where: { id: transactionId, merchantId },
+        select: { id: true, stan: true, status: true, settledAt: true, merchantId: true },
+      });
+      if (!transaction) throw new NotFoundError("Transaction", transactionId);
+
+      let previousStatus: "AUTHORIZED" | "CAPTURED" | null = null;
+      if (action === "HOLD") {
+        if (
+          transaction.settledAt ||
+          (transaction.status !== "AUTHORIZED" && transaction.status !== "CAPTURED")
+        ) {
+          throw new ConflictError(
+            "Only unsettled authorized or captured transactions can be paused",
+          );
+        }
+        previousStatus = transaction.status;
+      } else {
+        if (transaction.status !== "ON_HOLD" || transaction.settledAt) {
+          throw new ConflictError("Only held, unsettled transactions can be resumed");
+        }
+        const priorHold = await tx.merchantTransactionControlRequest.findFirst({
+          where: {
+            transactionId,
+            action: "HOLD",
+            status: "APPROVED",
+            previousStatus: { in: ["AUTHORIZED", "CAPTURED"] },
+          },
+          orderBy: { reviewedAt: "desc" },
+          select: { previousStatus: true },
+        });
+        if (
+          priorHold?.previousStatus !== "AUTHORIZED" &&
+          priorHold?.previousStatus !== "CAPTURED"
+        ) {
+          throw new ConflictError("The transaction has no approved pause to resume");
+        }
+        previousStatus = priorHold.previousStatus;
+      }
+
+      const nextTransactionStatus = action === "HOLD" ? "ON_HOLD" : previousStatus;
+      const updated = await tx.transaction.updateMany({
+        where: { id: transactionId, status: transaction.status, settledAt: null },
+        data: { status: nextTransactionStatus },
+      });
+      if (updated.count !== 1) {
+        throw new ConflictError("Transaction status changed; refresh and try again");
+      }
+
+      const request = await tx.merchantTransactionControlRequest.create({
+        data: {
+          transactionId,
+          merchantId,
+          requestedByUserId: reviewedBy,
+          action,
+          suspicious: false,
+          status: "APPROVED",
+          reason: reason.trim(),
+          previousStatus,
+          adminRemarks: reason.trim(),
+          reviewedBy,
+          reviewedAt: new Date(),
+        },
+      });
+
+      await tx.transactionLog.create({
+        data: {
+          transactionId,
+          stage: action === "HOLD" ? "ADMIN_MERCHANT_HOLD" : "ADMIN_MERCHANT_RESUME",
+          message: reason.trim(),
+        },
+      });
+
+      await tx.auditLog.create({
+        data: {
+          userId: reviewedBy,
+          merchantId,
+          action: `ADMIN_DIRECT_TRANSACTION_${action}`,
+          entity: "Transaction",
+          entityId: transactionId,
+          before: { status: transaction.status },
+          after: { status: nextTransactionStatus, requestId: request.id, reason: reason.trim() },
+          ipAddress,
+          userAgent,
+        },
+      });
+
+      await tx.notification.create({
+        data: {
+          merchantId,
+          type: "ALERT",
+          channel: "IN_APP",
+          title: `Transaction ${action === "HOLD" ? "paused" : "resumed"} by administrator`,
+          message: `An administrator ${action === "HOLD" ? "paused" : "resumed"} transaction ${transaction.stan}. Reason: ${reason.trim()}`,
+          recipient: `merchant:${merchantId}`,
+          metadata: { requestId: request.id, transactionId, action },
+        },
+      });
+
+      return tx.merchantTransactionControlRequest.findUniqueOrThrow({
+        where: { id: request.id },
+        include: {
+          transaction: { select: { id: true, stan: true, status: true, settledAt: true } },
+        },
+      });
+    });
   }
 
   async listMerchants(filters: {

@@ -100,6 +100,7 @@
             <a href="#agent-overview">Overview</a>
             <a href="#assigned-merchants">Assigned merchants</a>
             <a href="#assigned-transactions">Transactions</a>
+            <a href="#transaction-control-requests">Hold/resume requests</a>
           </nav>
           <div class="sidebar-note">Your view is limited to merchants assigned to your agent account.</div>
         </aside>
@@ -133,11 +134,19 @@
             <section class="card" id="assigned-transactions">
               <div class="card-heading"><h2>Assigned Merchant Transactions</h2></div>
               <div class="table-wrap">
-                <table><thead><tr><th>Created</th><th>Merchant</th><th>STAN / RRN</th><th>Type</th><th>Amount</th><th>Status</th></tr></thead>
-                  <tbody id="agent-transactions"><tr><td colspan="6" class="muted">Loading…</td></tr></tbody>
+                <table><thead><tr><th>Created</th><th>Merchant</th><th>STAN / RRN</th><th>Type</th><th>Amount</th><th>Status</th><th>Control request</th></tr></thead>
+                  <tbody id="agent-transactions"><tr><td colspan="7" class="muted">Loading…</td></tr></tbody>
                 </table>
               </div>
               <p class="muted" id="transaction-meta"></p>
+            </section>
+            <section class="card" id="transaction-control-requests" style="grid-column:1/-1">
+              <div class="card-heading"><h2>Recent hold/resume requests</h2></div>
+              <div class="table-wrap">
+                <table><thead><tr><th>Transaction</th><th>Action</th><th>Status</th><th>Reason</th><th>Admin remarks</th><th>Agent response</th></tr></thead>
+                  <tbody id="agent-control-requests"><tr><td colspan="6" class="muted">Loading…</td></tr></tbody>
+                </table>
+              </div>
             </section>
           </div>
         </div>
@@ -159,14 +168,16 @@
       })[character]);
     }
 
-    async function request(path, method = "GET") {
+    async function request(path, method = "GET", body) {
       const token = sessionStorage.getItem(tokenKey);
       const response = await fetch("/api/public/agent-portal/" + path, {
         method,
         headers: {
           Accept: "application/json",
+          ...(body ? { "Content-Type": "application/json" } : {}),
           ...(token ? { Authorization: "Bearer " + token } : {})
         },
+        ...(body ? { body: JSON.stringify(body) } : {}),
         cache: "no-store"
       });
       const payload = await response.json().catch(() => ({}));
@@ -189,6 +200,13 @@
       document.getElementById("transaction-pages").textContent = data.meta.totalPages || 1;
       document.getElementById("transaction-meta").textContent =
         `Page ${data.meta.page} of ${data.meta.totalPages || 1} · ${data.meta.total} transactions`;
+      const openStatuses = ["PENDING", "INFO_REQUESTED"];
+      const latestRequestByTransaction = new Map();
+      for (const controlRequest of data.controlRequests || []) {
+        if (!latestRequestByTransaction.has(controlRequest.transactionId)) {
+          latestRequestByTransaction.set(controlRequest.transactionId, controlRequest);
+        }
+      }
 
       document.getElementById("agent-merchants").innerHTML = data.merchants.length
         ? data.merchants.map((merchant) => {
@@ -207,15 +225,43 @@
         : '<tr><td colspan="4" class="muted">No merchants are assigned to this agent.</td></tr>';
 
       document.getElementById("agent-transactions").innerHTML = data.transactions.length
-        ? data.transactions.map((transaction) => `<tr>
+        ? data.transactions.map((transaction) => {
+            const controlRequest = latestRequestByTransaction.get(transaction.id);
+            let controlAction = "";
+            if (controlRequest && openStatuses.includes(controlRequest.status)) {
+              controlAction = controlRequest.status === "INFO_REQUESTED"
+                ? `<button type="button" data-control-response="${escapeHtml(controlRequest.id)}">Provide information</button>`
+                : `<span class="muted">${escapeHtml(controlRequest.action)} request pending</span>`;
+            } else if (transaction.status === "ON_HOLD") {
+              controlAction = `<button type="button" data-control-action="resume-request" data-transaction-id="${escapeHtml(transaction.id)}">Request resume</button>`;
+            } else if (["AUTHORIZED", "CAPTURED"].includes(transaction.status)) {
+              controlAction = `<button type="button" data-control-action="hold-request" data-transaction-id="${escapeHtml(transaction.id)}">Request hold</button>`;
+            } else {
+              controlAction = '<span class="muted">Unavailable</span>';
+            }
+            return `<tr>
             <td>${escapeHtml(new Date(transaction.createdAt).toLocaleString())}</td>
             <td>${escapeHtml(transaction.merchant.displayName || transaction.merchant.legalName)}</td>
             <td><code>${escapeHtml(transaction.stan)}${transaction.rrn ? ` / ${escapeHtml(transaction.rrn)}` : ""}</code></td>
             <td>${escapeHtml(transaction.type)}</td>
             <td>${escapeHtml(transaction.amount)} ${escapeHtml(transaction.currency)}</td>
             <td>${escapeHtml(transaction.status)}</td>
+            <td>${controlAction}</td>
+          </tr>`;
+          }).join("")
+        : '<tr><td colspan="7" class="muted">No transactions found for assigned merchants.</td></tr>';
+
+      const controlRequests = data.controlRequests || [];
+      document.getElementById("agent-control-requests").innerHTML = controlRequests.length
+        ? controlRequests.map((item) => `<tr>
+            <td><code>${escapeHtml(item.transactionId)}</code></td>
+            <td>${escapeHtml(item.action)}</td>
+            <td>${escapeHtml(item.status)}</td>
+            <td>${escapeHtml(item.reason)}</td>
+            <td>${escapeHtml(item.adminRemarks || "—")}</td>
+            <td>${escapeHtml(item.agentResponse || "—")}</td>
           </tr>`).join("")
-        : '<tr><td colspan="6" class="muted">No transactions found for assigned merchants.</td></tr>';
+        : '<tr><td colspan="6" class="muted">No hold or resume requests yet.</td></tr>';
 
       loginPanel.hidden = true;
       dashboard.hidden = false;
@@ -269,6 +315,39 @@
         await loadDashboard();
       } catch (cause) {
         dashboardError.textContent = cause instanceof Error ? cause.message : "Merchant update failed.";
+        button.disabled = false;
+      }
+    });
+
+    document.getElementById("agent-transactions").addEventListener("click", async (event) => {
+      const button = event.target.closest("button");
+      if (!button) return;
+      dashboardError.textContent = "";
+      if (button.dataset.controlResponse) {
+        const response = window.prompt("Provide the additional information requested by the administrator:");
+        if (!response || response.trim().length < 3) return;
+        button.disabled = true;
+        try {
+          await request(`transaction-control-requests/${encodeURIComponent(button.dataset.controlResponse)}/respond`, "POST", { response });
+          await loadDashboard();
+        } catch (cause) {
+          dashboardError.textContent = cause instanceof Error ? cause.message : "Could not submit the response.";
+          button.disabled = false;
+        }
+        return;
+      }
+
+      const action = button.dataset.controlAction;
+      const transactionId = button.dataset.transactionId;
+      if (!action || !transactionId) return;
+      const reason = window.prompt(`Enter a mandatory reason for this ${action.startsWith("hold") ? "hold" : "resume"} request:`);
+      if (!reason || reason.trim().length < 3) return;
+      button.disabled = true;
+      try {
+        await request(`transactions/${encodeURIComponent(transactionId)}/${action}`, "POST", { reason });
+        await loadDashboard();
+      } catch (cause) {
+        dashboardError.textContent = cause instanceof Error ? cause.message : "Could not submit the request.";
         button.disabled = false;
       }
     });

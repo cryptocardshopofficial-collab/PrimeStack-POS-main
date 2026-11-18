@@ -229,6 +229,10 @@ export const commandCenterHtml = `<!doctype html>
           <a href="/docs"><span class="nav-icon" aria-hidden="true">⟳</span>Settlement <span class="arrow">API</span></a>
           <a href="/docs"><span class="nav-icon" aria-hidden="true">▤</span>Ledger <span class="arrow">API</span></a>
           <a href="/admin/wallet-dashboard"><span class="nav-icon" aria-hidden="true">◉</span>Wallet operations</a>
+          <a href="#agent-control-requests"><span class="nav-icon" aria-hidden="true">⏸</span>Agent hold/resume requests</a>
+          <a href="#merchant-control-requests"><span class="nav-icon" aria-hidden="true">⏸</span>Merchant pause requests</a>
+          <a href="#merchant-pin"><span class="nav-icon" aria-hidden="true">⌘</span>Merchant portal PIN</a>
+          <a href="#virtual-account"><span class="nav-icon" aria-hidden="true">＋</span>Create virtual account</a>
           <a href="/docs"><span class="nav-icon" aria-hidden="true">◈</span>Treasury <span class="arrow">API</span></a>
           <a href="/admin/swift-payout-draft"><span class="nav-icon" aria-hidden="true">⇢</span>SWIFT payout drafts</a>
         </div>
@@ -237,6 +241,7 @@ export const commandCenterHtml = `<!doctype html>
         <summary><span class="nav-icon" aria-hidden="true">♙</span>Merchant operations</summary>
         <div class="nav-children">
           <a href="/admin/merchant-dashboard"><span class="nav-icon" aria-hidden="true">♙</span>Merchant acquiring</a>
+          <a href="#merchant-onboarding"><span class="nav-icon" aria-hidden="true">＋</span>Onboard merchant</a>
           <a href="/admin/merchant-home"><span class="nav-icon" aria-hidden="true">⌂</span>Merchant home preview</a>
         </div>
       </details>
@@ -328,6 +333,53 @@ export const commandCenterHtml = `<!doctype html>
           <div class="table-wrap"><table aria-label="Saved bank account profiles"><thead><tr><th scope="col">Bank</th><th scope="col">Account</th><th scope="col">Saved</th><th scope="col">Actions</th></tr></thead><tbody id="bank-account-profiles-list"><tr><td class="empty" colspan="4">Sign in to load saved accounts.</td></tr></tbody></table></div>
         </div>
       </section>
+      <section class="card panel section" id="merchant-onboarding" aria-labelledby="merchant-onboarding-title">
+        <div class="panel-head"><div><h2 id="merchant-onboarding-title">Onboard merchant</h2><div class="panel-note">Register a new merchant. New records start in PENDING status; complete KYC review and activation in the merchant dashboard.</div></div><button class="button" id="merchant-refresh" type="button">Refresh list</button></div>
+        <form class="bank-form" id="merchant-form" autocomplete="off">
+          <label>Merchant code<input name="code" required minlength="3" maxlength="50" pattern="[A-Z0-9_-]+" autocomplete="off" placeholder="MERCHANT_CODE"></label>
+          <label>Legal name<input name="legalName" required maxlength="255" autocomplete="organization"></label>
+          <label>Display name<input name="displayName" maxlength="255"></label>
+          <label>Email<input name="email" type="email" required autocomplete="off"></label>
+          <label>Country<input name="country" value="US" minlength="2" maxlength="3" required autocapitalize="characters"></label>
+          <label>MCC<input name="mcc" maxlength="4" inputmode="numeric"></label>
+          <label>Business category<input name="merchantCategory" maxlength="50"></label>
+          <button class="button primary" id="merchant-add" type="submit">Create pending merchant</button>
+        </form>
+        <div class="bank-feedback" id="merchant-feedback" role="status" aria-live="polite"></div>
+        <div class="table-wrap"><table aria-label="Recent merchants"><thead><tr><th scope="col">Code</th><th scope="col">Legal name</th><th scope="col">Country</th><th scope="col">Status</th><th scope="col">Created</th></tr></thead><tbody id="merchant-list"><tr><td class="empty" colspan="5">Sign in to load merchants.</td></tr></tbody></table></div>
+      </section>
+      <section class="card panel section" id="agent-control-requests" aria-labelledby="agent-control-title">
+        <div class="panel-head"><div><h2 id="agent-control-title">Agent transaction hold/resume requests</h2><div class="panel-note">Only administrator approval changes a transaction to or from ON_HOLD. Every decision requires an administrative remark.</div></div><div class="heading-actions"><select id="agent-control-status" aria-label="Request status"><option value="">All statuses</option><option value="PENDING" selected>Pending review</option><option value="INFO_REQUESTED">Information requested</option><option value="APPROVED">Approved</option><option value="REJECTED">Rejected</option></select><button class="button" id="agent-control-refresh" type="button">Refresh requests</button></div></div>
+        <div class="bank-feedback" id="agent-control-feedback" role="status" aria-live="polite"></div>
+        <div class="table-wrap"><table aria-label="Agent transaction hold and resume requests"><thead><tr><th scope="col">Transaction</th><th scope="col">Agent</th><th scope="col">Merchant</th><th scope="col">Request</th><th scope="col">Reason / response</th><th scope="col">Status / remarks</th><th scope="col">Decision</th></tr></thead><tbody id="agent-control-list"><tr><td class="empty" colspan="7">Sign in to load requests.</td></tr></tbody></table></div>
+      </section>
+      <section class="card panel section" id="merchant-control-requests" aria-labelledby="merchant-control-title">
+        <div class="panel-head"><div><h2 id="merchant-control-title">Merchant transaction pause requests</h2><div class="panel-note">Merchants can report a suspicious transaction or ask to pause/release a payment. Approving changes the transaction status; an administrative remark is mandatory.</div></div><div class="heading-actions"><select id="merchant-control-status" aria-label="Request status"><option value="">All statuses</option><option value="PENDING" selected>Pending review</option><option value="APPROVED">Approved</option><option value="REJECTED">Rejected</option></select><button class="button" id="merchant-control-refresh" type="button">Refresh requests</button></div></div>
+        <div class="bank-feedback" id="merchant-control-feedback" role="status" aria-live="polite"></div>
+        <div class="table-wrap"><table aria-label="Merchant transaction pause and resume requests"><thead><tr><th scope="col">Transaction</th><th scope="col">Merchant</th><th scope="col">Request</th><th scope="col">Suspicious</th><th scope="col">Reason</th><th scope="col">Status / remarks</th><th scope="col">Decision</th></tr></thead><tbody id="merchant-control-list"><tr><td class="empty" colspan="7">Sign in to load requests.</td></tr></tbody></table></div>
+      </section>
+      <section class="card panel section" id="merchant-pin" aria-labelledby="merchant-pin-title">
+        <div class="panel-head"><div><h2 id="merchant-pin-title">Merchant portal access PIN</h2><div class="panel-note">The PIN is required alongside the merchant password at sign-in and is stored hashed, so it is never displayed. Reset to issue a new PIN and hand it to the merchant securely.</div></div><button class="button" id="merchant-pin-refresh" type="button">Refresh merchants</button></div>
+        <div class="bank-form">
+          <label>Merchant<select id="merchant-pin-merchant"><option value="">Select merchant</option></select></label>
+        </div>
+        <div class="heading-actions">
+          <button class="button" id="merchant-pin-check" type="button">Check PIN status</button>
+          <button class="button primary" id="merchant-pin-reset" type="button">Reset PIN</button>
+        </div>
+        <div class="bank-feedback" id="merchant-pin-feedback" role="status" aria-live="polite"></div>
+      </section>
+      <section class="card panel section" id="virtual-account" aria-labelledby="virtual-account-title">
+        <div class="panel-head"><div><h2 id="virtual-account-title">Create virtual account</h2><div class="panel-note">Provision a receiving account for a wallet. When Wise provisioning is enabled, real Wise account details (IBAN, local account number, SWIFT/BIC) are returned.</div></div><button class="button" id="virtual-refresh" type="button">Refresh status</button></div>
+        <p class="bank-note" id="virtual-status">Checking Wise configuration…</p>
+        <form class="bank-form" id="virtual-form" autocomplete="off">
+          <label>Wallet<select name="walletAddress" id="virtual-wallet" required><option value="">Select wallet</option></select></label>
+          <label>Currency<select name="currency" required><option value="USD">USD</option><option value="EUR">EUR</option><option value="GBP">GBP</option><option value="AUD">AUD</option><option value="CAD">CAD</option><option value="SGD">SGD</option><option value="NZD">NZD</option><option value="CHF">CHF</option><option value="JPY">JPY</option><option value="HUF">HUF</option><option value="RON">RON</option><option value="BGN">BGN</option></select></label>
+          <button class="button primary" id="virtual-add" type="submit">Create virtual account</button>
+        </form>
+        <div class="bank-feedback" id="virtual-feedback" role="status" aria-live="polite"></div>
+        <div class="table-wrap"><table aria-label="Virtual accounts for the selected wallet"><thead><tr><th scope="col">Currency</th><th scope="col">PrimeStack ID</th><th scope="col">IBAN / account</th><th scope="col">Bank</th><th scope="col">Provider</th></tr></thead><tbody id="virtual-list"><tr><td class="empty" colspan="5">Select a wallet to load virtual accounts.</td></tr></tbody></table></div>
+      </section>
       <section class="kpis" aria-label="Transaction overview">
         <article class="card kpi"><div class="kpi-top"><span>Transactions</span><span class="kpi-icon" aria-hidden="true">⇄</span></div><div class="kpi-value" id="tx-total">—</div><div class="kpi-foot" id="period-label">Recorded in selected period</div></article>
         <article class="card kpi"><div class="kpi-top"><span>Successful</span><span class="kpi-icon green" aria-hidden="true">✓</span></div><div class="kpi-value green" id="tx-successful">—</div><div class="kpi-foot">Authorized, captured, or settled</div></article>
@@ -393,6 +445,7 @@ export const commandCenterHtml = `<!doctype html>
     <span class="brand-mark" aria-hidden="true">P</span><h2 id="login-title">Welcome back</h2><p id="login-description">Sign in with your PrimeStack administrator account.</p>
     <label>Email address<input id="login-email" name="email" type="email" autocomplete="username" required></label>
     <label>Password<input name="password" type="password" autocomplete="current-password" required></label>
+    <label>Access PIN (if issued)<input name="pin" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="one-time-code" placeholder="6-digit PIN"></label>
     <button class="button primary" type="submit">Sign in to Command Center</button>
     <div class="login-error" id="login-error" role="alert"></div>
   </form>
@@ -640,8 +693,315 @@ export const commandCenterHtml = `<!doctype html>
       submit.disabled=false;
     }
   });
-  async function refresh(){if(refreshInProgress)return;refreshInProgress=true;try{const data=await api("/admin/intelligence/dashboard?days="+$("days").value);$("error").classList.remove("visible");$("tx-total").textContent=number(data.transactions.currentTotal);$("tx-successful").textContent=number(data.transactions.currentSuccessful);$("tx-declined").textContent=number(data.transactions.currentDeclined);$("tx-rate").textContent=data.transactions.successRatePercent===null?"—":data.transactions.successRatePercent+"%";$("period-label").textContent="Recorded in the last "+$("days").value+" days";fillVolumes(data.transactions.successfulVolumeByCurrency);fillTransactions(data.recentTransactions);fillLiquidity(data.liquidityPoolsByCurrency);fillCounts("settlements",data.settlements.statuses,"settlement batches");fillCounts("risk-levels",data.riskLevels,"risk evaluations");fillMerchants(data.topMerchants);fillStatuses(data);fillEvents(data.events);await loadBankConnections();await loadBankAccountProfiles();const now=new Date();const lastRefresh=now.toLocaleTimeString([],{hour:"2-digit",minute:"2-digit",second:"2-digit"});$("updated-at").dateTime=now.toISOString();$("updated-at").textContent=lastRefresh;$("refresh").title="Last updated "+lastRefresh;}catch(error){showError(error);}finally{refreshInProgress=false;}}
-  $("login-form").addEventListener("submit",async event=>{event.preventDefault();$("login-error").textContent="";const form=event.currentTarget;try{const response=await fetch("/admin/login",{method:"POST",headers:{"Content-Type":"application/json",Accept:"application/json"},body:JSON.stringify(Object.fromEntries(new FormData(form))),cache:"no-store"});const payload=await parsePayload(response);if(!response.ok||!payload.success)throw Error(payload.error?.message||"Sign-in failed (HTTP "+response.status+")");if(!allowed.includes(payload.data.user.role))throw Error("Your administrator role cannot access this workspace.");sessionStorage.setItem(tokenKey,payload.data.token);sessionStorage.setItem(roleKey,payload.data.user.role);sessionStorage.setItem(emailKey,payload.data.user.email);$("login").classList.remove("visible");$("login").hidden=true;$("shell").inert=false;$("identity").textContent=payload.data.user.email;$("avatar").textContent=payload.data.user.email.slice(0,1).toUpperCase();$("main-content").focus();await refresh();}catch(error){$("login-error").textContent=error instanceof Error?error.message:String(error);}});
+  function canOnboardMerchants(){return ["SUPER_ADMIN","ADMIN","OPERATOR"].includes(sessionStorage.getItem(roleKey));}
+  function canProvisionVirtualAccounts(){return ["SUPER_ADMIN","ADMIN"].includes(sessionStorage.getItem(roleKey));}
+  function merchantFeedback(message,bad=false){safeText($("merchant-feedback"),message);$("merchant-feedback").classList.toggle("bad",bad);}
+  function virtualFeedback(message,bad=false){safeText($("virtual-feedback"),message);$("virtual-feedback").classList.toggle("bad",bad);}
+  async function loadMerchants(){
+    const body=$("merchant-list");
+    $("merchant-form").hidden=!canOnboardMerchants();
+    try{
+      const merchants=await api("/admin/merchants?page=1&pageSize=10");
+      const rows=Array.isArray(merchants)?merchants:[];
+      body.replaceChildren();
+      if(!rows.length){appendEmpty(body,"No merchants registered yet.",5);return;}
+      for(const merchant of rows){
+        const row=document.createElement("tr");
+        appendCell(row,merchant.code,"Code");
+        appendCell(row,merchant.legalName,"Legal name");
+        appendCell(row,merchant.country,"Country");
+        const statusCell=document.createElement("td");
+        statusCell.dataset.label="Status";
+        const pill=document.createElement("span");
+        pill.className="pill "+(merchant.status==="ACTIVE"?"":merchant.status==="PENDING"?"warn":"");
+        pill.textContent=merchant.status;
+        statusCell.appendChild(pill);
+        row.appendChild(statusCell);
+        appendCell(row,merchant.createdAt?new Date(merchant.createdAt).toLocaleDateString():"—","Created");
+        body.appendChild(row);
+      }
+    }catch(error){
+      appendEmpty(body,"Unable to load merchants.",5);
+      merchantFeedback(error instanceof Error?error.message:String(error),true);
+    }
+  }
+  function canReviewAgentRequests(){return ["SUPER_ADMIN","ADMIN"].includes(sessionStorage.getItem(roleKey));}
+  function agentControlFeedback(message,bad=false){safeText($("agent-control-feedback"),message);$("agent-control-feedback").classList.toggle("bad",bad);}
+  async function loadAgentControlRequests(){
+    const body=$("agent-control-list");
+    if(!canReviewAgentRequests()){
+      appendEmpty(body,"Only SUPER_ADMIN and ADMIN roles can review agent transaction requests.",7);
+      return;
+    }
+    const selectedStatus=$("agent-control-status").value;
+    const query=new URLSearchParams({page:"1",pageSize:"50"});
+    if(selectedStatus)query.set("status",selectedStatus);
+    try{
+      const requests=await api("/admin/agent-transaction-requests?"+query.toString());
+      body.replaceChildren();
+      if(!requests.length){appendEmpty(body,"No agent transaction requests found.",7);return;}
+      for(const item of requests){
+        const row=document.createElement("tr");
+        appendCell(row,(item.transaction.stan||item.transaction.id)+" · "+item.transaction.status,"Transaction");
+        appendCell(row,item.agent.code+" · "+item.agent.name,"Agent");
+        appendCell(row,item.transaction.merchant.code+" · "+item.transaction.merchant.legalName,"Merchant");
+        appendCell(row,item.action+" · "+item.status,"Request");
+        appendCell(row,item.reason+(item.agentResponse?" · Agent response: "+item.agentResponse:""),"Reason / response");
+        appendCell(row,item.adminRemarks||"No admin remarks yet","Status / remarks");
+        const actionCell=document.createElement("td");
+        actionCell.dataset.label="Decision";
+        if(item.status==="PENDING"){
+          for(const [decision,label] of [["APPROVE","Approve"],["REJECT","Reject"],["REQUEST_INFO","Request info"]]){
+            const button=document.createElement("button");
+            button.type="button";
+            button.className="button";
+            button.textContent=label;
+            button.dataset.controlRequestId=item.id;
+            button.dataset.controlDecision=decision;
+            actionCell.appendChild(button);
+          }
+        }else{
+          actionCell.textContent="—";
+        }
+        row.appendChild(actionCell);
+        body.appendChild(row);
+      }
+    }catch(error){
+      appendEmpty(body,"Unable to load agent transaction requests.",7);
+      agentControlFeedback(error instanceof Error?error.message:String(error),true);
+    }
+  }
+  $("agent-control-refresh").addEventListener("click",loadAgentControlRequests);
+  $("agent-control-status").addEventListener("change",loadAgentControlRequests);
+  $("agent-control-list").addEventListener("click",async event=>{
+    const button=event.target.closest("button[data-control-request-id]");
+    if(!button)return;
+    const decision=button.dataset.controlDecision;
+    const adminRemarks=window.prompt("Enter mandatory administrator remarks for this decision:");
+    if(!adminRemarks||adminRemarks.trim().length<3)return;
+    button.disabled=true;
+    agentControlFeedback("Saving administrator decision…");
+    try{
+      await api("/admin/agent-transaction-requests/"+encodeURIComponent(button.dataset.controlRequestId)+"/review",{
+        method:"POST",
+        body:JSON.stringify({decision,adminRemarks})
+      });
+      agentControlFeedback("Decision recorded.");
+      await loadAgentControlRequests();
+    }catch(error){
+      agentControlFeedback(error instanceof Error?error.message:String(error),true);
+      button.disabled=false;
+    }
+  });
+  function canReviewMerchantRequests(){return ["SUPER_ADMIN","ADMIN"].includes(sessionStorage.getItem(roleKey));}
+  function merchantControlFeedback(message,bad=false){safeText($("merchant-control-feedback"),message);$("merchant-control-feedback").classList.toggle("bad",bad);}
+  async function loadMerchantControlRequests(){
+    const body=$("merchant-control-list");
+    if(!canReviewMerchantRequests()){
+      appendEmpty(body,"Only SUPER_ADMIN and ADMIN roles can review merchant transaction requests.",7);
+      return;
+    }
+    const selectedStatus=$("merchant-control-status").value;
+    const query=new URLSearchParams({page:"1",pageSize:"50"});
+    if(selectedStatus)query.set("status",selectedStatus);
+    try{
+      const requests=await api("/admin/merchant-transaction-requests?"+query.toString());
+      body.replaceChildren();
+      if(!requests.length){appendEmpty(body,"No merchant transaction requests found.",7);return;}
+      for(const item of requests){
+        const row=document.createElement("tr");
+        appendCell(row,(item.transaction.stan||item.transaction.id)+" · "+item.transaction.status,"Transaction");
+        appendCell(row,item.merchant.code+" · "+item.merchant.legalName,"Merchant");
+        appendCell(row,item.action+" · "+item.status,"Request");
+        appendCell(row,item.suspicious?"Yes":"No","Suspicious");
+        appendCell(row,item.reason,"Reason");
+        appendCell(row,item.adminRemarks||"No admin remarks yet","Status / remarks");
+        const actionCell=document.createElement("td");
+        actionCell.dataset.label="Decision";
+        if(item.status==="PENDING"){
+          for(const [decision,label] of [["APPROVE","Approve"],["REJECT","Reject"]]){
+            const button=document.createElement("button");
+            button.type="button";
+            button.className="button";
+            button.textContent=label;
+            button.dataset.merchantRequestId=item.id;
+            button.dataset.merchantDecision=decision;
+            actionCell.appendChild(button);
+          }
+        }else{
+          actionCell.textContent="—";
+        }
+        row.appendChild(actionCell);
+        body.appendChild(row);
+      }
+    }catch(error){
+      appendEmpty(body,"Unable to load merchant transaction requests.",7);
+      merchantControlFeedback(error instanceof Error?error.message:String(error),true);
+    }
+  }
+  $("merchant-control-refresh").addEventListener("click",loadMerchantControlRequests);
+  $("merchant-control-status").addEventListener("change",loadMerchantControlRequests);
+  $("merchant-control-list").addEventListener("click",async event=>{
+    const button=event.target.closest("button[data-merchant-request-id]");
+    if(!button)return;
+    const decision=button.dataset.merchantDecision;
+    const adminRemarks=window.prompt("Enter mandatory administrator remarks for this decision:");
+    if(!adminRemarks||adminRemarks.trim().length<3)return;
+    button.disabled=true;
+    merchantControlFeedback("Saving administrator decision…");
+    try{
+      await api("/admin/merchant-transaction-requests/"+encodeURIComponent(button.dataset.merchantRequestId)+"/review",{
+        method:"POST",
+        body:JSON.stringify({decision,adminRemarks})
+      });
+      merchantControlFeedback("Decision recorded.");
+      await loadMerchantControlRequests();
+    }catch(error){
+      merchantControlFeedback(error instanceof Error?error.message:String(error),true);
+      button.disabled=false;
+    }
+  });
+  function merchantPinFeedback(message,bad=false){safeText($("merchant-pin-feedback"),message);$("merchant-pin-feedback").classList.toggle("bad",bad);}
+  async function loadMerchantPinOptions(){
+    const select=$("merchant-pin-merchant");
+    if(!canReviewMerchantRequests()){merchantPinFeedback("Only SUPER_ADMIN and ADMIN roles can manage merchant PINs.",true);return;}
+    try{
+      const merchants=await api("/admin/merchants?page=1&pageSize=200");
+      const current=select.value;
+      select.replaceChildren();
+      const placeholder=document.createElement("option");
+      placeholder.value="";
+      placeholder.textContent="Select merchant";
+      select.appendChild(placeholder);
+      for(const merchant of merchants){
+        const option=document.createElement("option");
+        option.value=merchant.id;
+        option.textContent=merchant.code+" · "+(merchant.displayName||merchant.legalName);
+        select.appendChild(option);
+      }
+      if(current)select.value=current;
+    }catch(error){
+      merchantPinFeedback(error instanceof Error?error.message:String(error),true);
+    }
+  }
+  $("merchant-pin-refresh").addEventListener("click",loadMerchantPinOptions);
+  $("merchant-pin-check").addEventListener("click",async()=>{
+    const merchantId=$("merchant-pin-merchant").value;
+    if(!merchantId){merchantPinFeedback("Select a merchant first.",true);return;}
+    try{
+      const status=await api("/admin/merchants/"+encodeURIComponent(merchantId)+"/portal-pin");
+      merchantPinFeedback(status.hasPin?"An access PIN is configured for "+status.email+".":"No access PIN is configured for "+status.email+" yet.");
+    }catch(error){
+      merchantPinFeedback(error instanceof Error?error.message:String(error),true);
+    }
+  });
+  $("merchant-pin-reset").addEventListener("click",async()=>{
+    const merchantId=$("merchant-pin-merchant").value;
+    if(!merchantId){merchantPinFeedback("Select a merchant first.",true);return;}
+    if(!window.confirm("Issue a new merchant access PIN? The previous PIN stops working immediately."))return;
+    try{
+      const result=await api("/admin/merchants/"+encodeURIComponent(merchantId)+"/portal-pin",{method:"POST",body:JSON.stringify({})});
+      merchantPinFeedback("New PIN for "+result.email+": "+result.portalPin+" — share it securely; it will not be shown again.");
+    }catch(error){
+      merchantPinFeedback(error instanceof Error?error.message:String(error),true);
+    }
+  });
+  function fillVirtualWalletSelect(wallets){
+    const select=$("virtual-wallet");
+    const current=select.value;
+    select.replaceChildren(new Option("Select wallet",""));
+    for(const wallet of wallets)select.add(new Option(wallet.walletAddress+" · "+wallet.currency+" · "+wallet.type,wallet.walletAddress));
+    if(wallets.some(wallet=>wallet.walletAddress===current))select.value=current;
+  }
+  async function loadVirtualConfiguration(){
+    try{
+      const configuration=await api("/admin/virtual-account/configuration");
+      const ready=configuration.provisioningEnabled&&configuration.apiKeyConfigured&&configuration.profileIdConfigured;
+      safeText($("virtual-status"),ready
+        ?"Wise provisioning is enabled ("+configuration.environment+"). New virtual accounts are created with Wise and return real IBAN / local account details."
+        :"Wise provisioning is not fully configured (WISE_VIRTUAL_ACCOUNT_PROVISIONING_ENABLED, WISE_API_KEY, WISE_PROFILE_ID). Accounts are stored locally until Wise is enabled.");
+    }catch(error){
+      safeText($("virtual-status"),error instanceof Error?error.message:String(error));
+    }
+  }
+  async function loadVirtualAccountList(address){
+    const body=$("virtual-list");
+    if(!address){appendEmpty(body,"Select a wallet to load virtual accounts.",5);return;}
+    try{
+      const accounts=await api("/admin/wallets/"+encodeURIComponent(address)+"/virtual-accounts");
+      body.replaceChildren();
+      if(!accounts.length){appendEmpty(body,"No virtual accounts for this wallet yet.",5);return;}
+      for(const account of accounts){
+        const row=document.createElement("tr");
+        const details=account.details||{};
+        appendCell(row,account.currency,"Currency");
+        appendCell(row,account.accountNumber,"PrimeStack ID");
+        appendCell(row,details.iban||details.accountNumber||"—","IBAN / account");
+        appendCell(row,details.bankName||"—","Bank");
+        appendCell(row,account.provider||"LOCAL","Provider");
+        body.appendChild(row);
+      }
+    }catch(error){
+      appendEmpty(body,"Unable to load virtual accounts.",5);
+      virtualFeedback(error instanceof Error?error.message:String(error),true);
+    }
+  }
+  async function loadVirtualAccounts(){
+    $("virtual-form").hidden=!canProvisionVirtualAccounts();
+    $("virtual-refresh").hidden=!canProvisionVirtualAccounts();
+    if(!canProvisionVirtualAccounts()){safeText($("virtual-status"),"Only SUPER_ADMIN and ADMIN roles can manage virtual accounts.");return;}
+    await loadVirtualConfiguration();
+    try{
+      const wallets=await api("/admin/wallets?page=1&pageSize=100");
+      fillVirtualWalletSelect(Array.isArray(wallets)?wallets:[]);
+    }catch(error){
+      virtualFeedback(error instanceof Error?error.message:String(error),true);
+    }
+    await loadVirtualAccountList($("virtual-wallet").value);
+  }
+  $("merchant-form").addEventListener("submit",async event=>{
+    event.preventDefault();
+    if(!canOnboardMerchants()){merchantFeedback("Your role cannot register merchants.",true);return;}
+    const submit=$("merchant-add");
+    submit.disabled=true;
+    merchantFeedback("Registering merchant…");
+    try{
+      const values=Object.fromEntries(new FormData(event.currentTarget));
+      for(const key of ["displayName","mcc","merchantCategory"]){if(!values[key])delete values[key];}
+      const merchant=await api("/admin/merchants",{method:"POST",body:JSON.stringify(values)});
+      event.currentTarget.reset();
+      merchantFeedback("Merchant "+merchant.code+" created with status "+merchant.status+". Complete KYC review before activation.");
+      await loadMerchants();
+    }catch(error){
+      merchantFeedback(error instanceof Error?error.message:String(error),true);
+    }finally{
+      submit.disabled=false;
+    }
+  });
+  $("merchant-refresh").addEventListener("click",loadMerchants);
+  $("virtual-form").addEventListener("submit",async event=>{
+    event.preventDefault();
+    if(!canProvisionVirtualAccounts()){virtualFeedback("Only SUPER_ADMIN and ADMIN roles can manage virtual accounts.",true);return;}
+    const submit=$("virtual-add");
+    submit.disabled=true;
+    virtualFeedback("Provisioning virtual account…");
+    try{
+      const values=Object.fromEntries(new FormData(event.currentTarget));
+      const address=values.walletAddress;
+      const account=await api("/admin/wallets/"+encodeURIComponent(address)+"/virtual-accounts",{method:"POST",body:JSON.stringify({currency:values.currency})});
+      const details=account.details||{};
+      virtualFeedback("Virtual account created for "+account.currency+(details.iban?" · IBAN "+details.iban:" · "+account.accountNumber)+".");
+      await loadVirtualAccountList(address);
+    }catch(error){
+      virtualFeedback(error instanceof Error?error.message:String(error),true);
+    }finally{
+      submit.disabled=false;
+    }
+  });
+  $("virtual-refresh").addEventListener("click",loadVirtualAccounts);
+  $("virtual-wallet").addEventListener("change",event=>loadVirtualAccountList(event.currentTarget.value));
+  async function refresh(){if(refreshInProgress)return;refreshInProgress=true;try{const data=await api("/admin/intelligence/dashboard?days="+$("days").value);$("error").classList.remove("visible");$("tx-total").textContent=number(data.transactions.currentTotal);$("tx-successful").textContent=number(data.transactions.currentSuccessful);$("tx-declined").textContent=number(data.transactions.currentDeclined);$("tx-rate").textContent=data.transactions.successRatePercent===null?"—":data.transactions.successRatePercent+"%";$("period-label").textContent="Recorded in the last "+$("days").value+" days";fillVolumes(data.transactions.successfulVolumeByCurrency);fillTransactions(data.recentTransactions);fillLiquidity(data.liquidityPoolsByCurrency);fillCounts("settlements",data.settlements.statuses,"settlement batches");fillCounts("risk-levels",data.riskLevels,"risk evaluations");fillMerchants(data.topMerchants);fillStatuses(data);fillEvents(data.events);await loadBankConnections();await loadBankAccountProfiles();await loadMerchants();await loadVirtualAccounts();await loadAgentControlRequests();await loadMerchantControlRequests();await loadMerchantPinOptions();const now=new Date();const lastRefresh=now.toLocaleTimeString([],{hour:"2-digit",minute:"2-digit",second:"2-digit"});$("updated-at").dateTime=now.toISOString();$("updated-at").textContent=lastRefresh;$("refresh").title="Last updated "+lastRefresh;}catch(error){showError(error);}finally{refreshInProgress=false;}}
+  $("login-form").addEventListener("submit",async event=>{event.preventDefault();$("login-error").textContent="";const form=event.currentTarget;try{const response=await fetch("/admin/login",{method:"POST",headers:{"Content-Type":"application/json",Accept:"application/json"},body:JSON.stringify(Object.fromEntries([...new FormData(form)].filter(([,value])=>value!==""))),cache:"no-store"});const payload=await parsePayload(response);if(!response.ok||!payload.success)throw Error(payload.error?.message||"Sign-in failed (HTTP "+response.status+")");if(!allowed.includes(payload.data.user.role))throw Error("Your administrator role cannot access this workspace.");sessionStorage.setItem(tokenKey,payload.data.token);sessionStorage.setItem(roleKey,payload.data.user.role);sessionStorage.setItem(emailKey,payload.data.user.email);$("login").classList.remove("visible");$("login").hidden=true;$("shell").inert=false;$("identity").textContent=payload.data.user.email;$("avatar").textContent=payload.data.user.email.slice(0,1).toUpperCase();$("main-content").focus();await refresh();}catch(error){$("login-error").textContent=error instanceof Error?error.message:String(error);}});
   $("refresh").addEventListener("click",refresh);$("refresh-main").addEventListener("click",refresh);$("days").addEventListener("change",refresh);
   window.setInterval(()=>{if(sessionStorage.getItem(tokenKey)&&document.visibilityState==="visible"&&!$("pause-refresh").checked&&!$("screen-reader-optimized").checked&&!document.activeElement.closest("input,select,textarea,[contenteditable=true]")&&!$("transactions").contains(document.activeElement))refresh();},15000);
   $("accessibility-toggle").addEventListener("click",()=>{const panel=$("accessibility-panel");const expanded=$("accessibility-toggle").getAttribute("aria-expanded")==="true";panel.hidden=expanded;$("accessibility-toggle").setAttribute("aria-expanded",String(!expanded));if(!expanded)panel.querySelector("input").focus();});

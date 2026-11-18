@@ -18,6 +18,80 @@ import type {
  *   - EMV parameter management
  *   - Firmware versioning
  */
+
+export const TERMINAL_ACCOUNT_SUBTYPE = "TERMINAL";
+export const DEFAULT_TERMINAL_CURRENCIES = ["USD"] as const;
+
+/**
+ * Terminal float is owed to the terminal's owner, so the account is a
+ * LIABILITY: a credit (funds received) raises the balance and a debit (funds
+ * sent) lowers it. This matches both the ledger engine's balance rules and the
+ * raw balance updates T2T transfers perform.
+ */
+export function terminalAccountCode(tid: string, currency: string): string {
+  return `TERMINAL-${tid}-${currency.toUpperCase()}`;
+}
+
+export function normalizeTerminalCurrencies(
+  currencies: readonly string[] | undefined,
+): string[] {
+  const list = currencies?.length ? currencies : DEFAULT_TERMINAL_CURRENCIES;
+  const normalized = list.map((currency) => currency.trim().toUpperCase());
+  return [...new Set(normalized)];
+}
+
+/** Reads the currency list a terminal was registered for. */
+export function configuredTerminalCurrencies(
+  config: Prisma.JsonValue | null | undefined,
+): string[] {
+  const raw = (config as Record<string, unknown> | null)?.currencies;
+  const currencies = Array.isArray(raw)
+    ? raw.filter((value): value is string => typeof value === "string")
+    : undefined;
+  return normalizeTerminalCurrencies(currencies);
+}
+
+/**
+ * Creates the receiving account for a terminal currency on first use. A
+ * concurrent registration may win the race, so a unique-code violation is
+ * treated as success.
+ */
+export async function ensureTerminalAccount(
+  db: PrismaClient,
+  tid: string,
+  currency: string,
+): Promise<string> {
+  const normalizedCurrency = currency.trim().toUpperCase();
+  const code = terminalAccountCode(tid, normalizedCurrency);
+  const existing = await db.account.findUnique({
+    where: { code },
+    select: { code: true },
+  });
+  if (existing) return existing.code;
+
+  try {
+    await db.account.create({
+      data: {
+        code,
+        name: `Terminal Account: ${tid} (${normalizedCurrency})`,
+        type: "LIABILITY",
+        subtype: TERMINAL_ACCOUNT_SUBTYPE,
+        currency: normalizedCurrency,
+      },
+    });
+  } catch (error) {
+    const created = await db.account.findUnique({
+      where: { code },
+      select: { code: true },
+    });
+    if (!created) throw error;
+    return created.code;
+  }
+
+  logger.info({ tid, code }, "Terminal receiving account provisioned");
+  return code;
+}
+
 export class TerminalService {
   constructor(private prisma: PrismaClient) {}
 
@@ -42,6 +116,8 @@ export class TerminalService {
       throw new NotFoundError("Merchant", input.merchantId);
     }
 
+    const currencies = normalizeTerminalCurrencies(input.currencies);
+
     const terminal = await this.prisma.terminal.create({
       data: {
         tid: input.tid,
@@ -56,7 +132,10 @@ export class TerminalService {
         country: input.country,
         timezone: input.timezone,
         status: "REGISTERED",
-        config: input.config as Prisma.InputJsonValue | undefined,
+        config: {
+          ...(input.config ?? {}),
+          currencies,
+        } as Prisma.InputJsonValue,
       },
       include: { merchant: true },
     });
@@ -68,6 +147,13 @@ export class TerminalService {
         status: "OFFLINE",
       },
     });
+
+    // Receiving accounts are provisioned up front: a transfer to this terminal
+    // fails until its currency accounts exist, and activation must not be the
+    // only path that creates them.
+    for (const currency of currencies) {
+      await ensureTerminalAccount(this.prisma, terminal.tid, currency);
+    }
 
     logger.info({ terminalId: terminal.id, tid: terminal.tid, merchantId: input.merchantId }, "Terminal registered");
     return terminal;
@@ -139,6 +225,11 @@ export class TerminalService {
       throw new NotFoundError("Terminal", id);
     }
 
+    const currencies = input.currencies
+      ? normalizeTerminalCurrencies(input.currencies)
+      : configuredTerminalCurrencies(terminal.config);
+    const existingConfig = (terminal.config as Record<string, unknown> | null) ?? {};
+
     const updated = await this.prisma.terminal.update({
       where: { id },
       data: {
@@ -150,11 +241,23 @@ export class TerminalService {
         country: input.country,
         timezone: input.timezone,
         status: input.status as never,
-        config: input.config as Prisma.InputJsonValue | undefined,
+        config: {
+          ...existingConfig,
+          ...(input.config ?? {}),
+          currencies,
+        } as Prisma.InputJsonValue,
         ...(input.status === "DECOMMISSIONED" ? { deactivatedAt: new Date() } : {}),
       },
       include: { merchant: true },
     });
+
+    // Activating a terminal means it can now receive funds, so every configured
+    // currency needs a receiving account before any transfer can land.
+    if (input.status === "ACTIVE") {
+      for (const currency of currencies) {
+        await ensureTerminalAccount(this.prisma, updated.tid, currency);
+      }
+    }
 
     logger.info({ terminalId: id, status: input.status }, "Terminal updated");
     return updated;

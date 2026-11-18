@@ -61,5 +61,9 @@ node_modules.partial-recovery-20261023/
 # Large test/generated files
 NEW\ IMPLEMENTS/
 netlify-deploy/
+netlify-dist/
+netlify-dist.zip
+netlify-dist-corrupt/
+netlify-dist-corrupt-artifact/
 mobile-app/
 .trae-html-share-packages/

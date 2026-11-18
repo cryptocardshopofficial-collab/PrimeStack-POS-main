@@ -110,5 +110,42 @@ export const updateMerchantStatusSchema = z.object({
   status: z.enum(["PENDING", "UNDER_REVIEW", "APPROVED", "ACTIVE", "SUSPENDED", "BLOCKED", "TERMINATED"]),
 });
 
+/**
+ * A merchant's own saved bank account, used to receive commission and payouts.
+ * The full account details are encrypted at rest; only the masked last four
+ * digits are ever returned.
+ */
+export const createMerchantBankAccountSchema = z.object({
+  label: z.string().min(1).max(120),
+  bankName: z.string().min(1).max(160),
+  accountName: z.string().min(1).max(160),
+  accountNumber: z.string().min(4).max(64),
+  routingNumber: z.string().max(64).optional(),
+  swiftCode: z.string().max(32).optional(),
+  bankAddress: z.string().max(255).optional(),
+  currency: z.string().regex(/^[A-Za-z]{3}$/).transform((value) => value.toUpperCase()).default("USD"),
+  isDefault: z.boolean().optional(),
+});
+
+/** Merchant asks an administrator to hold or release a transaction. */
+export const merchantTransactionControlRequestSchema = z.object({
+  action: z.enum(["HOLD", "RESUME"]),
+  reason: z.string().min(3).max(1000),
+  suspicious: z.boolean().optional(),
+});
+
+/** Administrator decision on a merchant transaction control request. */
+export const reviewMerchantTransactionControlSchema = z.object({
+  decision: z.enum(["APPROVE", "REJECT"]),
+  adminRemarks: z.string().min(3).max(1000),
+});
+
+/** Administrator directly pausing or resuming a merchant transaction. */
+export const adminTransactionControlSchema = z.object({
+  action: z.enum(["HOLD", "RESUME"]),
+  reason: z.string().min(3).max(1000),
+});
+
 export type CreateMerchantInput = z.infer<typeof createMerchantSchema>;
 export type UpdateMerchantInput = z.infer<typeof updateMerchantSchema>;
+export type CreateMerchantBankAccountInput = z.infer<typeof createMerchantBankAccountSchema>;

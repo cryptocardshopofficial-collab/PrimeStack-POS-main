@@ -1,7 +1,7 @@
 import { createServer, request as httpRequest } from 'node:http';
 import { request as httpsRequest } from 'node:https';
 import { readFileSync } from 'node:fs';
-import { buildReferenceGuide, REFERENCE_BASE_PATH } from './src/public-site/reference-guide.mjs';
+import { resolveDeveloperPage } from './src/public-site/developer-pages.mjs';
 
 const WEBSITE_PORT = Number(process.env.WEBSITE_PORT || process.env.PORT || 9004);
 const WEBSITE_HOST = process.env.WEBSITE_HOST || '127.0.0.1';
@@ -10,21 +10,11 @@ const DASHBOARD_ORIGIN = new URL(
   process.env.DASHBOARD_ORIGIN || `http://localhost:${DASHBOARD_PORT}`
 );
 const PUBLIC_SITE_HTML = readFileSync(new URL('./public-site.html', import.meta.url));
-const DEVELOPER_PORTAL_HTML = readFileSync(new URL('./developer-portal.html', import.meta.url));
-const DEVELOPER_SERVICE_HTML = readFileSync(new URL('./developer-service.html', import.meta.url));
-const DEVELOPER_API_REFERENCE_HTML = readFileSync(new URL('./docs/usage-guide.html', import.meta.url));
-const DEVELOPER_FUNDS_GUIDE_HTML = readFileSync(new URL('./developer-funds.html', import.meta.url));
 const PUBLIC_BRAND_IMAGE = readFileSync(new URL('./Designer (1).jpg', import.meta.url));
 const CINEMATIC_THEME_CSS = readFileSync(new URL('./cinematic-theme.css', import.meta.url));
 const CINEMATIC_THEME_JS = readFileSync(new URL('./cinematic-theme.js', import.meta.url));
-const DEVELOPER_THEME_CSS = readFileSync(new URL('./developer-theme.css', import.meta.url));
+const BANKING_THEME_JS = readFileSync(new URL('./banking-theme.js', import.meta.url));
 const MERCHANT_REGISTRATION_HTML = readFileSync(new URL('./merchant-registration.html', import.meta.url));
-// ─── API reference guide — one page per TOC section ─────────────────────────
-// Slicing lives in src/public-site/reference-guide.mjs so the Netlify build and
-// this server emit byte-identical pages.
-
-const REFERENCE_GUIDE = buildReferenceGuide(DEVELOPER_API_REFERENCE_HTML.toString('utf8'));
-
 const publicPages = new Set([
   '/', '/payments', '/collect', '/send', '/payouts', '/wallets',
   '/banking', '/settlement', '/network', '/technology', '/iso20022', '/iso8583',
@@ -32,10 +22,6 @@ const publicPages = new Set([
   '/company', '/about', '/careers', '/contact', '/fintech-cloud', '/industries',
   '/resources', '/support', '/pricing',
   '/terms', '/privacy', '/cookies', '/acceptable-use'
-]);
-const developerServicePages = new Set([
-  't2t', 's2s', 'external-terminal', 'api', 'security',
-  'banking', 'wallets', 'iso20022', 'iso8583', 'ping'
 ]);
 const hopByHopHeaders = [
   'connection', 'keep-alive', 'proxy-authenticate', 'proxy-authorization',
@@ -84,7 +70,7 @@ function proxyToDashboard(req, res, requestUrl) {
 // validated against real traffic before it is switched on.
 const CSP_REPORT_ONLY = [
   "default-src 'self'",
-  "script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com",
+  "script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://unpkg.com",
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   "font-src 'self' data: https://fonts.gstatic.com",
   "img-src 'self' data:",
@@ -170,48 +156,25 @@ const server = createServer((req, res) => {
     return;
   }
 
-  if (path === '/developer') {
-    respond(res, 200, 'text/html; charset=utf-8', req.method === 'HEAD' ? '' : DEVELOPER_PORTAL_HTML);
-    return;
-  }
-
   if (path === '/merchant-register' || path === '/register') {
     respond(res, 200, 'text/html; charset=utf-8', req.method === 'HEAD' ? '' : MERCHANT_REGISTRATION_HTML);
     return;
   }
 
-  if (path === REFERENCE_BASE_PATH) {
-    respond(res, 200, 'text/html; charset=utf-8', req.method === 'HEAD' ? '' : REFERENCE_GUIDE.directory);
+  const developerPage = resolveDeveloperPage(path);
+  if (developerPage) {
+    respond(
+      res,
+      developerPage.status,
+      developerPage.contentType,
+      req.method === 'HEAD' ? '' : developerPage.body,
+      developerPage.headers,
+    );
     return;
   }
-
-  if (path.startsWith(`${REFERENCE_BASE_PATH}/`)) {
-    const sectionPage = REFERENCE_GUIDE.pages.get(path.slice(REFERENCE_BASE_PATH.length + 1));
-    if (sectionPage) {
-      respond(res, 200, 'text/html; charset=utf-8', req.method === 'HEAD' ? '' : sectionPage);
-      return;
-    }
+  if (path === '/developer' || path.startsWith('/developer/')) {
     respond(res, 404, 'text/plain; charset=utf-8', `Page not found: ${path}`);
     return;
-  }
-
-  if (path === '/developer/funds') {
-    respond(res, 200, 'text/html; charset=utf-8', req.method === 'HEAD' ? '' : DEVELOPER_FUNDS_GUIDE_HTML);
-    return;
-  }
-
-  if (path.startsWith('/developer/')) {
-    let serviceSlug;
-    try {
-      serviceSlug = decodeURIComponent(path.slice('/developer/'.length)).replace(/[^a-z0-9-]/g, '');
-    } catch {
-      respond(res, 400, 'text/plain; charset=utf-8', 'Bad Request');
-      return;
-    }
-    if (developerServicePages.has(serviceSlug)) {
-      respond(res, 200, 'text/html; charset=utf-8', req.method === 'HEAD' ? '' : DEVELOPER_SERVICE_HTML);
-      return;
-    }
   }
 
   if (path === '/Designer%20(1).jpg' || path === '/Designer (1).jpg') {
@@ -235,8 +198,8 @@ const server = createServer((req, res) => {
     return;
   }
 
-  if (path === '/developer-theme.css') {
-    respond(res, 200, 'text/css; charset=utf-8', req.method === 'HEAD' ? '' : DEVELOPER_THEME_CSS, {
+  if (path === '/banking-theme.js') {
+    respond(res, 200, 'text/javascript; charset=utf-8', req.method === 'HEAD' ? '' : BANKING_THEME_JS, {
       'Cache-Control': 'no-cache'
     });
     return;

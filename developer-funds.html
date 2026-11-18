@@ -31,6 +31,12 @@ section{margin-top:54px}
 .section-head{margin-bottom:20px}
 .section-head h2{margin:0 0 8px;font-size:26px}
 .section-head p{margin:0;color:var(--muted)}
+.legend{display:flex;flex-wrap:wrap;gap:16px;margin:14px 0 0;font-size:12px;color:var(--muted)}
+.legend span{display:inline-flex;align-items:center;gap:7px}
+.legend i{width:9px;height:9px;border-radius:50%;display:inline-block}
+.legend i.live{background:var(--green)}
+.legend i.gated{background:var(--amber)}
+.legend i.draft{background:var(--red)}
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(245px,1fr));gap:14px}
 .summary,.flow,.limit{border:1px solid var(--border);border-radius:12px;background:linear-gradient(145deg,rgba(10,26,46,.92),rgba(4,13,26,.96));padding:20px}
 .summary h3,.flow h2,.limit h3{margin:0 0 9px}
@@ -59,56 +65,86 @@ tr:last-child td{border-bottom:0}
 .toc a{padding:7px 10px;border:1px solid var(--border);border-radius:7px;color:#cbd5e1;font-size:12px}
 .toc a:hover{border-color:var(--blue);text-decoration:none}
 footer{padding:26px 5%;border-top:1px solid var(--border);text-align:center;color:var(--muted);font-size:12px}
+
+/* ── scroll progress ── */
+.scroll-progress{position:fixed;top:0;left:0;right:0;height:3px;z-index:110;background:linear-gradient(90deg,var(--blue),var(--violet),var(--green));transform-origin:0 50%;transform:scaleX(0);animation:spGrow 1ms linear both;animation-timeline:scroll(root block)}
+@keyframes spGrow{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+@supports not (animation-timeline: scroll()){.scroll-progress{animation:none}}
+
+/* ── scroll reveal ── */
+.reveal{opacity:0;transform:translateY(28px);transition:opacity .7s cubic-bezier(.22,1,.36,1),transform .7s cubic-bezier(.22,1,.36,1)}
+.reveal.visible{opacity:1;transform:translateY(0)}
+.grid>.reveal:nth-child(2){transition-delay:.05s}
+.grid>.reveal:nth-child(3){transition-delay:.1s}
+.grid>.reveal:nth-child(4){transition-delay:.15s}
+.grid>.reveal:nth-child(5){transition-delay:.2s}
+.grid>.reveal:nth-child(6){transition-delay:.25s}
+.grid>.reveal:nth-child(7){transition-delay:.3s}
+.grid>.reveal:nth-child(8){transition-delay:.35s}
+
+@media(prefers-reduced-motion:reduce){
+  .scroll-progress{display:none}
+  .reveal{opacity:1;transform:none;transition:none}
+}
 @media(max-width:600px){nav{padding:0 16px}.nav-links{gap:12px;font-size:11px}main{padding:36px 16px 60px}.flow{padding:18px}.lead{font-size:15px}}
 </style>
 <link rel="stylesheet" href="/developer-theme.css">
 </head>
 <body>
+<div class="scroll-progress" aria-hidden="true"></div>
 <nav>
   <a class="brand" href="/developer">PrimeStack GSN · Developer Portal</a>
   <div class="nav-links"><a href="/developer">Service guides</a><a href="/developer/reference">API reference</a></div>
 </nav>
 <main>
-  <header>
-    <span class="eyebrow">Money movement guide</span>
+  <header class="reveal">
+    <span class="eyebrow">Money movement · live capability map</span>
     <h1>Ways to send and receive funds</h1>
-    <p class="lead">Follow the path that matches your integration. This guide separates internal ledger movements from payments that actually reach a bank or card network, and shows where an external provider still has to be connected.</p>
+    <p class="lead">These are the fund-movement paths the platform supports, with what each one does right now. Internal ledger operations are ready to use; anything that leaves the platform is labelled with the provider or approval it still needs.</p>
   </header>
 
-  <div class="callout"><strong>Read before using these flows:</strong> A ledger credit, authorization, message draft, or successful API response is not by itself proof that external money has settled. Use a production rail only after its provider credentials, account ownership, compliance approvals, webhook delivery, and reconciliation process have been tested and approved.</div>
+  <div class="callout reveal"><strong>One rule before you start:</strong> a ledger credit, an authorization, a message draft, or a successful API response is not proof that external money has settled. Treat a rail as live only after its provider credentials, account ownership, compliance approvals, webhook delivery, and reconciliation process have been tested and approved.</div>
 
   <section id="overview">
-    <div class="section-head">
-      <h2>Current movement paths</h2>
-      <p>The repository implements the following workflows. Some are internal accounting operations; others require a live external provider.</p>
+    <div class="section-head reveal">
+      <h2>What you can do today</h2>
+      <p>Every path below is implemented in the platform. The badge tells you the current state of each one.</p>
+      <div class="legend">
+        <span><i class="live"></i>Live · runs on the platform today</span>
+        <span><i class="gated"></i>Live when a provider is configured</span>
+        <span><i class="draft"></i>Records or drafts only — no external transmission</span>
+      </div>
     </div>
     <div class="grid">
-      <article class="summary"><span class="badge internal">Internal ledger</span><h3>Wallet / merchant transfer</h3><p>Single or batch ledger transfers. Operator JWT only; these are not public merchant payout endpoints and do not send money to a bank.</p></article>
-      <article class="summary"><span class="badge internal">Internal ledger</span><h3>Terminal-to-Terminal</h3><p>Moves value between two active terminal accounts for the same merchant using a signed request.</p></article>
-      <article class="summary"><span class="badge internal">Partner receipt</span><h3>Server-to-Server payment</h3><p>A registered peer sends an authenticated payment request that credits a PrimeStack wallet and records a journal entry.</p></article>
-      <article class="summary"><span class="badge limited">Provider-dependent</span><h3>Card / POS transaction</h3><p>The API records authorize, capture, and settlement states. The current authorization code does not itself call an external card network.</p></article>
-      <article class="summary"><span class="badge gated">Wise pass-through</span><h3>Incoming bank transfer → payout</h3><p>With live Wise configuration, a credited Wise transfer can be matched to a registered customer and paid out to that customer's bank.</p></article>
-      <article class="summary"><span class="badge limited">Instruction / draft</span><h3>Other bank payouts</h3><p>S2S withdrawal records an instruction and debits a wallet; SWIFT tooling generates an unsent message draft. Neither automatically transmits funds.</p></article>
-      <article class="summary"><span class="badge limited">Standalone / restricted</span><h3>Crypto payout</h3><p>A separate, unlaunched service has an outbound USDT TRC-20 broadcaster. It has no inbound deposit route and is not ready for public access.</p></article>
+      <article class="summary reveal"><span class="badge internal">Live · internal ledger</span><h3>Wallet &amp; merchant transfers</h3><p>Post single or bulk double-entry transfers between wallets and merchant ledger accounts. Operator JWT only; up to 1,000 items per batch with per-item results.</p></article>
+      <article class="summary reveal"><span class="badge internal">Live · internal ledger</span><h3>Terminal-to-Terminal (T2T)</h3><p>Move value between two active terminals under the same merchant, atomically, using a signed and idempotent request from your backend.</p></article>
+      <article class="summary reveal"><span class="badge internal">Live · partner receipt</span><h3>Server-to-Server (S2S) receipt</h3><p>A registered peer sends an authenticated payment request that credits a PrimeStack wallet and records a journal entry.</p></article>
+      <article class="summary reveal"><span class="badge internal">Live · operator JWT or signed webhook</span><h3>Real funds into a terminal</h3><p>Record money that already arrived from a bank/VPA settlement or a partner sender into a terminal or merchant account. Idempotent by reference or event ID.</p></article>
+      <article class="summary reveal"><span class="badge limited">Lifecycle live · external network gated</span><h3>Card / POS transaction</h3><p>Run authorize, capture, reverse, and settlement accounting. The external card-network connection is kept behind an approved, certified acquirer adapter.</p></article>
+      <article class="summary reveal"><span class="badge gated">Live when Wise is configured</span><h3>Wise bank-in → payout</h3><p>With live Wise configuration, a credited Wise transfer is matched to a registered customer and paid out to that customer's saved bank account.</p></article>
+      <article class="summary reveal"><span class="badge limited">Instruction / draft</span><h3>Bank payout &amp; SWIFT drafts</h3><p>Create a withdrawal instruction that debits the wallet, or generate a <code>pacs.008</code> draft. A bank executor completes the actual transfer.</p></article>
+      <article class="summary reveal"><span class="badge limited">Standalone · restricted</span><h3>Crypto payout</h3><p>A separate, unlaunched service can broadcast a USDT TRC-20 payout. It has no inbound deposit route and is not part of the standard launcher.</p></article>
     </div>
   </section>
 
-  <nav class="toc" aria-label="Funds guide sections">
+  <nav class="toc reveal" aria-label="Funds guide sections">
     <a href="#wallet-transfer">Wallet transfers</a>
     <a href="#t2t">Terminal-to-Terminal</a>
+    <a href="#terminal-details">Terminal &amp; sender details</a>
     <a href="#s2s">Server-to-Server receipt</a>
     <a href="#card">Card / POS</a>
     <a href="#wise">Wise bank-in and payout</a>
-    <a href="#bank-payout">Bank payout instruction</a>
+    <a href="#bank-payout">Bank payout &amp; SWIFT draft</a>
     <a href="#crypto">Crypto payout status</a>
+    <a href="#inbound">Receive real funds</a>
     <a href="#not-payment">Not a payment rail</a>
   </nav>
 
   <section id="wallet-transfer">
-    <article class="flow">
-      <span class="badge internal">Internal · administrator/operator only</span>
+    <article class="flow reveal">
+      <span class="badge internal">Live · operator JWT</span>
       <h2>1. Transfer between wallets or merchant ledger accounts</h2>
-      <p>This path posts a double-entry ledger transfer. In the current API, wallet and generic transfer routes are under <code>/admin</code> and require an administrator/operator JWT. Do not give an admin token to a customer or embed one in a browser app.</p>
+      <p>This path posts a double-entry ledger transfer immediately. In the current API, wallet and generic transfer routes live under <code>/admin</code> and require an administrator/operator JWT. Never give an admin token to a customer or embed one in a browser app.</p>
       <h3>Step by step</h3>
       <ol>
         <li>Have an authorized operator confirm both wallets/accounts are provisioned, active, and in the same currency. Confirm the sender has enough available balance, including any configured fee.</li>
@@ -124,15 +160,15 @@ footer{padding:26px 5%;border-top:1px solid var(--border);text-align:center;colo
   "description": "Order 1042"
 }</pre>
       <div class="endpoint-list"><code>GET /admin/wallets/:address/balance</code><code>GET /admin/wallets/:address/statement</code><code>GET /admin/transfers/:reference</code></div>
-      <div class="status-note"><strong>Important:</strong> <code>POST /admin/wallets/:address/fund</code> credits from a system funding ledger account. It is an internal accounting operation, not a customer bank deposit or proof of external funds received.</div>
+      <div class="status-note"><strong>Internal only:</strong> <code>POST /admin/wallets/:address/fund</code> credits from a system funding ledger account. It is an accounting operation, not a customer bank deposit or proof of external funds received.</div>
     </article>
   </section>
 
   <section id="t2t">
-    <article class="flow">
-      <span class="badge internal">Internal · merchant HMAC</span>
+    <article class="flow reveal">
+      <span class="badge internal">Live · merchant HMAC</span>
       <h2>2. Send between two terminals (T2T)</h2>
-      <p>T2T debits the sending terminal account and credits the receiving terminal account in the same merchant ledger. It is not a bank transfer and does not move value between different merchants.</p>
+      <p>T2T debits the sending terminal account and credits the receiving terminal account in the same merchant ledger, atomically. It moves value inside a single merchant — it is not a bank transfer and does not move value between different merchants.</p>
       <h3>Step by step</h3>
       <ol>
         <li>Get both terminal IDs provisioned and active under the same merchant. Confirm their ledger accounts are enabled for the requested currency.</li>
@@ -152,11 +188,98 @@ footer{padding:26px 5%;border-top:1px solid var(--border);text-align:center;colo
     </article>
   </section>
 
+  <section id="terminal-details">
+    <article class="flow reveal">
+      <span class="badge internal">Live · reference data</span>
+      <h2>Terminal and sender connection details</h2>
+      <p>The values a sender needs to reach the platform, ping it, and open a terminal-to-terminal link: the platform's terminal and merchant identity, the account that receives settlement, the API host and fixed public IP to call, and the whitelist and ping routes.</p>
+
+      <h3>Terminal information</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Field</th><th>Value</th></tr></thead>
+          <tbody>
+            <tr><td>Terminal ID (MID)</td><td><code>100000000036000</code></td></tr>
+            <tr><td>Merchant ID</td><td><code>493837949996</code></td></tr>
+            <tr><td>Account holder</td><td>M/S. UNITED SOLAR AND WIND POWER TECHNOLOGIES</td></tr>
+            <tr><td>Receiving account number</td><td><code>029905003783</code></td></tr>
+            <tr><td>Receiving VPA</td><td><code>MSUNITEDSOLARANDWINDPOWERTECHNOLOGIES.eazypay1@icici</code></td></tr>
+            <tr><td>Settlement currency</td><td><code>USD</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>IP addresses and endpoints for sending funds</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Field</th><th>Value and how to use it</th></tr></thead>
+          <tbody>
+            <tr><td>Platform API host</td><td><code>https://primestack-switch.onrender.com</code> — call this host for <code>/t2t/ping</code>, <code>/t2t/transfer</code> and <code>/t2t/whitelist</code></td></tr>
+            <tr><td>Platform fixed public IP</td><td><code>86.98.159.209</code> — give this to a counterparty that must allowlist the platform</td></tr>
+            <tr><td>Sender fixed egress IP</td><td><code>&lt;your fixed public IPv4/IPv6&gt;</code> — the platform allowlists this with <code>POST /t2t/whitelist</code></td></tr>
+            <tr><td>Sender notice callback</td><td><code>&lt;your public https:// callback&gt;</code> — receives the signed <code>t2t.whitelist.ping</code> notice</td></tr>
+            <tr><td>Idempotency key</td><td><code>x-primestack-idempotency-key</code> — unique per transfer, 16–128 characters</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Whitelist a sender IP</h3>
+      <ol>
+        <li>The sender sends its fixed public egress IP and a public HTTPS callback URL to the platform operator.</li>
+        <li>An authorized operator or merchant calls <code>POST /t2t/whitelist</code> with <code>{"ip":"...","action":"add"}</code> and the optional <code>callbackUrl</code>. This route uses a JWT, not the merchant HMAC signature.</li>
+        <li>The platform stores the entry, probes that IP on TCP 443 then 80, and POSTs a signed <code>{"event":"t2t.whitelist.ping",...}</code> notice to the callback so the sender knows the entry is reachable.</li>
+        <li>List the current entries with <code>GET /t2t/whitelist</code>, or probe them again with <code>POST /t2t/whitelist/ping</code>.</li>
+      </ol>
+      <pre>POST https://primestack-switch.onrender.com/t2t/whitelist
+Authorization: Bearer &lt;operator or merchant JWT&gt;
+
+{
+  "ip": "&lt;sender fixed public IP&gt;",
+  "action": "add",
+  "note": "sender egress",
+  "callbackUrl": "https://sender-host/t2t/whitelist-notice"
+}
+
+200 OK
+{
+  "success": true,
+  "data": {
+    "ip": "&lt;sender fixed public IP&gt;",
+    "scope": "merchant",
+    "action": "added",
+    "callbackUrl": "https://sender-host/t2t/whitelist-notice",
+    "message": "IP whitelisted successfully"
+  }
+}</pre>
+
+      <h3>Ping the platform before you send</h3>
+      <ol>
+        <li>Call <code>POST /t2t/ping</code> from the exact IP you sent for allowlisting. It is signed like every other T2T request.</li>
+        <li>A successful response proves the platform, your credentials, clock skew, and the allowlist are all correct. Resolve any error before sending funds.</li>
+        <li>Use <code>POST /t2t/whitelist/ping</code> to re-probe an allowlisted IP on TCP 443/80 and re-deliver the reachability notice.</li>
+      </ol>
+      <pre>POST https://primestack-switch.onrender.com/t2t/ping
+x-primestack-key-id: &lt;issued-merchant-key-id&gt;
+x-primestack-timestamp: 1763300000000
+x-primestack-nonce: &lt;fresh-unique-value&gt;
+x-primestack-signature: &lt;HMAC-SHA256&gt;
+
+200 OK
+{
+  "success": true,
+  "data": { "reachable": true, "whitelisted": true, "callerIp": "&lt;sender egress IP&gt;" }
+}</pre>
+
+      <div class="endpoint-list"><code>POST /t2t/ping</code><code>POST /t2t/whitelist</code><code>GET /t2t/whitelist</code><code>POST /t2t/whitelist/ping</code></div>
+      <div class="status-note"><strong>The allowlist matches the caller:</strong> the platform compares the IP that reaches the API, so the sender must allowlist its own <em>fixed public egress</em> IP. If the sender has no fixed egress IP, confirm the allowlist and trust-proxy setup with the operator before going live. The HMAC secret is never published here — it is delivered out-of-band.</div>
+    </article>
+  </section>
+
   <section id="s2s">
-    <article class="flow">
-      <span class="badge internal">Incoming partner payment · merchant HMAC + connection signature</span>
+    <article class="flow reveal">
+      <span class="badge internal">Live · merchant HMAC + connection signature</span>
       <h2>3. Receive a payment from another PrimeStack deployment (S2S)</h2>
-      <p>The receiving deployment validates a registered connection, enforces its currency and amount limits, credits the selected local wallet, and stores a payment and journal reference. The sending partner must separately confirm its own debit and any external settlement.</p>
+      <p>The receiving deployment validates a registered connection, enforces its currency and amount limits, credits the selected local wallet, and stores a payment and journal reference. The sending partner still confirms its own debit and any external settlement.</p>
       <h3>Step by step</h3>
       <ol>
         <li>Agree with the peer on the HTTPS endpoint, supported currencies, limits, allowed source IPs, callback behavior, and reconciliation references.</li>
@@ -182,10 +305,10 @@ x-s2s-idempotency-key: &lt;unique-for-this-payment&gt;
   </section>
 
   <section id="card">
-    <article class="flow">
+    <article class="flow reveal">
       <span class="badge limited">Authorization / capture / ledger settlement</span>
       <h2>4. Card or POS transaction workflow</h2>
-      <p>The API provides a transaction lifecycle and settlement accounting. The current <code>/transactions/authorize</code> implementation validates and records an authorization and selects a route, but does not itself send an authorization request to an external card network or acquirer.</p>
+      <p>The API runs the full authorize → capture → reverse lifecycle and posts settlement accounting. The current <code>/transactions/authorize</code> implementation validates and records an authorization and selects a route, but does not itself send an authorization request to an external card network or acquirer.</p>
       <h3>Step by step for an approved test integration</h3>
       <ol>
         <li>Obtain a registered active merchant and terminal, an approved acquirer/host setup, scheme rules, and a certified test environment. Use only provider-approved test data until the complete external connection is verified.</li>
@@ -201,10 +324,10 @@ x-s2s-idempotency-key: &lt;unique-for-this-payment&gt;
   </section>
 
   <section id="wise">
-    <article class="flow">
+    <article class="flow reveal">
       <span class="badge gated">Wise pass-through · operator-managed · provider configuration required</span>
       <h2>5. Receive a Wise bank transfer and pay out to the customer's bank</h2>
-      <p>The separate Rails service is designed as a pass-through: Wise reports an incoming credited transfer, the service matches it to a registered customer, then creates a Wise payout to that customer's saved bank destination. It does not credit the customer's PrimeStack wallet. Without Wise live credentials the payout is simulated.</p>
+      <p>The separate Rails service is a pass-through: Wise reports an incoming credited transfer, the service matches it to a registered customer, then creates a Wise payout to that customer's saved bank destination. It does not credit the customer's PrimeStack wallet. Without Wise live credentials the payout is simulated.</p>
       <h3>Step by step</h3>
       <ol>
         <li>An authorized operator registers the customer and their verified Wise receiving account identifier and destination bank details in the secured Rails console. The account identifier must match the credited Wise account; do not use a customer-supplied reference as the only matching control.</li>
@@ -233,10 +356,10 @@ x-s2s-idempotency-key: &lt;unique-for-this-payment&gt;
   </section>
 
   <section id="bank-payout">
-    <article class="flow">
+    <article class="flow reveal">
       <span class="badge limited">External bank action still required</span>
       <h2>6. Submit a bank withdrawal instruction from a wallet</h2>
-      <p><code>POST /s2s/withdrawals</code> checks the wallet and connection, posts a debit to the wallet ledger, and creates a withdrawal record. The route does not call ACH, SEPA, SWIFT, or another bank network; an approved bank integration or operations team must execute the payment.</p>
+      <p><code>POST /s2s/withdrawals</code> checks the wallet and connection, posts a debit to the wallet ledger, and creates a withdrawal record. The route itself does not call ACH, SEPA, SWIFT, or another bank network; an approved bank integration or operations team must execute the payment.</p>
       <h3>Step by step</h3>
       <ol>
         <li>Confirm the S2S connection is active and belongs to the merchant. Verify wallet ownership, currency, available balance, beneficiary details, fees, and all required approvals.</li>
@@ -247,7 +370,7 @@ x-s2s-idempotency-key: &lt;unique-for-this-payment&gt;
       </ol>
       <div class="status-note"><strong>Failure handling:</strong> Changing a withdrawal to <code>FAILED</code> or <code>CANCELLED</code> does not automatically refund the wallet debit in the current implementation. Follow an approved compensating-entry workflow before closing a failed payout.</div>
     </article>
-    <article class="flow">
+    <article class="flow reveal">
       <span class="badge limited">Message draft only</span>
       <h2>7. Create a SWIFT / ISO 20022 payout draft</h2>
       <p><code>POST /admin/swift-payouts/draft</code> generates a <code>pacs.008</code> XML message and identifiers. The response is explicitly <code>DRAFT_NOT_SENT</code>; there is no route here that submits it to a bank.</p>
@@ -262,7 +385,7 @@ x-s2s-idempotency-key: &lt;unique-for-this-payment&gt;
   </section>
 
   <section id="crypto">
-    <article class="flow">
+    <article class="flow reveal">
       <span class="badge limited">Standalone prototype · not in the standard launcher</span>
       <h2>8. Crypto payout (USDT on TRC-20 only)</h2>
       <p>The repository contains a separate service that checks a <code>CRYPTO:USDT</code> ledger balance, broadcasts a TRC-20 transfer, and then posts a ledger entry containing the transaction hash. The standard platform launcher does not start this service.</p>
@@ -277,30 +400,103 @@ x-s2s-idempotency-key: &lt;unique-for-this-payment&gt;
     </article>
   </section>
 
+  <section id="inbound">
+    <article class="flow reveal">
+      <span class="badge internal">Live · operator JWT or signed webhook</span>
+      <h2>9. Receive real funds into a terminal</h2>
+      <p>Two routes record money that already arrived from outside the platform — a bank or VPA settlement, or a partner sender — into a terminal's or merchant's receiving account. Each posts a double-entry credit and is idempotent by its reference or event ID, so a retry never double-credits.</p>
+      <h3>Step by step</h3>
+      <ol>
+        <li>Confirm the receiving terminal (or merchant) exists and is active. When the terminal's ledger account is missing for the requested currency, the route creates it before crediting.</li>
+        <li>For an operator-driven credit, obtain a JWT from <code>POST /admin/login</code> and call <code>POST /t2t/inbound</code>. Only <code>SUPER_ADMIN</code> and <code>ADMIN</code> roles may credit funds this way.</li>
+        <li>Send a unique <code>reference</code> of 16–128 characters using only <code>A–Z a–z 0–9 . _ : -</code>. Reusing a reference for the same terminal and currency returns the original receipt with <code>duplicate: true</code> instead of crediting twice.</li>
+        <li>For an automated sender, have them call <code>POST /webhooks/inbound</code> with a 13-digit <code>x-primestack-timestamp</code> (Unix milliseconds, within the configured drift window) and <code>x-primestack-signature</code> = HMAC-SHA256 hex over <code>timestamp + JSON.stringify(body)</code> using the shared inbound secret. A unique <code>eventId</code> (8–128 characters) makes the webhook idempotent.</li>
+        <li>Store the returned <code>journalEntryRef</code>, <code>accountCode</code>, <code>amount</code>, and <code>currency</code>, then confirm the terminal balance with <code>GET /t2t/balance/:tid?currency=USD</code> and list transfers with <code>GET /t2t/transfers</code>.</li>
+      </ol>
+      <pre>POST /t2t/inbound
+Authorization: Bearer &lt;admin or operator JWT&gt;
+
+{
+  "tid": "TERM_RECEIVER",
+  "amount": "250.00",
+  "currency": "USD",
+  "reference": "BANK-2026-11-16-0001",
+  "note": "Settlement for order 1042"
+}</pre>
+      <pre>POST /webhooks/inbound
+x-primestack-timestamp: 1763300000000
+x-primestack-signature: &lt;HMAC-SHA256 hex&gt;
+
+{
+  "eventId": "wise-credit-9f2c1a",
+  "amount": "250.00",
+  "currency": "USD",
+  "target": { "type": "TERMINAL", "id": "TERM_RECEIVER" },
+  "payerName": "ACME TRADING",
+  "payerReference": "INV-1042"
+}</pre>
+      <div class="endpoint-list"><code>POST /t2t/inbound (admin/operator)</code><code>POST /webhooks/inbound (signed)</code><code>GET /t2t/balance/:tid</code><code>GET /t2t/transfers</code></div>
+      <div class="status-note"><strong>Not an external transfer:</strong> these routes record funds that have already arrived. They do not pull money from a bank or provider, and a successful response proves only that the ledger was credited — reconcile it against the bank or provider statement.</div>
+    </article>
+  </section>
+
   <section id="not-payment">
-    <div class="section-head">
-      <h2>Features that are not standalone ways to move money</h2>
-      <p>These can support an integration, but should not be presented to customers as completed pay-in or payout rails.</p>
+    <div class="section-head reveal">
+      <h2>Not standalone ways to move money</h2>
+      <p>These support an integration, but are not, on their own, completed pay-in or payout rails.</p>
     </div>
     <div class="grid">
-      <article class="limit"><h3>Invoices and payment links</h3><p><code>POST /merchant/invoices</code> and <code>POST /merchant/payment-links</code> create request records. The current routes do not provide a checkout, collection confirmation, or settlement callback.</p></article>
-      <article class="limit"><h3>Virtual account records</h3><p>Admin virtual-account provisioning is gated by Wise configuration, but the API route creates a local account record. It is not the same as a live provider-issued account or an inbound credit webhook.</p></article>
-      <article class="limit"><h3>ISO messages and route selection</h3><p>ISO 8583/20022 tools build, parse, or validate messages. PAG route selection recommends a route only. Neither alone reserves funds, sends a bank payment, or confirms settlement.</p></article>
+      <article class="limit reveal"><h3>Invoices and payment links</h3><p><code>POST /merchant/invoices</code> and <code>POST /merchant/payment-links</code> create request records. The current routes do not provide a checkout, collection confirmation, or settlement callback.</p></article>
+      <article class="limit reveal"><h3>Virtual account records</h3><p>Admin virtual-account provisioning is gated by Wise configuration. When Wise provisioning is enabled the route returns real Wise receiving-account details (IBAN or local account number); otherwise it stores a local identifier only. Receiving funds into the account is a separate step — use <code>POST /t2t/inbound</code> or the signed <code>POST /webhooks/inbound</code>.</p></article>
+      <article class="limit reveal"><h3>ISO messages and route selection</h3><p>ISO 8583/20022 tools build, parse, or validate messages. PAG route selection recommends a route only. Neither alone reserves funds, sends a bank payment, or confirms settlement.</p></article>
     </div>
   </section>
 
   <section>
-    <div class="section-head">
+    <div class="section-head reveal">
       <h2>Common controls for every production flow</h2>
       <p>Use the assigned environment's current OpenAPI specification and contract; route access and provider support can differ by deployment.</p>
     </div>
     <div class="grid">
-      <article class="limit"><h3>Authenticate server-side</h3><p>Keep HMAC keys, connection secrets, Wise credentials, and administrator JWTs out of browser code, mobile apps, URLs, and logs.</p></article>
-      <article class="limit"><h3>Keep a reconciliation record</h3><p>Store the caller's reference, PrimeStack reference, provider reference, amount, currency, status, timestamps, and final bank/ledger evidence.</p></article>
-      <article class="limit"><h3>Do not assume success</h3><p>Handle declined, pending, duplicate, unmatched, failed, reversed, and partially completed batch results explicitly. Retry only with the same idempotency key when that endpoint supports it.</p></article>
+      <article class="limit reveal"><h3>Authenticate server-side</h3><p>Keep HMAC keys, connection secrets, Wise credentials, and administrator JWTs out of browser code, mobile apps, URLs, and logs.</p></article>
+      <article class="limit reveal"><h3>Keep a reconciliation record</h3><p>Store the caller's reference, PrimeStack reference, provider reference, amount, currency, status, timestamps, and final bank/ledger evidence.</p></article>
+      <article class="limit reveal"><h3>Do not assume success</h3><p>Handle declined, pending, duplicate, unmatched, failed, reversed, and partially completed batch results explicitly. Retry only with the same idempotency key when that endpoint supports it.</p></article>
     </div>
   </section>
 </main>
 <footer>PrimeStack Technologies LLC · Developer funds movement guide</footer>
+<script>
+(() => {
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  const revealTargets = document.querySelectorAll('.reveal');
+  if (reduceMotion || !('IntersectionObserver' in window)) {
+    revealTargets.forEach((el) => el.classList.add('visible'));
+  } else {
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (!entry.isIntersecting) return;
+        entry.target.classList.add('visible');
+        observer.unobserve(entry.target);
+      });
+    }, { threshold: 0.12, rootMargin: '0px 0px -60px' });
+    revealTargets.forEach((el) => observer.observe(el));
+  }
+
+  const progress = document.querySelector('.scroll-progress');
+  const supportsScrollTimeline = window.CSS && CSS.supports && CSS.supports('animation-timeline: scroll()');
+  if (progress && !reduceMotion && !supportsScrollTimeline) {
+    let frame = 0;
+    const paint = () => {
+      frame = 0;
+      const max = Math.max(document.documentElement.scrollHeight - window.innerHeight, 1);
+      progress.style.transform = `scaleX(${Math.min(window.scrollY / max, 1)})`;
+    };
+    window.addEventListener('scroll', () => { if (!frame) frame = requestAnimationFrame(paint); }, { passive: true });
+    window.addEventListener('resize', paint, { passive: true });
+    paint();
+  }
+})();
+</script>
 </body>
 </html>

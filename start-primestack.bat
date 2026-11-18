@@ -65,37 +65,22 @@ echo ----------------------------------------------
 docker compose ps --format "table {{.Name}}\t{{.Status}}" 2>nul
 echo.
 
-REM -- Step 4: Start public website and dashboard + beep + open browser --
-echo [4/4] Starting public website on port 9004 and dashboard on port 9005...
-cd /d "d:\PrimeStack Asset Gateway"
+REM -- Step 4: Start website, merchant dashboard, admin dashboard, and API --
+echo [4/4] Starting website 9004, merchant 9005, admin 9006, and API 9009...
+cd /d "%~dp0"
 
-set "WEBSITE_PORT=9004"
-set "DASHBOARD_PORT=9005"
-set "SERVE_PUBLIC_SITE=false"
+REM Stop only existing PrimeStack processes on the assigned ports.
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$targets = @(@{Port=9004; Pattern='start-public-site\.js'}, @{Port=9005; Pattern='start-dashboard\.js'}, @{Port=9006; Pattern='start-dashboard\.js'}, @{Port=9009; Pattern='start-platform\.mjs'}); foreach ($target in $targets) { $listeners = Get-NetTCPConnection -LocalPort $target.Port -State Listen -ErrorAction SilentlyContinue; foreach ($listener in $listeners) { $process = Get-CimInstance Win32_Process -Filter ('ProcessId = ' + $listener.OwningProcess); if ($process -and $process.CommandLine -match $target.Pattern) { Stop-Process -Id $listener.OwningProcess -Force; Write-Output ('  Stopped existing PrimeStack process on port ' + $target.Port) } } }"
 
-REM Stop only existing PrimeStack website/dashboard processes on these ports.
-powershell -NoProfile -ExecutionPolicy Bypass -Command "$ports = @(9004,9005); foreach ($port in $ports) { $listeners = Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue; foreach ($listener in $listeners) { $process = Get-CimInstance Win32_Process -Filter ('ProcessId = ' + $listener.OwningProcess); if (($port -eq 9004 -and $process.CommandLine -match 'start-public-site\.js') -or ($port -eq 9005 -and $process.CommandLine -match 'start-dashboard\.js|start-platform\.mjs')) { Stop-Process -Id $listener.OwningProcess -Force; Write-Output ('  Stopped existing PrimeStack process on port ' + $port) } } }"
+REM RUN_PLATFORM builds the latest API and starts the four local services.
+start "PrimeStack Platform" /min cmd /c "call RUN_PLATFORM.bat"
 
-REM Start dashboard server in a minimized window (more reliable than start /b with redirection)
-start "PrimeStack Dashboard" /min cmd /c "node start-dashboard.js"
-start "PrimeStack Website" /min cmd /c "node start-public-site.js"
-
-echo Waiting 5 seconds for website and dashboard to start...
-timeout /t 5 /nobreak >nul
-
-REM Verify both web servers are running.
-curl -fsS http://localhost:9005/health >nul 2>&1
+echo Waiting for the platform build and services to start...
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$deadline = (Get-Date).AddMinutes(5); do { $ready = $true; foreach ($port in @(9004,9005,9006,9009)) { try { $null = Invoke-WebRequest -UseBasicParsing -Uri ('http://localhost:' + $port + '/health') -TimeoutSec 3 } catch { $ready = $false; break } }; if ($ready) { exit 0 }; Start-Sleep -Seconds 5 } while ((Get-Date) -lt $deadline); exit 1"
 if errorlevel 1 (
-    echo WARNING: Dashboard may not have started. Check if Node.js is on PATH.
-    echo You can start it manually: node start-dashboard.js
+    echo WARNING: One or more platform services did not become healthy.
 ) else (
-    echo OK: Dashboard is running on port 9005
-)
-curl -fsS http://localhost:9004/health >nul 2>&1
-if errorlevel 1 (
-    echo WARNING: Public website may not have started. Try: npm run website
-) else (
-    echo OK: Public website is running on port 9004
+    echo OK: Website, merchant dashboard, admin dashboard, and API are healthy.
 )
 
 REM Beep 3 times
@@ -109,13 +94,12 @@ echo   Public Website:
 echo     Website:     http://localhost:9004
 echo.
 echo   Dashboards:
-echo     Operations:  http://localhost:9005/ops
-echo     Admin:       http://localhost:9005/admin/dashboard
-echo     Merchant:    http://localhost:9005/admin/merchant-dashboard
+echo     Merchant:    http://localhost:9005/merchant-login
+echo     Admin:       http://localhost:9006/login
+echo     Agent:       http://localhost:9006/agent-portal
 echo.
 echo   API Endpoints:
-echo     Health All:  http://localhost:9005/admin/health-all
-echo     Live Data:   http://localhost:9005/admin/live-data
+echo     Health:      http://localhost:9009/health
 echo     Gateway:     http://localhost:9024/health
 echo.
 echo   Services (all on Docker):
@@ -140,14 +124,11 @@ echo   Logs:  cd services ^&^& docker compose logs -f
 echo ============================================
 echo.
 
-REM Open the public website and operations hub in the browser.
+REM Open the website and separate portal sign-in pages.
 start "" "http://localhost:9004/"
-start "" "http://localhost:9005/ops"
+start "" "http://localhost:9005/merchant-login"
+start "" "http://localhost:9006/login"
 
-REM Wait 2 seconds then open admin dashboard too
-timeout /t 2 /nobreak >nul
-start "" "http://localhost:9005/admin/dashboard"
-
-echo Operations hub opened in browser.
+echo Website and portal sign-in pages opened in browser.
 echo Keep this window open. Close it to stop.
 pause

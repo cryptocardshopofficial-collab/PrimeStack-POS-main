@@ -33,10 +33,20 @@
     .tag{display:inline-block;padding:3px 9px;border-radius:20px;background:#e8f2f9;color:#17496c;font-size:.76rem}
     .muted{color:#647487}.error{color:#b42318;min-height:1.4em}
     .panel[hidden],.login[hidden],.dashboard[hidden]{display:none}
+    nav .developer-link{display:flex;align-items:center;min-height:40px;padding:0 12px;border:1px solid #005ea2;border-radius:7px;background:#fff;color:#005ea2;font-weight:650;text-decoration:none}
+    nav .developer-link:hover,nav .developer-link:focus-visible{background:#e8f2f9}
     .password-card{width:min(540px,100%);margin:8vh auto}
     label{display:grid;gap:6px;margin:14px 0;font-size:.86rem}
     .status{color:#176b3a}
-    @media(max-width:800px){.shell{grid-template-columns:1fr}aside{padding:15px 20px}nav{display:flex;flex-wrap:wrap;margin-top:14px}.main{padding:20px}.grid{grid-template-columns:1fr 1fr}}
+    .form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 16px}
+    .form-grid .full{grid-column:1/-1}
+    label.check{display:flex;align-items:center;gap:8px}
+    label.check input{height:auto;width:auto}
+    .row-actions{display:flex;gap:6px;flex-wrap:wrap}
+    .row-actions button{min-height:30px;padding:0 10px;font-size:.78rem;font-weight:600}
+    button.ghost{background:#fff;color:#005ea2}
+    button.danger{border-color:#b42318;background:#fff;color:#b42318}
+    @media(max-width:800px){.shell{grid-template-columns:1fr}aside{padding:15px 20px}nav{display:flex;flex-wrap:wrap;margin-top:14px}.main{padding:20px}.grid{grid-template-columns:1fr 1fr}.form-grid{grid-template-columns:1fr}}
     @media(max-width:520px){header{display:block}.grid{grid-template-columns:1fr}}
   </style>
 </head>
@@ -60,6 +70,9 @@
         <button type="button" class="active" data-panel="overview">Overview</button>
         <button type="button" data-panel="transactions">Transactions</button>
         <button type="button" data-panel="terminals">Terminals</button>
+        <button type="button" data-panel="bank-accounts">Bank accounts</button>
+        <button type="button" data-panel="requests">Pause requests</button>
+        <a class="developer-link" href="/developer">Developer Portal</a>
       </nav>
     </aside>
     <main class="main">
@@ -87,8 +100,9 @@
       <section class="panel" id="panel-transactions" hidden>
         <div class="card">
           <div class="toolbar"><h2>Recent transactions</h2><button type="button" id="refresh-transactions">Refresh</button></div>
-          <div class="table-wrap"><table><thead><tr><th>Date</th><th>STAN / RRN</th><th>Type</th><th>Amount</th><th>Status</th></tr></thead>
-            <tbody id="merchant-transaction-rows"><tr><td colspan="5" class="muted">Loading…</td></tr></tbody>
+          <p class="muted">Pause or report a suspicious transaction. Requests are sent to an administrator who approves or rejects them.</p>
+          <div class="table-wrap"><table><thead><tr><th>Date</th><th>STAN / RRN</th><th>Type</th><th>Amount</th><th>Status</th><th>Actions</th></tr></thead>
+            <tbody id="merchant-transaction-rows"><tr><td colspan="6" class="muted">Loading…</td></tr></tbody>
           </table></div>
         </div>
       </section>
@@ -97,6 +111,36 @@
           <div class="toolbar"><h2>Registered terminals</h2><button type="button" id="refresh-terminals">Refresh</button></div>
           <div class="table-wrap"><table><thead><tr><th>Terminal ID</th><th>Serial</th><th>Status</th><th>Health</th><th>Location</th></tr></thead>
             <tbody id="merchant-terminal-rows"><tr><td colspan="5" class="muted">Loading…</td></tr></tbody>
+          </table></div>
+        </div>
+      </section>
+      <section class="panel" id="panel-bank-accounts" hidden>
+        <div class="card">
+          <div class="toolbar"><h2>Commission bank accounts</h2></div>
+          <p class="muted">Add any bank account to receive your commission payouts. Full account numbers are encrypted and only the last four digits are shown.</p>
+          <form id="bank-account-form" class="form-grid">
+            <label>Label<input name="label" required maxlength="120" placeholder="Primary USD account"></label>
+            <label>Bank name<input name="bankName" required maxlength="160"></label>
+            <label>Account holder name<input name="accountName" required maxlength="160"></label>
+            <label>Account number<input name="accountNumber" required minlength="4" maxlength="64" autocomplete="off"></label>
+            <label>Routing number (optional)<input name="routingNumber" maxlength="64" autocomplete="off"></label>
+            <label>SWIFT / BIC (optional)<input name="swiftCode" maxlength="32" autocomplete="off"></label>
+            <label>Currency<input name="currency" value="USD" maxlength="3" required></label>
+            <label class="check full"><input type="checkbox" name="isDefault"> Use as my default payout account</label>
+            <div class="full"><button type="submit" id="bank-account-submit">Save bank account</button></div>
+          </form>
+          <p class="error" id="bank-account-error" role="alert"></p>
+          <div class="table-wrap"><table><thead><tr><th>Label</th><th>Bank</th><th>Account</th><th>Currency</th><th>Default</th><th></th></tr></thead>
+            <tbody id="bank-account-rows"><tr><td colspan="6" class="muted">Loading…</td></tr></tbody>
+          </table></div>
+        </div>
+      </section>
+      <section class="panel" id="panel-requests" hidden>
+        <div class="card">
+          <div class="toolbar"><h2>Pause / resume requests</h2><button type="button" id="refresh-requests">Refresh</button></div>
+          <p class="muted">The transaction stays live until an administrator approves your request. You will see the administrator's remarks here.</p>
+          <div class="table-wrap"><table><thead><tr><th>Date</th><th>Transaction</th><th>Action</th><th>Suspicious</th><th>Status</th><th>Admin remarks</th></tr></thead>
+            <tbody id="request-rows"><tr><td colspan="6" class="muted">Loading…</td></tr></tbody>
           </table></div>
         </div>
       </section>
@@ -141,14 +185,84 @@
       const rows = payload.data || [];
       document.getElementById("merchant-transactions-total").textContent = payload.meta?.total ?? rows.length;
       document.getElementById("merchant-transaction-rows").innerHTML = rows.length
-        ? rows.map((transaction) => `<tr>
-            <td>${escapeHtml(new Date(transaction.createdAt).toLocaleString())}</td>
-            <td><code>${escapeHtml(transaction.stan)}${transaction.rrn ? ` / ${escapeHtml(transaction.rrn)}` : ""}</code></td>
-            <td>${escapeHtml(transaction.type)}</td>
-            <td>${escapeHtml(transaction.amount)} ${escapeHtml(transaction.currency)}</td>
-            <td><span class="tag">${escapeHtml(transaction.status)}</span></td>
+        ? rows.map((transaction) => {
+            const id = escapeHtml(transaction.id);
+            const actions = [];
+            if (transaction.status === "AUTHORIZED" || transaction.status === "CAPTURED") {
+              actions.push(`<button type="button" class="ghost" data-hold="${id}">Pause</button>`);
+              actions.push(`<button type="button" class="danger" data-report="${id}">Report suspicious</button>`);
+            } else if (transaction.status === "ON_HOLD") {
+              actions.push(`<button type="button" class="ghost" data-resume="${id}">Resume</button>`);
+            }
+            return `<tr>
+              <td>${escapeHtml(new Date(transaction.createdAt).toLocaleString())}</td>
+              <td><code>${escapeHtml(transaction.stan)}${transaction.rrn ? ` / ${escapeHtml(transaction.rrn)}` : ""}</code></td>
+              <td>${escapeHtml(transaction.type)}</td>
+              <td>${escapeHtml(transaction.amount)} ${escapeHtml(transaction.currency)}</td>
+              <td><span class="tag">${escapeHtml(transaction.status)}</span></td>
+              <td><div class="row-actions">${actions.join("") || '<span class="muted">—</span>'}</div></td>
+            </tr>`;
+          }).join("")
+        : '<tr><td colspan="6" class="muted">No transactions found.</td></tr>';
+    }
+
+    async function loadBankAccounts() {
+      if (!selectedMerchantId) return;
+      const payload = await request(`/merchants/${encodeURIComponent(selectedMerchantId)}/bank-accounts`);
+      const accounts = payload.data || [];
+      document.getElementById("bank-account-rows").innerHTML = accounts.length
+        ? accounts.map((account) => {
+            const id = escapeHtml(account.id);
+            return `<tr>
+              <td>${escapeHtml(account.label)}</td>
+              <td>${escapeHtml(account.bankName)}</td>
+              <td><code>${escapeHtml(account.maskedAccountNumber)}</code></td>
+              <td>${escapeHtml(account.currency)}</td>
+              <td>${account.isDefault ? '<span class="tag">Default</span>' : ""}</td>
+              <td><div class="row-actions">
+                ${account.isDefault ? "" : `<button type="button" class="ghost" data-default="${id}">Make default</button>`}
+                <button type="button" class="danger" data-delete="${id}">Delete</button>
+              </div></td>
+            </tr>`;
+          }).join("")
+        : '<tr><td colspan="6" class="muted">No bank accounts saved yet.</td></tr>';
+    }
+
+    async function loadRequests() {
+      if (!selectedMerchantId) return;
+      const payload = await request(`/merchants/${encodeURIComponent(selectedMerchantId)}/transaction-control-requests?page=1&pageSize=50`);
+      const rows = payload.data || [];
+      document.getElementById("request-rows").innerHTML = rows.length
+        ? rows.map((item) => `<tr>
+            <td>${escapeHtml(new Date(item.createdAt).toLocaleString())}</td>
+            <td><code>${escapeHtml(item.transaction?.stan || item.transactionId)}</code></td>
+            <td>${escapeHtml(item.action)}</td>
+            <td>${item.suspicious ? "Yes" : "—"}</td>
+            <td><span class="tag">${escapeHtml(item.status)}</span></td>
+            <td>${escapeHtml(item.adminRemarks || "—")}</td>
           </tr>`).join("")
-        : '<tr><td colspan="5" class="muted">No transactions found.</td></tr>';
+        : '<tr><td colspan="6" class="muted">No requests submitted.</td></tr>';
+    }
+
+    async function submitControlRequest(transactionId, action, suspicious) {
+      const reason = window.prompt(
+        suspicious
+          ? "Describe why this transaction looks suspicious:"
+          : action === "HOLD"
+            ? "Why should this transaction be paused?"
+            : "Why should this transaction be resumed?"
+      );
+      if (!reason || reason.trim().length < 3) return;
+      error.textContent = "";
+      try {
+        await request(`/merchants/${encodeURIComponent(selectedMerchantId)}/transactions/${encodeURIComponent(transactionId)}/control-request`, {
+          method: "POST",
+          body: JSON.stringify({ action, reason: reason.trim(), suspicious: Boolean(suspicious) })
+        });
+        await Promise.all([loadTransactions(), loadRequests()]);
+      } catch (cause) {
+        error.textContent = cause instanceof Error ? cause.message : "Could not submit the request.";
+      }
     }
 
     async function loadTerminals() {
@@ -182,7 +296,7 @@
           <dt>Phone</dt><dd>${escapeHtml(merchant.phone || "—")}</dd>
           <dt>Country</dt><dd>${escapeHtml(merchant.country)}</dd>
           <dt>Account status</dt><dd class="status">${escapeHtml(merchant.status)}</dd></dl>`;
-        await Promise.all([loadTransactions(), loadTerminals()]);
+        await Promise.all([loadTransactions(), loadTerminals(), loadBankAccounts(), loadRequests()]);
       } catch (cause) {
         error.textContent = cause instanceof Error ? cause.message : "Unable to load merchant account.";
       }
@@ -263,6 +377,66 @@
     });
     document.getElementById("refresh-transactions").addEventListener("click", () => loadTransactions().catch((cause) => { error.textContent = cause.message; }));
     document.getElementById("refresh-terminals").addEventListener("click", () => loadTerminals().catch((cause) => { error.textContent = cause.message; }));
+    document.getElementById("refresh-requests").addEventListener("click", () => loadRequests().catch((cause) => { error.textContent = cause.message; }));
+
+    document.getElementById("merchant-transaction-rows").addEventListener("click", (event) => {
+      const button = event.target.closest("button");
+      if (!button) return;
+      if (button.dataset.hold) submitControlRequest(button.dataset.hold, "HOLD", false);
+      else if (button.dataset.resume) submitControlRequest(button.dataset.resume, "RESUME", false);
+      else if (button.dataset.report) submitControlRequest(button.dataset.report, "HOLD", true);
+    });
+
+    document.getElementById("bank-account-form").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const form = event.currentTarget;
+      const values = Object.fromEntries(new FormData(form));
+      const bankError = document.getElementById("bank-account-error");
+      const button = document.getElementById("bank-account-submit");
+      bankError.textContent = "";
+      button.disabled = true;
+      try {
+        await request(`/merchants/${encodeURIComponent(selectedMerchantId)}/bank-accounts`, {
+          method: "POST",
+          body: JSON.stringify({
+            label: values.label,
+            bankName: values.bankName,
+            accountName: values.accountName,
+            accountNumber: values.accountNumber,
+            routingNumber: values.routingNumber || undefined,
+            swiftCode: values.swiftCode || undefined,
+            currency: (values.currency || "USD").toUpperCase(),
+            isDefault: values.isDefault === "on"
+          })
+        });
+        form.reset();
+        await loadBankAccounts();
+      } catch (cause) {
+        bankError.textContent = cause instanceof Error ? cause.message : "Could not save the bank account.";
+      } finally {
+        button.disabled = false;
+      }
+    });
+
+    document.getElementById("bank-account-rows").addEventListener("click", async (event) => {
+      const button = event.target.closest("button");
+      if (!button) return;
+      const bankError = document.getElementById("bank-account-error");
+      bankError.textContent = "";
+      try {
+        if (button.dataset.default) {
+          await request(`/merchants/${encodeURIComponent(selectedMerchantId)}/bank-accounts/${encodeURIComponent(button.dataset.default)}/default`, { method: "PATCH" });
+        } else if (button.dataset.delete) {
+          if (!window.confirm("Delete this saved bank account?")) return;
+          await request(`/merchants/${encodeURIComponent(selectedMerchantId)}/bank-accounts/${encodeURIComponent(button.dataset.delete)}`, { method: "DELETE" });
+        } else {
+          return;
+        }
+        await loadBankAccounts();
+      } catch (cause) {
+        bankError.textContent = cause instanceof Error ? cause.message : "Bank account update failed.";
+      }
+    });
 
     initialize().catch((cause) => {
       error.textContent = cause instanceof Error ? cause.message : "Unable to load merchant dashboard.";

@@ -1,51 +1,150 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
-import { createHash, randomUUID } from "crypto";
+import { createHash, createHmac, randomUUID, timingSafeEqual } from "crypto";
 import { createConnection, isIP } from "net";
+import ipaddr from "ipaddr.js";
 import { z } from "zod";
+import { config } from "../../config/index.js";
 import { Decimal } from "../../core/decimal.js";
 import { prisma } from "../../core/database.js";
 import {
   ConflictError,
   ForbiddenError,
-  ValidationError,
+  LedgerError,
   NotFoundError,
+  UnauthorizedError,
+  ValidationError,
 } from "../../core/errors.js";
 import { logger } from "../../core/logger.js";
 import { redis } from "../../core/redis.js";
+import { ledgerService } from "../ledger/ledger.module.js";
+import { ensureTerminalAccount } from "../terminal/terminal.service.js";
+import { verifyWiseWebhookSignature } from "../wallet/wise-virtual-account.js";
 import { sendSuccess, sendCreated } from "../../shared/utils/response.js";
 
+const amountSchema = z
+  .union([z.string(), z.number().finite()])
+  .transform(String)
+  .refine(
+    (value) => /^\d+(?:\.\d{1,4})?$/.test(value),
+    "amount must have no more than 4 decimal places",
+  );
+
+const currencySchema = z
+  .string()
+  .regex(/^[A-Za-z]{3}$/)
+  .transform((value) => value.toUpperCase());
+
 const t2tTransferSchema = z.object({
-  amount: z
-    .union([z.string(), z.number().finite()])
-    .transform(String)
-    .refine(
-      (value) => /^\d+(?:\.\d{1,4})?$/.test(value),
-      "amount must have no more than 4 decimal places",
-    ),
-  currency: z
-    .string()
-    .regex(/^[A-Za-z]{3}$/)
-    .transform((value) => value.toUpperCase()),
+  amount: amountSchema,
+  currency: currencySchema,
   sourceId: z.string().trim().min(1).max(128),
   destId: z.string().trim().min(1).max(128),
   description: z.string().max(500).optional(),
 });
 
+/** Manual credit of real funds received into a terminal account. */
+const t2tInboundSchema = z
+  .object({
+    tid: z.string().trim().min(1).max(128),
+    amount: amountSchema,
+    currency: currencySchema,
+    reference: z
+      .string()
+      .trim()
+      .min(16)
+      .max(128)
+      .regex(/^[A-Za-z0-9._:-]+$/),
+    note: z.string().max(500).optional(),
+  })
+  .strict();
+
+/** Provider-agnostic inbound real-funds webhook payload. */
+const inboundWebhookSchema = z
+  .object({
+    eventId: z.string().trim().min(8).max(128),
+    amount: amountSchema,
+    currency: currencySchema,
+    target: z
+      .object({
+        type: z.enum(["TERMINAL", "MERCHANT"]),
+        id: z.string().trim().min(1).max(128),
+      })
+      .strict(),
+    payerName: z.string().trim().max(255).optional(),
+    payerAccount: z.string().trim().max(128).optional(),
+    payerReference: z.string().trim().max(128).optional(),
+    receivedAt: z.string().datetime().optional(),
+  })
+  .strict();
+
 const t2tWhitelistSchema = z.object({
   ip: z.string().trim().min(1).max(45),
   action: z.enum(["add", "remove"]).default("add"),
   note: z.string().trim().max(500).optional(),
+  /**
+   * Public HTTPS endpoint on the sender's own system. When set, pinging this
+   * whitelisted IP also delivers a signed JSON notice there.
+   */
+  callbackUrl: z
+    .string()
+    .trim()
+    .url()
+    .max(2048)
+    .refine(
+      (value) => value.startsWith("https://"),
+      "callbackUrl must be an https URL",
+    )
+    .optional(),
 });
 
-const t2tPingSchema = z.object({
-  ip: z.string().trim().min(1).max(45).optional(),
-  port: z.coerce.number().int().min(1).max(65535).optional(),
-  timeoutMs: z.coerce.number().int().min(100).max(10000).default(3000),
-});
+const T2T_PING_PORTS = [443, 80] as const;
+const T2T_PING_TIMEOUT_MS = 3000;
+const T2T_PING_MAX_TIMEOUT_MS = 5000;
+const T2T_PING_MAX_TARGETS = 50;
+const T2T_PING_CONCURRENCY = 5;
+
+const t2tPingSchema = z
+  .object({
+    ip: z.string().trim().min(1).max(45).optional(),
+    timeoutMs: z.coerce
+      .number()
+      .int()
+      .min(500)
+      .max(T2T_PING_MAX_TIMEOUT_MS)
+      .default(T2T_PING_TIMEOUT_MS),
+  })
+  .strict();
+
+const t2tSenderPingSchema = z
+  .object({
+    terminalId: z.string().trim().min(1).max(128).optional(),
+  })
+  .strict();
 
 function normalizeIp(ip: string): string {
   const normalized = ip.trim().toLowerCase();
   return normalized.startsWith("::ffff:") ? normalized.slice(7) : normalized;
+}
+
+function getHeaderValue(
+  headers: FastifyRequest["headers"],
+  headerName: string,
+): string | undefined {
+  const normalized = Object.fromEntries(
+    Object.entries(headers).map(([key, value]) => [key.toLowerCase(), value]),
+  );
+  const value = normalized[headerName.toLowerCase()];
+  return typeof value === "string" ? value : undefined;
+}
+
+function isPublicUnicastIp(ip: string): boolean {
+  try {
+    return (
+      isIP(ip) !== 0 && ipaddr.process(normalizeIp(ip)).range() === "unicast"
+    );
+  } catch {
+    return false;
+  }
 }
 
 type T2tTransferRecord = {
@@ -77,21 +176,18 @@ async function isAllowed(
   // A merchant may be reached from an IP on the global (administrator) list or
   // on its own list. Without a merchant context only the global list applies.
   const rows: { allowed: boolean }[] = merchantId
-    ? await prisma.$queryRawUnsafe(
-        `SELECT EXISTS (
-           SELECT 1 FROM "T2tIpWhitelist"
-           WHERE ip = $1 AND (merchant_id IS NULL OR merchant_id = $2)
-         ) AS allowed`,
-        ip,
-        merchantId,
-      )
-    : await prisma.$queryRawUnsafe(
-        `SELECT EXISTS (
-           SELECT 1 FROM "T2tIpWhitelist"
-           WHERE ip = $1 AND merchant_id IS NULL
-         ) AS allowed`,
-        ip,
-      );
+    ? await prisma.$queryRaw<{ allowed: boolean }[]>`
+        SELECT EXISTS (
+          SELECT 1 FROM "T2tIpWhitelist"
+          WHERE ip = ${ip} AND (merchant_id IS NULL OR merchant_id = ${merchantId})
+        ) AS allowed
+      `
+    : await prisma.$queryRaw<{ allowed: boolean }[]>`
+        SELECT EXISTS (
+          SELECT 1 FROM "T2tIpWhitelist"
+          WHERE ip = ${ip} AND merchant_id IS NULL
+        ) AS allowed
+      `;
   return rows[0]?.allowed === true;
 }
 
@@ -113,7 +209,9 @@ function writableWhitelistScope(
   }
   if (role === "MERCHANT") {
     if (!user?.merchantId) {
-      throw new ForbiddenError("Merchant context is required to manage T2T IP whitelists");
+      throw new ForbiddenError(
+        "Merchant context is required to manage T2T IP whitelists",
+      );
     }
     return { kind: "merchant", merchantId: user.merchantId };
   }
@@ -133,7 +231,9 @@ function readableWhitelistScope(
   }
   if (role === "MERCHANT") {
     if (!user?.merchantId) {
-      throw new ForbiddenError("Merchant context is required to view T2T IP whitelists");
+      throw new ForbiddenError(
+        "Merchant context is required to view T2T IP whitelists",
+      );
     }
     return { kind: "merchant", merchantId: user.merchantId };
   }
@@ -143,76 +243,350 @@ function readableWhitelistScope(
 type PingResult = {
   ip: string;
   note: string | null;
+  callbackUrl: string | null;
   reachable: boolean;
   port: number | null;
   latencyMs: number | null;
   error: string | null;
+  /** Whether the signed notice was accepted by the sender's callback URL. */
+  notified: boolean;
+  notifyStatus: number | null;
+  notifyError: string | null;
 };
 
-// TCP ping: opens a socket to the sender's IP and measures how long the
-// handshake takes. ICMP is not usable without raw-socket privileges, so a TCP
-// connect is the reliable way to prove a sender endpoint is reachable.
+type PingTarget = {
+  ip: string;
+  note: string | null;
+  callback_url: string | null;
+};
+
+const SAFE_SOCKET_ERRORS = new Set([
+  "ECONNREFUSED",
+  "ETIMEDOUT",
+  "ENETUNREACH",
+  "EHOSTUNREACH",
+  "ECONNRESET",
+  "EADDRNOTAVAIL",
+]);
+
+// A TCP connect checks whether a sender endpoint accepts connections; this is
+// not an ICMP ping and does not verify its application or payment service.
 function tcpProbe(
   ip: string,
   port: number,
   timeoutMs: number,
-): Promise<{ reachable: boolean; latencyMs: number; error: string | null }> {
+): Promise<{
+  reachable: boolean;
+  latencyMs: number | null;
+  error: string | null;
+}> {
   return new Promise((resolve) => {
-    const started = Date.now();
-    const socket = createConnection({ host: ip, port });
+    const startedAt = Date.now();
+    let socket: ReturnType<typeof createConnection>;
     let settled = false;
+
+    try {
+      socket = createConnection({ host: ip, port, family: isIP(ip) });
+    } catch {
+      resolve({ reachable: false, latencyMs: null, error: "CONNECT_FAILED" });
+      return;
+    }
+
     const finish = (reachable: boolean, error: string | null) => {
       if (settled) return;
       settled = true;
       socket.destroy();
-      resolve({ reachable, latencyMs: Date.now() - started, error });
+      resolve({ reachable, latencyMs: Date.now() - startedAt, error });
     };
     socket.setTimeout(timeoutMs);
     socket.once("connect", () => finish(true, null));
-    socket.once("timeout", () => finish(false, "timeout"));
-    socket.once("error", (err: NodeJS.ErrnoException) =>
-      finish(false, err.code || err.message),
-    );
+    socket.once("timeout", () => finish(false, "ETIMEDOUT"));
+    socket.once("error", (err: NodeJS.ErrnoException) => {
+      const code = err.code ?? "CONNECT_FAILED";
+      finish(false, SAFE_SOCKET_ERRORS.has(code) ? code : "CONNECT_FAILED");
+    });
+    socket.once("close", () => {
+      if (!settled) finish(false, "CONNECTION_CLOSED");
+    });
   });
 }
 
-async function pingSenderIp(
-  ip: string,
-  ports: number[],
-  timeoutMs: number,
-): Promise<Omit<PingResult, "note">> {
-  if (!isIP(ip)) {
+/**
+ * Delivers a signed JSON notice to the sender's callback URL so the sender's
+ * own system learns that its egress IP was allowlisted and probed. The body is
+ * signed exactly like the inbound webhook (timestamp + raw JSON) so the sender
+ * can verify it with the shared secret.
+ */
+async function notifySender(
+  callbackUrl: string,
+  payload: Record<string, unknown>,
+): Promise<{ notified: boolean; status: number | null; error: string | null }> {
+  const secret = config.t2tNotify.secret;
+  if (!secret) {
     return {
-      ip,
-      reachable: false,
-      port: null,
-      latencyMs: null,
-      error: "invalid_ip",
+      notified: false,
+      status: null,
+      error: "NOTIFY_SECRET_NOT_CONFIGURED",
     };
   }
-  let last: { latencyMs: number; error: string | null } = {
-    latencyMs: 0,
-    error: "unreachable",
+
+  const body = JSON.stringify(payload);
+  const timestamp = Date.now();
+  const signature = createHmac("sha256", secret)
+    .update(`${timestamp}${body}`)
+    .digest("hex");
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), config.t2tNotify.timeoutMs);
+  try {
+    const response = await fetch(callbackUrl, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        [`${config.hmac.headerPrefix}-timestamp`]: String(timestamp),
+        [`${config.hmac.headerPrefix}-signature`]: signature,
+      },
+      body,
+      signal: controller.signal,
+      redirect: "error",
+    });
+    return {
+      notified: response.ok,
+      status: response.status,
+      error: response.ok ? null : `HTTP_${response.status}`,
+    };
+  } catch (error) {
+    const aborted = error instanceof Error && error.name === "AbortError";
+    return {
+      notified: false,
+      status: null,
+      error: aborted ? "ETIMEDOUT" : "NOTIFY_FAILED",
+    };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function pingSenderIp(
+  target: PingTarget,
+  timeoutMs: number,
+): Promise<PingResult> {
+  const normalizedIp = normalizeIp(target.ip);
+  const callbackUrl = target.callback_url ?? null;
+  const base = {
+    ip: normalizedIp,
+    note: target.note,
+    callbackUrl,
   };
-  for (const port of ports) {
-    const probe = await tcpProbe(ip, port, timeoutMs);
-    if (probe.reachable) {
+
+  let reachable = false;
+  let port: number | null = null;
+  let latencyMs: number | null = null;
+  let error: string | null = "UNREACHABLE";
+
+  if (!isPublicUnicastIp(normalizedIp)) {
+    error = "IP_NOT_PUBLIC_UNICAST";
+  } else {
+    for (const candidate of T2T_PING_PORTS) {
+      const probe = await tcpProbe(normalizedIp, candidate, timeoutMs);
+      latencyMs = probe.latencyMs;
+      if (probe.reachable) {
+        reachable = true;
+        port = candidate;
+        error = null;
+        break;
+      }
+      error = probe.error;
+    }
+  }
+
+  // Tell the sender's own system about the outcome. A failed delivery never
+  // invalidates the probe result; it is reported alongside it.
+  let notified = false;
+  let notifyStatus: number | null = null;
+  let notifyError: string | null = null;
+  if (callbackUrl) {
+    const delivery = await notifySender(callbackUrl, {
+      event: "t2t.whitelist.ping",
+      ip: normalizedIp,
+      reachable,
+      port,
+      latencyMs,
+      error,
+      checkedAt: new Date().toISOString(),
+    });
+    notified = delivery.notified;
+    notifyStatus = delivery.status;
+    notifyError = delivery.error;
+  } else {
+    notifyError = "NO_CALLBACK_URL";
+  }
+
+  return {
+    ...base,
+    reachable,
+    port,
+    latencyMs,
+    error,
+    notified,
+    notifyStatus,
+    notifyError,
+  };
+}
+
+async function mapWithConcurrency<T, R>(
+  items: T[],
+  concurrency: number,
+  worker: (item: T) => Promise<R>,
+): Promise<R[]> {
+  const results = new Array<R>(items.length);
+  let nextIndex = 0;
+  const workers = Array.from(
+    { length: Math.min(concurrency, items.length) },
+    async () => {
+      while (true) {
+        const index = nextIndex++;
+        if (index >= items.length) return;
+        results[index] = await worker(items[index]);
+      }
+    },
+  );
+  await Promise.all(workers);
+  return results;
+}
+
+const INBOUND_MAX_AMOUNT = "10000000";
+
+/**
+ * External money is booked against an ASSET funding account because the ledger
+ * engine only allows ASSET debits to exceed the account's balance — nothing in
+ * the ledger backs funds that arrived from outside yet.
+ */
+async function ensureFundingAccount(currency: string): Promise<string> {
+  const code = `${config.inboundWebhook.fundingAccountPrefix}-${currency}`;
+  const existing = await prisma.account.findUnique({
+    where: { code },
+    select: { code: true },
+  });
+  if (existing) return existing.code;
+
+  try {
+    await prisma.account.create({
+      data: {
+        code,
+        name: `System funding (${currency})`,
+        type: "ASSET",
+        subtype: "FUNDING",
+        currency,
+      },
+    });
+  } catch (error) {
+    const created = await prisma.account.findUnique({
+      where: { code },
+      select: { code: true },
+    });
+    if (!created) throw error;
+    return created.code;
+  }
+
+  return code;
+}
+
+async function readAccountBalance(code: string): Promise<string | null> {
+  const rows = await prisma.$queryRawUnsafe<{ balance: string }[]>(
+    `SELECT balance::text AS balance FROM "Account" WHERE code = $1 LIMIT 1`,
+    code,
+  );
+  return rows[0]?.balance ?? null;
+}
+
+/**
+ * Deterministic journal reference derived from the receipt's own identity, so a
+ * replayed call can never credit the same funds twice.
+ */
+function inboundJournalReference(scope: string): string {
+  return `INB-${createHash("sha256").update(scope).digest("hex").slice(0, 32).toUpperCase()}`;
+}
+
+type InboundReceipt = {
+  duplicate: boolean;
+  amount: string;
+  journalEntryRef: string;
+  balance: string | null;
+};
+
+/** Credits real funds into a receiving account, debiting the funding account. */
+async function creditInboundFunds(input: {
+  accountCode: string;
+  amount: string;
+  currency: string;
+  journalReference: string;
+  description: string;
+  postedBy: string;
+  metadata: Record<string, unknown>;
+}): Promise<InboundReceipt> {
+  const amount = new Decimal(input.amount);
+  if (!amount.isFinite() || amount.lte(0)) {
+    throw new ValidationError("amount must be positive");
+  }
+  if (amount.gt(INBOUND_MAX_AMOUNT)) {
+    throw new ValidationError("amount exceeds the maximum inbound limit");
+  }
+  const normalizedAmount = amount.toFixed(4);
+
+  const duplicate = await prisma.journalEntry.findUnique({
+    where: { reference: input.journalReference },
+    select: { reference: true },
+  });
+  if (duplicate) {
+    return {
+      duplicate: true,
+      amount: normalizedAmount,
+      journalEntryRef: duplicate.reference,
+      balance: await readAccountBalance(input.accountCode),
+    };
+  }
+
+  const targetAccount = await prisma.account.findUnique({
+    where: { code: input.accountCode },
+    select: { code: true },
+  });
+  if (!targetAccount) {
+    throw new NotFoundError("Receiving account", input.accountCode);
+  }
+
+  const fundingAccount = await ensureFundingAccount(input.currency);
+  try {
+    await ledgerService.postEntry({
+      reference: input.journalReference,
+      entryType: "TRANSFER",
+      description: input.description,
+      source: "INBOUND",
+      postedBy: input.postedBy,
+      metadata: input.metadata,
+      lines: [
+        { accountCode: fundingAccount, debit: normalizedAmount, credit: "0" },
+        { accountCode: input.accountCode, debit: "0", credit: normalizedAmount },
+      ],
+    });
+  } catch (error) {
+    // A concurrent retry may have posted this reference first.
+    if (error instanceof LedgerError && error.message.includes("already exists")) {
       return {
-        ip,
-        reachable: true,
-        port,
-        latencyMs: probe.latencyMs,
-        error: null,
+        duplicate: true,
+        amount: normalizedAmount,
+        journalEntryRef: input.journalReference,
+        balance: await readAccountBalance(input.accountCode),
       };
     }
-    last = probe;
+    throw error;
   }
+
   return {
-    ip,
-    reachable: false,
-    port: ports[ports.length - 1] ?? null,
-    latencyMs: last.latencyMs,
-    error: last.error,
+    duplicate: false,
+    amount: normalizedAmount,
+    journalEntryRef: input.journalReference,
+    balance: await readAccountBalance(input.accountCode),
   };
 }
 
@@ -224,8 +598,7 @@ export function registerT2tRoutes(app: FastifyInstance): void {
     },
     async (req: FastifyRequest, reply: FastifyReply) => {
       const user = req.user as
-        | { id?: string; role?: string; merchantId?: string | null }
-        | undefined;
+        { id?: string; role?: string; merchantId?: string | null } | undefined;
       const userId = user?.id;
       if (!userId) {
         throw new ForbiddenError(
@@ -254,8 +627,8 @@ export function registerT2tRoutes(app: FastifyInstance): void {
           WHERE ip = ${ip} AND merchant_id IS NOT DISTINCT FROM ${scope.merchantId}`;
         if (b.action !== "remove") {
           await tx.$executeRaw`
-          INSERT INTO "T2tIpWhitelist" (id, ip, note, merchant_id)
-          VALUES (${randomUUID()}, ${ip}, ${b.note || null}, ${scope.merchantId})`;
+          INSERT INTO "T2tIpWhitelist" (id, ip, note, callback_url, merchant_id)
+          VALUES (${randomUUID()}, ${ip}, ${b.note || null}, ${b.callbackUrl ?? null}, ${scope.merchantId})`;
         }
         await tx.auditLog.create({
           data: {
@@ -271,6 +644,7 @@ export function registerT2tRoutes(app: FastifyInstance): void {
             after: {
               ip,
               note: b.action === "add" ? (b.note ?? null) : null,
+              callbackUrl: b.action === "add" ? (b.callbackUrl ?? null) : null,
               merchantId: scope.merchantId,
             },
           },
@@ -284,6 +658,7 @@ export function registerT2tRoutes(app: FastifyInstance): void {
         ip,
         scope: scope.kind,
         action: b.action === "remove" ? "removed" : "added",
+        callbackUrl: b.action === "remove" ? null : (b.callbackUrl ?? null),
         message:
           b.action === "remove"
             ? "IP removed from whitelist"
@@ -305,10 +680,11 @@ export function registerT2tRoutes(app: FastifyInstance): void {
       const rows: {
         ip: string;
         note: string | null;
+        callback_url: string | null;
         merchant_id: string | null;
         added_at: Date;
       }[] = await prisma.$queryRawUnsafe(
-        `SELECT ip, note, merchant_id, added_at FROM "T2tIpWhitelist"
+        `SELECT ip, note, callback_url, merchant_id, added_at FROM "T2tIpWhitelist"
          WHERE merchant_id IS NOT DISTINCT FROM $1::text
          ORDER BY added_at DESC`,
         scope.merchantId,
@@ -326,6 +702,12 @@ export function registerT2tRoutes(app: FastifyInstance): void {
     "/t2t/whitelist/ping",
     {
       preHandler: app.authenticate,
+      config: {
+        rateLimit: {
+          max: 10,
+          timeWindow: "1 minute",
+        },
+      },
     },
     async (req: FastifyRequest, reply: FastifyReply) => {
       const scope = readableWhitelistScope(
@@ -338,45 +720,62 @@ export function registerT2tRoutes(app: FastifyInstance): void {
         });
       }
       const { timeoutMs } = parsed.data;
-      const ports = parsed.data.port ? [parsed.data.port] : [443, 80];
 
-      let targets: { ip: string; note: string | null }[];
+      let targets: PingTarget[];
       if (parsed.data.ip) {
         const ip = normalizeIp(parsed.data.ip);
-        targets = await prisma.$queryRawUnsafe(
-          `SELECT ip, note FROM "T2tIpWhitelist"
-           WHERE ip = $1 AND merchant_id IS NOT DISTINCT FROM $2::text LIMIT 1`,
-          ip,
-          scope.merchantId,
-        );
+        if (!isPublicUnicastIp(ip)) {
+          throw new ValidationError(
+            "Only public unicast IP addresses can be pinged",
+          );
+        }
+        targets = await prisma.$queryRaw<PingTarget[]>`
+          SELECT ip, note, callback_url FROM "T2tIpWhitelist"
+          WHERE ip = ${ip}
+            AND merchant_id IS NOT DISTINCT FROM ${scope.merchantId}::text
+          LIMIT 1
+        `;
         if (!targets.length) throw new NotFoundError("Sender IP", ip);
       } else {
-        targets = await prisma.$queryRawUnsafe(
-          `SELECT ip, note FROM "T2tIpWhitelist"
-           WHERE merchant_id IS NOT DISTINCT FROM $1::text
-           ORDER BY added_at DESC`,
-          scope.merchantId,
-        );
+        targets = await prisma.$queryRaw<PingTarget[]>`
+          SELECT ip, note, callback_url FROM "T2tIpWhitelist"
+          WHERE merchant_id IS NOT DISTINCT FROM ${scope.merchantId}::text
+          ORDER BY added_at DESC
+          LIMIT ${T2T_PING_MAX_TARGETS + 1}
+        `;
+        if (targets.length > T2T_PING_MAX_TARGETS) {
+          throw new ValidationError(
+            `Too many IPs to ping. Maximum allowed is ${T2T_PING_MAX_TARGETS}.`,
+          );
+        }
       }
 
-      const results: PingResult[] = await Promise.all(
-        targets.map(async (target) => ({
-          ...(await pingSenderIp(target.ip, ports, timeoutMs)),
-          note: target.note,
-        })),
+      const results = await mapWithConcurrency(
+        targets,
+        T2T_PING_CONCURRENCY,
+        (target) => pingSenderIp(target, timeoutMs),
       );
 
       const reachable = results.filter((r) => r.reachable);
+      const notified = results.filter((r) => r.notified);
+      const withCallback = results.filter((r) => r.callbackUrl !== null);
       const latencies = reachable
         .map((r) => r.latencyMs)
-        .filter((ms): ms is number => typeof ms === "number");
+        .filter((ms): ms is number => ms !== null);
       const avgLatencyMs = latencies.length
         ? Math.round(latencies.reduce((a, b) => a + b, 0) / latencies.length)
         : null;
 
       logger.info(
-        { count: results.length, reachable: reachable.length, ports },
-        "T2T sender IP ping",
+        {
+          count: results.length,
+          reachable: reachable.length,
+          withCallback: withCallback.length,
+          notified: notified.length,
+          ports: T2T_PING_PORTS,
+          scope: scope.kind,
+        },
+        "T2T whitelist ping completed",
       );
 
       return sendSuccess(reply, {
@@ -385,34 +784,59 @@ export function registerT2tRoutes(app: FastifyInstance): void {
           total: results.length,
           reachable: reachable.length,
           unreachable: results.length - reachable.length,
+          notified: notified.length,
+          callbacksConfigured: withCallback.length,
           avgLatencyMs,
-          ports,
+          ports: [...T2T_PING_PORTS],
+          portsChecked: [...T2T_PING_PORTS],
         },
       });
     },
   );
 
-  app.post("/t2t/ping", async (req: FastifyRequest, reply: FastifyReply) => {
-    const b = req.body as { terminalId?: string };
-    const ip = normalizeIp(req.ip);
-    const ok = await isAllowed(ip, req.merchant?.id);
-    if (!ok) {
+  app.post(
+    "/t2t/ping",
+    {
+      config: {
+        rateLimit: {
+          max: 10,
+          timeWindow: "1 minute",
+        },
+      },
+    },
+    async (req: FastifyRequest, reply: FastifyReply) => {
+      const parsed = t2tSenderPingSchema.safeParse(req.body ?? {});
+      if (!parsed.success) {
+        throw new ValidationError("Invalid ping request", {
+          errors: parsed.error.errors,
+        });
+      }
+
+      const callerIp = normalizeIp(req.ip);
+      if (!isIP(callerIp)) {
+        throw new ValidationError("Unable to determine a valid caller IP");
+      }
+
+      const allowed = await isAllowed(callerIp, req.merchant?.id);
+      if (!allowed) {
+        return sendSuccess(reply, {
+          reachable: false,
+          whitelisted: false,
+          callerIp,
+          message:
+            "Your IP is not whitelisted. Ask the receiver to add it before sending transfers.",
+        });
+      }
       return sendSuccess(reply, {
-        reachable: false,
-        whitelisted: false,
-        callerIp: ip,
-        message: `Your IP (${ip}) is not whitelisted. Ask the receiver to add it via POST /t2t/whitelist`,
+        reachable: true,
+        whitelisted: true,
+        callerIp,
+        terminalId: parsed.data.terminalId ?? null,
+        serverTime: new Date().toISOString(),
+        message: "Connection check successful. Your IP is whitelisted.",
       });
-    }
-    return sendSuccess(reply, {
-      reachable: true,
-      whitelisted: true,
-      callerIp: ip,
-      terminalId: b?.terminalId || null,
-      serverTime: new Date().toISOString(),
-      message: "Connected. Your IP is whitelisted. You can send T2T transfers.",
-    });
-  });
+    },
+  );
 
   app.post(
     "/t2t/transfer",
@@ -920,4 +1344,437 @@ export function registerT2tRoutes(app: FastifyInstance): void {
       return sendSuccess(reply, rows);
     },
   );
+
+  // Manual credit for real funds that arrived outside the platform (bank or VPA
+  // settlement) and must now sit in a terminal's receiving account.
+  app.post(
+    "/t2t/inbound",
+    {
+      preHandler: app.authenticate,
+      config: { rateLimit: { max: 60, timeWindow: "1 minute" } },
+    },
+    async (req: FastifyRequest, reply: FastifyReply) => {
+      const user = req.user as { id?: string; role?: string } | undefined;
+      if (!user?.id || !user.role || !GLOBAL_WHITELIST_ROLES.includes(user.role)) {
+        throw new ForbiddenError("Only administrators can credit terminal funds");
+      }
+      const parsedBody = t2tInboundSchema.safeParse(req.body);
+      if (!parsedBody.success) {
+        throw new ValidationError("Invalid inbound funds data", {
+          errors: parsedBody.error.errors,
+        });
+      }
+      const b = parsedBody.data;
+      const terminals = await prisma.$queryRawUnsafe<
+        { tid: string; merchantId: string }[]
+      >(
+        `SELECT tid, "merchantId" FROM "Terminal" WHERE tid = $1 LIMIT 1`,
+        b.tid,
+      );
+      const terminal = terminals[0];
+      if (!terminal) throw new NotFoundError("Terminal", b.tid);
+
+      const accountCode = await ensureTerminalAccount(
+        prisma,
+        terminal.tid,
+        b.currency,
+      );
+      const receipt = await creditInboundFunds({
+        accountCode,
+        amount: b.amount,
+        currency: b.currency,
+        journalReference: inboundJournalReference(
+          `t2t:${terminal.tid}:${b.currency}:${b.reference}`,
+        ),
+        description: `Inbound funds to terminal ${terminal.tid}`,
+        postedBy: user.id,
+        metadata: {
+          terminalId: terminal.tid,
+          merchantId: terminal.merchantId,
+          reference: b.reference,
+          note: b.note ?? null,
+        },
+      });
+
+      if (receipt.duplicate) {
+        logger.info(
+          { terminalId: terminal.tid, reference: b.reference },
+          "Inbound funds already credited to terminal",
+        );
+        return sendSuccess(reply, {
+          terminalId: terminal.tid,
+          accountCode,
+          amount: receipt.amount,
+          currency: b.currency,
+          balance: receipt.balance,
+          journalEntryRef: receipt.journalEntryRef,
+          reference: b.reference,
+          duplicate: true,
+        });
+      }
+
+      await prisma.auditLog.create({
+        data: {
+          userId: user.id,
+          merchantId: terminal.merchantId,
+          action: "T2T_INBOUND_FUNDS_RECEIVED",
+          entity: "Account",
+          entityId: accountCode,
+          ipAddress: req.ip,
+          after: {
+            terminalId: terminal.tid,
+            amount: receipt.amount,
+            currency: b.currency,
+            reference: b.reference,
+            journalEntryRef: receipt.journalEntryRef,
+          },
+        },
+      });
+
+      logger.info(
+        {
+          terminalId: terminal.tid,
+          amount: receipt.amount,
+          currency: b.currency,
+          reference: b.reference,
+          userId: user.id,
+        },
+        "Inbound funds credited to terminal",
+      );
+
+      return sendCreated(reply, {
+        terminalId: terminal.tid,
+        accountCode,
+        amount: receipt.amount,
+        currency: b.currency,
+        balance: receipt.balance,
+        journalEntryRef: receipt.journalEntryRef,
+        reference: b.reference,
+        duplicate: false,
+        message: `Credited ${receipt.amount} ${b.currency} to terminal ${terminal.tid}`,
+      });
+    },
+  );
+
+  // Provider-agnostic webhook for real external funds. Senders sign
+  // `${timestamp}${JSON.stringify(body)}` with the shared inbound secret, so the
+  // route is excluded from the platform HMAC plugin (see plugins/auth.ts).
+  app.post(
+    "/webhooks/inbound",
+    {
+      config: { rateLimit: { max: 120, timeWindow: "1 minute" } },
+    },
+    async (req: FastifyRequest, reply: FastifyReply) => {
+      const secret = config.inboundWebhook.secret;
+      if (!secret) {
+        throw new UnauthorizedError("Inbound webhook is not configured");
+      }
+
+      const prefix = config.hmac.headerPrefix.toLowerCase();
+      const timestampHeader = getHeaderValue(req.headers, `${prefix}-timestamp`);
+      const signatureHeader = getHeaderValue(req.headers, `${prefix}-signature`);
+      if (
+        typeof timestampHeader !== "string" ||
+        typeof signatureHeader !== "string" ||
+        !/^\d{13}$/.test(timestampHeader)
+      ) {
+        throw new UnauthorizedError("Missing or malformed inbound webhook signature");
+      }
+      const drift = Date.now() - Number(timestampHeader);
+      const maxDrift = config.inboundWebhook.maxTimestampDriftMs;
+      if (drift > maxDrift || drift < -maxDrift) {
+        throw new UnauthorizedError("Inbound webhook timestamp expired");
+      }
+
+      const expected = createHmac(config.hmac.algorithm, secret)
+        .update(`${timestampHeader}${JSON.stringify(req.body ?? {})}`)
+        .digest("hex");
+      const expectedBuffer = Buffer.from(expected, "hex");
+      const providedBuffer = Buffer.from(signatureHeader.trim(), "hex");
+      if (
+        providedBuffer.length !== expectedBuffer.length ||
+        !timingSafeEqual(providedBuffer, expectedBuffer)
+      ) {
+        logger.warn({ ip: req.ip }, "Inbound webhook signature mismatch");
+        throw new UnauthorizedError("Invalid inbound webhook signature");
+      }
+
+      const parsedBody = inboundWebhookSchema.safeParse(req.body);
+      if (!parsedBody.success) {
+        throw new ValidationError("Invalid inbound webhook payload", {
+          errors: parsedBody.error.errors,
+        });
+      }
+      const b = parsedBody.data;
+
+      let accountCode: string;
+      let merchantId: string | null = null;
+      if (b.target.type === "TERMINAL") {
+        const terminals = await prisma.$queryRawUnsafe<
+          { tid: string; merchantId: string }[]
+        >(
+          `SELECT tid, "merchantId" FROM "Terminal" WHERE tid = $1 LIMIT 1`,
+          b.target.id,
+        );
+        if (!terminals[0]) throw new NotFoundError("Terminal", b.target.id);
+        merchantId = terminals[0].merchantId;
+        accountCode = await ensureTerminalAccount(prisma, terminals[0].tid, b.currency);
+      } else {
+        const merchants = await prisma.$queryRawUnsafe<
+          { id: string; code: string }[]
+        >(
+          `SELECT id, code FROM "Merchant" WHERE code = $1 LIMIT 1`,
+          b.target.id,
+        );
+        if (!merchants[0]) throw new NotFoundError("Merchant", b.target.id);
+        merchantId = merchants[0].id;
+        accountCode = `MERCHANT-${merchants[0].code}-${b.currency}`;
+      }
+
+      const receipt = await creditInboundFunds({
+        accountCode,
+        amount: b.amount,
+        currency: b.currency,
+        journalReference: inboundJournalReference(`webhook:${b.eventId}`),
+        description: `Inbound ${b.currency} funds from ${b.payerName ?? "external sender"}`,
+        postedBy: "inbound-webhook",
+        metadata: {
+          eventId: b.eventId,
+          targetType: b.target.type,
+          targetId: b.target.id,
+          payerName: b.payerName ?? null,
+          payerAccount: b.payerAccount ?? null,
+          payerReference: b.payerReference ?? null,
+          receivedAt: b.receivedAt ?? null,
+        },
+      });
+
+      if (receipt.duplicate) {
+        logger.info(
+          { eventId: b.eventId, accountCode },
+          "Inbound webhook replay ignored",
+        );
+      } else {
+        await prisma.auditLog.create({
+          data: {
+            merchantId: merchantId ?? undefined,
+            action: "INBOUND_FUNDS_RECEIVED",
+            entity: "Account",
+            entityId: accountCode,
+            ipAddress: req.ip,
+            after: {
+              eventId: b.eventId,
+              targetType: b.target.type,
+              targetId: b.target.id,
+              amount: receipt.amount,
+              currency: b.currency,
+              payerName: b.payerName ?? null,
+              payerReference: b.payerReference ?? null,
+              journalEntryRef: receipt.journalEntryRef,
+            },
+          },
+        });
+        logger.info(
+          {
+            eventId: b.eventId,
+            accountCode,
+            amount: receipt.amount,
+            currency: b.currency,
+          },
+          "Inbound webhook credited real funds",
+        );
+      }
+
+      const payload = {
+        eventId: b.eventId,
+        targetType: b.target.type,
+        targetId: b.target.id,
+        accountCode,
+        amount: receipt.amount,
+        currency: b.currency,
+        balance: receipt.balance,
+        journalEntryRef: receipt.journalEntryRef,
+        duplicate: receipt.duplicate,
+      };
+      return receipt.duplicate
+        ? sendSuccess(reply, payload)
+        : sendCreated(reply, payload);
+    },
+  );
+
+  // Wise webhook — real funds arriving on a provisioned Wise receiving account.
+  // Wise signs the raw request body with RSA-SHA256 (`X-Signature-SHA256`), so
+  // this scope installs a raw-body JSON parser and the path is excluded from the
+  // platform HMAC plugin (see plugins/auth.ts).
+  app.register(async (wiseScope) => {
+    wiseScope.addContentTypeParser(
+      "application/json",
+      { parseAs: "buffer" },
+      (request, body, done) => {
+        (request as FastifyRequest & { rawBody?: Buffer }).rawBody =
+          body as Buffer;
+        try {
+          done(null, JSON.parse((body as Buffer).toString("utf8")));
+        } catch (error) {
+          done(error as Error, undefined);
+        }
+      },
+    );
+
+    wiseScope.post(
+      "/wise/webhook",
+      { config: { rateLimit: { max: 240, timeWindow: "1 minute" } } },
+      async (req: FastifyRequest, reply: FastifyReply) => {
+        const rawBody = (req as FastifyRequest & { rawBody?: Buffer }).rawBody;
+        const signature = getHeaderValue(req.headers, "x-signature-sha256");
+        if (
+          !rawBody ||
+          typeof signature !== "string" ||
+          !verifyWiseWebhookSignature(rawBody, signature)
+        ) {
+          logger.warn({ ip: req.ip }, "Wise webhook signature mismatch");
+          throw new UnauthorizedError("Invalid Wise webhook signature");
+        }
+
+        const event = (req.body ?? {}) as Record<string, unknown>;
+        const eventType =
+          typeof event.event_type === "string" ? event.event_type : "";
+        const deliveryId = getHeaderValue(req.headers, "x-delivery-id");
+        const isTest =
+          getHeaderValue(req.headers, "x-test-notification") === "true";
+        const data = (event.data ?? {}) as Record<string, unknown>;
+        const transactionType =
+          typeof data.transaction_type === "string"
+            ? data.transaction_type.toLowerCase()
+            : "";
+
+        // Only balance credits move money. Everything else is acknowledged so
+        // Wise stops retrying the delivery.
+        if (
+          isTest ||
+          eventType !== "balances#update" ||
+          transactionType !== "credit"
+        ) {
+          logger.info(
+            { eventType, transactionType, isTest },
+            "Wise webhook acknowledged without a credit",
+          );
+          return sendSuccess(reply, {
+            received: true,
+            eventType,
+            processed: false,
+          });
+        }
+
+        const currency =
+          typeof data.currency === "string" ? data.currency.toUpperCase() : "";
+        const balanceId =
+          data.balance_id === undefined || data.balance_id === null
+            ? ""
+            : String(data.balance_id);
+        const amount =
+          data.amount === undefined || data.amount === null
+            ? ""
+            : String(data.amount);
+        if (!currency || !balanceId || !amount) {
+          throw new ValidationError(
+            "Wise balance credit is missing currency, balance id, or amount",
+          );
+        }
+
+        const virtualAccount = await prisma.virtualAccount.findFirst({
+          where: { provider: "WISE", externalId: balanceId },
+          include: { wallet: { select: { walletAddress: true } } },
+        });
+        if (!virtualAccount) {
+          logger.warn(
+            { balanceId, currency },
+            "Wise balance credit for an unknown virtual account",
+          );
+          return sendSuccess(reply, {
+            received: true,
+            processed: false,
+            reason: "unknown_virtual_account",
+          });
+        }
+        if (virtualAccount.currency !== currency) {
+          logger.warn(
+            { balanceId, currency, expected: virtualAccount.currency },
+            "Wise balance credit currency mismatch",
+          );
+          throw new ValidationError(
+            "Wise balance credit currency does not match the virtual account",
+          );
+        }
+
+        const accountCode = `WALLET-${virtualAccount.wallet.walletAddress}-${currency}`;
+        const idempotencyScope =
+          typeof deliveryId === "string"
+            ? `wise:${deliveryId}`
+            : `wise:${String(event.subscription_id ?? "")}:${balanceId}:${amount}`;
+
+        const receipt = await creditInboundFunds({
+          accountCode,
+          amount,
+          currency,
+          journalReference: inboundJournalReference(idempotencyScope),
+          description: `Wise ${currency} credit (${String(
+            data.transfer_reference ?? deliveryId ?? balanceId,
+          )})`,
+          postedBy: "wise-webhook",
+          metadata: {
+            provider: "WISE",
+            deliveryId: typeof deliveryId === "string" ? deliveryId : null,
+            subscriptionId: event.subscription_id ?? null,
+            balanceId,
+            transactionType,
+            transferReference: data.transfer_reference ?? null,
+            channelName: data.channel_name ?? null,
+            occurredAt: data.occurred_at ?? null,
+            postTransactionBalance:
+              data.post_transaction_balance_amount ?? null,
+          },
+        });
+
+        if (receipt.duplicate) {
+          logger.info(
+            { balanceId, accountCode },
+            "Wise balance credit replay ignored",
+          );
+        } else {
+          await prisma.auditLog.create({
+            data: {
+              action: "INBOUND_FUNDS_RECEIVED",
+              entity: "Account",
+              entityId: accountCode,
+              ipAddress: req.ip,
+              after: {
+                provider: "WISE",
+                virtualAccountId: virtualAccount.id,
+                balanceId,
+                amount: receipt.amount,
+                currency,
+                journalEntryRef: receipt.journalEntryRef,
+              },
+            },
+          });
+          logger.info(
+            { balanceId, accountCode, amount: receipt.amount, currency },
+            "Wise balance credit recorded",
+          );
+        }
+
+        return sendSuccess(reply, {
+          received: true,
+          processed: true,
+          duplicate: receipt.duplicate,
+          accountCode,
+          amount: receipt.amount,
+          currency,
+          balance: receipt.balance,
+          journalEntryRef: receipt.journalEntryRef,
+        });
+      },
+    );
+  });
 }

@@ -6,6 +6,7 @@
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/server.ts",
+    "dashboard:dev": "node --watch start-dashboard.js",
     "build": "tsc",
     "start": "node dist/server.js",
     "website": "node start-public-site.js",
@@ -38,6 +39,7 @@
     "i18next": "^23.11.5",
     "i18next-fs-backend": "^2.3.1",
     "ioredis": "^5.4.1",
+    "ipaddr.js": "^2.5.0",
     "pino": "^9.1.0",
     "pino-pretty": "^11.2.1",
     "prisma": "^5.14.0",

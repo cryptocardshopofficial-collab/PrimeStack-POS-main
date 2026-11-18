@@ -22,6 +22,7 @@ export const swiftPayoutDashboardHtml = `<!doctype html>
   <section id="login-panel" class="panel"><h2>Administrator sign-in</h2><form id="login-form" class="grid">
     <label>Email<input name="email" type="email" autocomplete="username" required></label>
     <label>Password<input name="password" type="password" autocomplete="current-password" required></label>
+    <label>Access PIN (if issued)<input name="pin" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="one-time-code" placeholder="6-digit PIN"></label>
     <div><button type="submit">Sign in</button><button id="logout" class="secondary hidden" type="button">Sign out</button><span id="identity" class="hint"></span></div>
   </form><div id="login-error" class="error hidden" role="alert"></div></section>
   <div id="error" class="panel error hidden" role="alert"></div>

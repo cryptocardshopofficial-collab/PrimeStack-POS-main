@@ -6,16 +6,20 @@ import {
   validateAgentCodeSchema,
 } from "./merchant-registration.types.js";
 import {
+  adminTransactionControlSchema,
   assignAgentSchema,
   assignMerchantWalletSchema,
   createKycDocumentSchema,
+  createMerchantBankAccountSchema,
   createMerchantInvoiceSchema,
   createMerchantSchema,
   createMidSchema,
   createPaymentLinkSchema,
   createPricingPlanSchema,
   merchantRiskProfileSchema,
+  merchantTransactionControlRequestSchema,
   reviewKycDocumentSchema,
+  reviewMerchantTransactionControlSchema,
   updateMerchantSchema,
   updateMerchantStatusSchema,
 } from "./merchant.types.js";
@@ -313,6 +317,158 @@ export function registerMerchantRoutes(
       await merchantService.assignAgent(id, parsed.data.agentId),
     );
   });
+
+  // ── Merchant portal PIN administration ───────────
+
+  const assertMerchantAdministrator = (request: FastifyRequest) => {
+    const role = (request.user as { role?: string } | undefined)?.role;
+    if (!role || !["SUPER_ADMIN", "ADMIN"].includes(role)) {
+      throw new ForbiddenError(
+        "Only administrators can manage merchant portal access",
+      );
+    }
+  };
+
+  app.get(
+    "/merchants/:id/portal-pin",
+    { preHandler: app.authenticate },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      assertMerchantAdministrator(request);
+      const { id } = request.params as { id: string };
+      reply.header("cache-control", "no-store");
+      return sendSuccess(
+        reply,
+        await merchantService.getMerchantPortalPinStatus(id),
+      );
+    },
+  );
+
+  app.post(
+    "/merchants/:id/portal-pin",
+    { preHandler: app.authenticate },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const admin = portalUser(request);
+      assertMerchantAdministrator(request);
+      const { id } = request.params as { id: string };
+      const result = await merchantService.resetMerchantPortalPin(
+        id,
+        admin.id,
+        request.ip,
+        typeof request.headers["user-agent"] === "string"
+          ? request.headers["user-agent"]
+          : "unknown",
+      );
+      reply.header("cache-control", "no-store");
+      return sendCreated(reply, result);
+    },
+  );
+
+  // ── Merchant pause / resume request review ───────
+
+  app.get(
+    "/merchant-transaction-requests",
+    { preHandler: app.authenticate },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const query = request.query as Record<string, unknown>;
+      const { page, pageSize } = parsePagination(query);
+      const status = query.status;
+      if (
+        status !== undefined &&
+        !["PENDING", "INFO_REQUESTED", "APPROVED", "REJECTED"].includes(
+          String(status),
+        )
+      ) {
+        throw new ValidationError("Invalid transaction control request status");
+      }
+      reply.header("cache-control", "no-store");
+      const result = await merchantService.listMerchantControlRequestsForAdmin(
+        status as
+          | "PENDING"
+          | "INFO_REQUESTED"
+          | "APPROVED"
+          | "REJECTED"
+          | undefined,
+        page,
+        pageSize,
+      );
+      return sendPaginated(reply, result.data, result.meta);
+    },
+  );
+
+  app.post(
+    "/merchant-transaction-requests/:id/review",
+    { preHandler: app.authenticate },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const admin = portalUser(request);
+      if (!["SUPER_ADMIN", "ADMIN"].includes(admin.role)) {
+        throw new ForbiddenError(
+          "Only administrators can review merchant transaction requests",
+        );
+      }
+      const { id } = request.params as { id: string };
+      const parsed = reviewMerchantTransactionControlSchema.safeParse(
+        request.body,
+      );
+      if (!parsed.success) {
+        throw new ValidationError("Invalid transaction control review", {
+          errors: parsed.error.errors,
+        });
+      }
+      reply.header("cache-control", "no-store");
+      return sendSuccess(
+        reply,
+        await merchantService.reviewMerchantTransactionControlRequest(
+          id,
+          parsed.data.decision,
+          parsed.data.adminRemarks,
+          admin.id,
+          request.ip,
+          typeof request.headers["user-agent"] === "string"
+            ? request.headers["user-agent"]
+            : "unknown",
+        ),
+      );
+    },
+  );
+
+  // Administrator directly pausing or resuming a merchant transaction.
+  app.post(
+    "/merchants/:id/transactions/:transactionId/control",
+    { preHandler: app.authenticate },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const admin = portalUser(request);
+      if (!["SUPER_ADMIN", "ADMIN"].includes(admin.role)) {
+        throw new ForbiddenError(
+          "Only administrators can pause or resume merchant transactions",
+        );
+      }
+      const { id, transactionId } = request.params as {
+        id: string;
+        transactionId: string;
+      };
+      const parsed = adminTransactionControlSchema.safeParse(request.body);
+      if (!parsed.success) {
+        throw new ValidationError("A valid action and reason are required", {
+          errors: parsed.error.errors,
+        });
+      }
+      reply.header("cache-control", "no-store");
+      return sendSuccess(
+        reply,
+        await merchantService.adminSetTransactionHold(
+          id,
+          transactionId,
+          parsed.data.action,
+          parsed.data.reason,
+          admin.id,
+          request.ip,
+          typeof request.headers["user-agent"] === "string"
+            ? request.headers["user-agent"]
+            : "unknown",
+        ),
+      );
+    },
+  );
 }
 
 function merchantContext(request: FastifyRequest): string {
@@ -626,6 +782,165 @@ export function registerMerchantPortalRoutes(
           : "unknown",
       );
       return sendSuccess(reply, { mustChangePassword: false });
+    },
+  );
+
+  // ── Merchant bank accounts (commission payout) ─────────────────
+
+  app.get(
+    "/merchant-portal/merchants/:id/bank-accounts",
+    { preHandler: app.authenticate },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const user = portalUser(request);
+      assertPasswordChanged(user);
+      const { id } = request.params as { id: string };
+      assertMerchantScope(user, id);
+      return sendSuccess(
+        reply,
+        await merchantService.listMerchantBankAccounts(id),
+      );
+    },
+  );
+
+  app.post(
+    "/merchant-portal/merchants/:id/bank-accounts",
+    { preHandler: app.authenticate },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const user = portalUser(request);
+      assertPasswordChanged(user);
+      const { id } = request.params as { id: string };
+      assertMerchantScope(user, id);
+      const parsed = createMerchantBankAccountSchema.safeParse(request.body);
+      if (!parsed.success) {
+        throw new ValidationError("Invalid bank account details", {
+          errors: parsed.error.errors,
+        });
+      }
+      reply.header("cache-control", "no-store");
+      return sendCreated(
+        reply,
+        await merchantService.createMerchantBankAccount(
+          id,
+          user.id,
+          parsed.data,
+          request.ip,
+          typeof request.headers["user-agent"] === "string"
+            ? request.headers["user-agent"]
+            : "unknown",
+        ),
+      );
+    },
+  );
+
+  app.patch(
+    "/merchant-portal/merchants/:id/bank-accounts/:accountId/default",
+    { preHandler: app.authenticate },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const user = portalUser(request);
+      assertPasswordChanged(user);
+      const { id, accountId } = request.params as {
+        id: string;
+        accountId: string;
+      };
+      assertMerchantScope(user, id);
+      return sendSuccess(
+        reply,
+        await merchantService.setDefaultMerchantBankAccount(
+          id,
+          accountId,
+          user.id,
+          request.ip,
+          typeof request.headers["user-agent"] === "string"
+            ? request.headers["user-agent"]
+            : "unknown",
+        ),
+      );
+    },
+  );
+
+  app.delete(
+    "/merchant-portal/merchants/:id/bank-accounts/:accountId",
+    { preHandler: app.authenticate },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const user = portalUser(request);
+      assertPasswordChanged(user);
+      const { id, accountId } = request.params as {
+        id: string;
+        accountId: string;
+      };
+      assertMerchantScope(user, id);
+      return sendSuccess(
+        reply,
+        await merchantService.deleteMerchantBankAccount(
+          id,
+          accountId,
+          user.id,
+          request.ip,
+          typeof request.headers["user-agent"] === "string"
+            ? request.headers["user-agent"]
+            : "unknown",
+        ),
+      );
+    },
+  );
+
+  // ── Merchant pause / report / resume requests ──────────────────
+
+  app.get(
+    "/merchant-portal/merchants/:id/transaction-control-requests",
+    { preHandler: app.authenticate },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const user = portalUser(request);
+      assertPasswordChanged(user);
+      const { id } = request.params as { id: string };
+      assertMerchantScope(user, id);
+      const { page, pageSize } = parsePagination(
+        request.query as Record<string, unknown>,
+      );
+      const result = await merchantService.listMerchantControlRequests(
+        id,
+        page,
+        pageSize,
+      );
+      return sendPaginated(reply, result.data, result.meta);
+    },
+  );
+
+  app.post(
+    "/merchant-portal/merchants/:id/transactions/:transactionId/control-request",
+    { preHandler: app.authenticate },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const user = portalUser(request);
+      assertPasswordChanged(user);
+      const { id, transactionId } = request.params as {
+        id: string;
+        transactionId: string;
+      };
+      assertMerchantScope(user, id);
+      const parsed = merchantTransactionControlRequestSchema.safeParse(
+        request.body,
+      );
+      if (!parsed.success) {
+        throw new ValidationError("A valid action and reason are required", {
+          errors: parsed.error.errors,
+        });
+      }
+      reply.header("cache-control", "no-store");
+      return sendCreated(
+        reply,
+        await merchantService.requestMerchantTransactionControl(
+          id,
+          user.id,
+          transactionId,
+          parsed.data.action,
+          parsed.data.reason,
+          parsed.data.suspicious ?? false,
+          request.ip,
+          typeof request.headers["user-agent"] === "string"
+            ? request.headers["user-agent"]
+            : "unknown",
+        ),
+      );
     },
   );
 }
