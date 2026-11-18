@@ -6,6 +6,13 @@ export const loginSchema = z.object({
   // Administrator-issued numeric PIN. Required whenever the account has one
   // configured — merchant accounts always do; staff PINs are optional.
   pin: z.string().min(1).max(16).optional(),
+  // Six-digit code from the account's authenticator app. Required whenever
+  // two-factor authentication has been enabled on the account.
+  totp: z.string().min(6).max(6).optional(),
+});
+
+export const mfaCodeSchema = z.object({
+  code: z.string().min(6).max(6),
 });
 
 export const createUserSchema = z.object({

@@ -1,9 +1,10 @@
 import { FastifyReply } from "fastify";
 import { randomInt } from "node:crypto";
 import { Prisma, type PrismaClient } from "@prisma/client";
-import { ConflictError, NotFoundError, UnauthorizedError, ValidationError } from "../../core/errors.js";
+import { ConflictError, MfaInvalidError, MfaRequiredError, NotFoundError, UnauthorizedError, ValidationError } from "../../core/errors.js";
 import { logger } from "../../core/logger.js";
 import { hashPassword, verifyPassword } from "../../shared/utils/crypto.js";
+import { generateTotpSecret, totpProvisioningUri, verifyTotp } from "../../shared/utils/totp.js";
 import type { CreateUserInput, UpdateUserInput, UpdateKycInput } from "./types.js";
 
 /**
@@ -20,7 +21,7 @@ export class AdminService {
 
   // ── Authentication ──────────────────────────────
 
-  async login(email: string, password: string, reply?: FastifyReply, pin?: string) {
+  async login(email: string, password: string, reply?: FastifyReply, pin?: string, totp?: string) {
     const user = await this.prisma.user.findFirst({
       where: { OR: [{ email }, { username: email }] },
     });
@@ -45,6 +46,19 @@ export class AdminService {
       throw new UnauthorizedError(
         "Merchant access PIN is not configured; ask an administrator to re-issue portal credentials",
       );
+    }
+
+    // Two-factor authentication, when enabled on the account, is the final
+    // gate. The distinct error codes let the console prompt for a code instead
+    // of reporting a generic bad-password message.
+    if (user.mfaEnabled) {
+      if (!user.mfaSecret) {
+        throw new UnauthorizedError(
+          "Two-factor authentication is misconfigured for this account; ask an administrator to re-enrol it",
+        );
+      }
+      if (!totp) throw new MfaRequiredError();
+      if (!verifyTotp(user.mfaSecret, totp)) throw new MfaInvalidError();
     }
 
     // Update last login
@@ -230,6 +244,96 @@ export class AdminService {
     });
 
     return { userId: user.id, hasPin: false };
+  }
+
+  // ── Two-factor authentication (self-service) ────
+
+  /** Whether the calling account currently has TOTP enabled. */
+  async getMfaStatus(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, email: true, mfaEnabled: true },
+    });
+    if (!user) throw new NotFoundError("User", userId);
+    return { userId: user.id, email: user.email, enabled: user.mfaEnabled };
+  }
+
+  /**
+   * Start enrolment: mint a secret and stash it on the account. Enrolment only
+   * completes once confirmMfaEnrollment() sees a code generated from that
+   * secret, so a half-finished setup can never lock anyone out.
+   */
+  async beginMfaEnrollment(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, email: true },
+    });
+    if (!user) throw new NotFoundError("User", userId);
+
+    const mfaSecret = generateTotpSecret();
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { mfaSecret, mfaEnabled: false },
+    });
+
+    return {
+      secret: mfaSecret,
+      otpauthUri: totpProvisioningUri(mfaSecret, user.email),
+    };
+  }
+
+  /** Finish enrolment by proving the authenticator app is in sync. */
+  async confirmMfaEnrollment(userId: string, code: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, email: true, mfaSecret: true },
+    });
+    if (!user) throw new NotFoundError("User", userId);
+    if (!user.mfaSecret) {
+      throw new ValidationError("Start two-factor enrolment before confirming a code");
+    }
+    if (!verifyTotp(user.mfaSecret, code)) throw new MfaInvalidError();
+
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { mfaEnabled: true },
+    });
+    await this.createAuditLog({
+      userId,
+      action: "ENABLE_USER_MFA",
+      entity: "User",
+      entityId: userId,
+      after: { email: user.email, mfaEnabled: true },
+    });
+
+    return { userId, enabled: true };
+  }
+
+  /** Turn two-factor off — requires a currently valid code. */
+  async disableMfa(userId: string, code: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, email: true, mfaEnabled: true, mfaSecret: true },
+    });
+    if (!user) throw new NotFoundError("User", userId);
+    if (!user.mfaEnabled || !user.mfaSecret) {
+      throw new ValidationError("Two-factor authentication is not enabled on this account");
+    }
+    if (!verifyTotp(user.mfaSecret, code)) throw new MfaInvalidError();
+
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { mfaEnabled: false, mfaSecret: null },
+    });
+    await this.createAuditLog({
+      userId,
+      action: "DISABLE_USER_MFA",
+      entity: "User",
+      entityId: userId,
+      after: { email: user.email, mfaEnabled: false },
+    });
+
+    return { userId, enabled: false };
   }
 
   async listUsers(filters: { role?: string; isActive?: boolean; page: number; pageSize: number }) {

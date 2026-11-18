@@ -2,6 +2,8 @@
   "NOT_FOUND": "{{resource}} introuvable",
   "VALIDATION_ERROR": "Échec de validation : {{message}}",
   "UNAUTHORIZED": "Authentification requise",
+  "MFA_REQUIRED": "Code d'authentification à deux facteurs requis",
+  "MFA_INVALID": "Code d'authentification à deux facteurs invalide",
   "FORBIDDEN": "Permissions insuffisantes",
   "CONFLICT": "Conflit : {{message}}",
   "RATE_LIMIT_EXCEEDED": "Limite de débit dépassée. Réessayez dans {{window}} secondes.",

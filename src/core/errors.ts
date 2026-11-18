@@ -39,6 +39,20 @@ export class UnauthorizedError extends AppError {
   }
 }
 
+/** A two-factor code is required to finish signing in — 401 */
+export class MfaRequiredError extends AppError {
+  constructor(message = "Two-factor authentication code required") {
+    super(message, 401, "MFA_REQUIRED");
+  }
+}
+
+/** The supplied two-factor code did not match — 401 */
+export class MfaInvalidError extends AppError {
+  constructor(message = "Invalid two-factor authentication code") {
+    super(message, 401, "MFA_INVALID");
+  }
+}
+
 /** Insufficient permissions — 403 */
 export class ForbiddenError extends AppError {
   constructor(message = "Insufficient permissions") {

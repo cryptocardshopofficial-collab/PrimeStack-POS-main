@@ -2,6 +2,8 @@
   "NOT_FOUND": "{{resource}} غير موجود",
   "VALIDATION_ERROR": "فشل التحقق: {{message}}",
   "UNAUTHORIZED": "مطلوب المصادقة",
+  "MFA_REQUIRED": "رمز المصادقة الثنائية مطلوب",
+  "MFA_INVALID": "رمز المصادقة الثنائية غير صالح",
   "FORBIDDEN": "صلاحيات غير كافية",
   "CONFLICT": "تعارض: {{message}}",
   "RATE_LIMIT_EXCEEDED": "تم تجاوز حد المعدل. حاول مرة أخرى خلال {{window}} ثانية.",

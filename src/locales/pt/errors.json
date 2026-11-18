@@ -2,6 +2,8 @@
   "NOT_FOUND": "{{resource}} não encontrado",
   "VALIDATION_ERROR": "Falha na validação: {{message}}",
   "UNAUTHORIZED": "Autenticação necessária",
+  "MFA_REQUIRED": "Código de autenticação de dois fatores obrigatório",
+  "MFA_INVALID": "Código de autenticação de dois fatores inválido",
   "FORBIDDEN": "Permissões insuficientes",
   "CONFLICT": "Conflito: {{message}}",
   "RATE_LIMIT_EXCEEDED": "Limite de taxa excedido. Tente novamente em {{window}} segundos.",

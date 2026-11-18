@@ -540,6 +540,7 @@ function sidebar(active) {
     ${link('/platform/settlement','Settlement','<svg width="14" height="14" fill="none" viewBox="0 0 16 16"><rect x="2" y="3" width="12" height="10" rx="1.5" stroke="currentColor" stroke-width="1.5"/><path d="M2 7h12M5 3v2M11 3v2" stroke="currentColor" stroke-width="1.5"/></svg>')}
     ${link('/platform/risk','Risk Engine','<svg width="14" height="14" fill="none" viewBox="0 0 16 16"><path d="M8 1.5L1.5 5v6L8 14.5 14.5 11V5L8 1.5z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M8 6v3M8 10.5v.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>')}
     ${link('/platform/monitoring','Monitoring','<svg width="14" height="14" fill="none" viewBox="0 0 16 16"><path d="M1 9l3-4 3 3 3-5 3 3 2-2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>')}
+    ${link('/platform/security','Security','<svg width="14" height="14" fill="none" viewBox="0 0 16 16"><path d="M8 1L2 4v4c0 3.5 2.6 6.7 6 7.5C11.4 14.7 14 11.5 14 8V4L8 1z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M5.5 8l1.8 1.8L10.5 6.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>')}
     ${link('/platform/ping','Ping','<svg width="14" height="14" fill="none" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.5" stroke="currentColor" stroke-width="1.5"/><circle cx="8" cy="8" r="2.5" stroke="currentColor" stroke-width="1.5"/><path d="M8 8h6.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>')}
     ${link('/platform/merchants','Merchants','<svg width="14" height="14" fill="none" viewBox="0 0 16 16"><path d="M2 5h12l-1.5 7H3.5L2 5z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M1 5l1-3h12l1 3" stroke="currentColor" stroke-width="1.5"/></svg>')}
     ${link('/platform/merchant-access','Merchant Portal Access','<svg width="14" height="14" fill="none" viewBox="0 0 16 16"><circle cx="5.5" cy="8" r="3.5" stroke="currentColor" stroke-width="1.5"/><path d="M8.5 8H15M12 6v4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>')}
@@ -1438,7 +1439,94 @@ document.addEventListener('DOMContentLoaded', function() {
 `);
 }
 
-// --- Platform Risk -----------------------------------------------------------
+// --- Platform Security -------------------------------------------------------
+function platformSecurity() {
+  return page('Security', '/platform/security', `
+<div class="page-header">
+  <div class="breadcrumb"><a href="/">Home</a><span>/</span><a href="/platform">Platform</a><span>/</span>Security</div>
+  <h1>Security</h1>
+  <p>Protect your administrator account with two-factor authentication (TOTP) from an authenticator app.</p>
+</div>
+<div class="page-body">
+  <div class="card" style="max-width:640px">
+    <div class="card-header">
+      <div class="card-title">Two-Factor Authentication</div>
+      <button class="btn btn-ghost btn-sm" onclick="loadMfaStatus()">${svgIcon("refresh")} Refresh</button>
+    </div>
+    <div id="mfa-status" style="color:var(--muted);font-size:.85rem">Loading…</div>
+    <div id="mfa-body"></div>
+  </div>
+</div>
+<script>
+function mfaEsc(value){return escapeHtml(value==null?'':value);}
+function loadMfaStatus(){
+  api('GET','/admin/mfa').then(function(r){
+    var el=document.getElementById('mfa-status');
+    var body=document.getElementById('mfa-body');
+    if(!r.ok){el.textContent=apiErrorMessage(r.data,'Could not load two-factor status');body.innerHTML='';return;}
+    var d=(r.data&&r.data.data)?r.data.data:{};
+    if(d.enabled){
+      el.innerHTML='<span class="badge badge-green">Enabled</span> Two-factor authentication is active for <code>'+mfaEsc(d.email)+'</code>.';
+      body.innerHTML='<p style="font-size:.85rem;color:var(--text2);margin:12px 0">You will be asked for a code from your authenticator app every time you sign in.</p>'+
+        '<div class="form-group" style="max-width:260px"><label>Current authenticator code</label><input id="mfa-disable-code" class="input-mono" inputmode="numeric" maxlength="6" placeholder="6-digit code"></div>'+
+        '<button class="btn btn-danger" onclick="disableMfa()">Turn off two-factor</button>'+
+        '<div id="mfa-result" class="result"></div>';
+    }else{
+      el.innerHTML='<span class="badge badge-yellow">Disabled</span> Two-factor authentication is not enabled for <code>'+mfaEsc(d.email)+'</code>.';
+      body.innerHTML='<p style="font-size:.85rem;color:var(--text2);margin:12px 0">Add a second step to sign-in. You will need an authenticator app such as Google Authenticator, Authy, 1Password or Microsoft Authenticator.</p>'+
+        '<button class="btn btn-primary" onclick="beginMfa()">Enable two-factor</button>'+
+        '<div id="mfa-result" class="result"></div>';
+    }
+  });
+}
+function beginMfa(){
+  api('POST','/admin/mfa/setup').then(function(r){
+    if(!r.ok){toast(apiErrorMessage(r.data,'Could not start two-factor setup'),'err');return;}
+    var d=(r.data&&r.data.data)?r.data.data:{};
+    document.getElementById('mfa-body').innerHTML=
+      '<ol style="font-size:.85rem;color:var(--text2);margin:12px 0 12px 18px;line-height:1.6">'+
+        '<li>Open your authenticator app and choose “add account”, then “enter a setup key”.</li>'+
+        '<li>Type in the setup key below and keep the time-based (TOTP) default.</li>'+
+        '<li>Enter the 6-digit code the app shows to confirm.</li>'+
+      '</ol>'+
+      '<p style="margin:0 0 12px">Setup key: <code id="mfa-secret" style="font-size:.95rem;letter-spacing:1px;user-select:all">'+mfaEsc(d.secret)+'</code> '+
+      '<button class="btn btn-ghost btn-sm" onclick="copyMfaSecret()">Copy</button></p>'+
+      '<p style="font-size:.78rem;color:var(--muted);margin:0 0 12px;word-break:break-all">Manual link: <code>'+mfaEsc(d.otpauthUri)+'</code></p>'+
+      '<div class="form-group" style="max-width:260px"><label>Enter the 6-digit code from your app *</label><input id="mfa-verify-code" class="input-mono" inputmode="numeric" maxlength="6" placeholder="123456"></div>'+
+      '<button class="btn btn-primary" onclick="confirmMfa()">Verify and enable</button> '+
+      '<button class="btn btn-ghost" onclick="loadMfaStatus()">Cancel</button>'+
+      '<div id="mfa-result" class="result"></div>';
+  });
+}
+function copyMfaSecret(){
+  var el=document.getElementById('mfa-secret');
+  if(!el)return;
+  var text=el.textContent;
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(text).then(function(){toast('Setup key copied','ok');},function(){toast('Copy unavailable — select the key manually','err');});
+  }else{toast('Copy unavailable — select the key manually','err');}
+}
+function confirmMfa(){
+  var code=(document.getElementById('mfa-verify-code').value||'').trim();
+  if(!/^[0-9]{6}$/.test(code)){toast('Enter the 6-digit code from your app','err');return;}
+  api('POST','/admin/mfa/verify',{code:code}).then(function(r){
+    if(r.ok){toast('Two-factor authentication enabled','ok');loadMfaStatus();}
+    else{showResult('mfa-result',r.data,false);toast(apiErrorMessage(r.data,'That code was not accepted'),'err');}
+  });
+}
+function disableMfa(){
+  var code=(document.getElementById('mfa-disable-code').value||'').trim();
+  if(!/^[0-9]{6}$/.test(code)){toast('Enter the 6-digit code from your app','err');return;}
+  api('POST','/admin/mfa/disable',{code:code}).then(function(r){
+    if(r.ok){toast('Two-factor authentication disabled','ok');loadMfaStatus();}
+    else{showResult('mfa-result',r.data,false);toast(apiErrorMessage(r.data,'That code was not accepted'),'err');}
+  });
+}
+document.addEventListener('DOMContentLoaded', loadMfaStatus);
+<\/script>
+`);
+}
+
 function platformRisk() {
   return page('Risk Engine', '/platform/risk', `
 <div class="page-header">
@@ -8485,6 +8573,8 @@ ${CSS}
     <input id="password" name="password" type="password" autocomplete="current-password" required>
     <label for="pin">Access PIN <span style="text-transform:none;font-weight:500">(if one was issued)</span></label>
     <input id="pin" name="pin" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="one-time-code" placeholder="6-digit PIN">
+    <label for="totp">Authenticator code <span style="text-transform:none;font-weight:500">(if two-factor is enabled)</span></label>
+    <input id="totp" name="totp" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="6" placeholder="6-digit code">
     ${errorMessage ? `<div class="login-err">${errorMessage}</div>` : ''}
     <button type="submit" id="loginBtn">Sign in</button>
   </form>
@@ -8571,6 +8661,7 @@ function handleLogin(req, res) {
     const email = (params.get('email') || '').trim();
     const password = params.get('password') || '';
     const pin = (params.get('pin') || '').trim();
+    const totp = (params.get('totp') || '').trim();
 
     if (!email || !password) {
       res.writeHead(400, { 'Content-Type': 'text/html; charset=utf-8' });
@@ -8578,7 +8669,10 @@ function handleLogin(req, res) {
       return;
     }
 
-    const payload = JSON.stringify(pin ? { email, password, pin } : { email, password });
+    const credentials = { email, password };
+    if (pin) credentials.pin = pin;
+    if (totp) credentials.totp = totp;
+    const payload = JSON.stringify(credentials);
     const base = new URL(API_ORIGIN);
     const useTls = base.protocol === 'https:';
     const loginReq = (useTls ? httpsRequest : httpRequest)(
@@ -8600,10 +8694,12 @@ function handleLogin(req, res) {
         upstream.on('end', () => {
           let token = null;
           let role = null;
+          let errorCode = null;
           try {
             const parsed = JSON.parse(Buffer.concat(chunks).toString('utf8'));
             token = parsed && parsed.data ? parsed.data.token : null;
             role = parsed && parsed.data && parsed.data.user ? parsed.data.user.role : null;
+            errorCode = parsed && parsed.error ? parsed.error.code : null;
           } catch { /* not JSON */ }
 
           const status = upstream.statusCode || 0;
@@ -8630,6 +8726,19 @@ function handleLogin(req, res) {
           if (status >= 500 || status === 0) {
             res.writeHead(502, { 'Content-Type': 'text/html; charset=utf-8' });
             res.end(loginPage(`Authentication service is unavailable (API returned HTTP ${status || 'no response'}). Please try again shortly.`));
+            return;
+          }
+
+          // Two-factor problems are their own thing — reporting "incorrect
+          // password" here would send people chasing the wrong fix.
+          if (errorCode === 'MFA_REQUIRED') {
+            res.writeHead(401, { 'Content-Type': 'text/html; charset=utf-8' });
+            res.end(loginPage('Enter the 6-digit code from your authenticator app to finish signing in.'));
+            return;
+          }
+          if (errorCode === 'MFA_INVALID') {
+            res.writeHead(401, { 'Content-Type': 'text/html; charset=utf-8' });
+            res.end(loginPage('That authenticator code was not accepted. Codes rotate every 30 seconds — enter the current one.'));
             return;
           }
 
@@ -8757,8 +8866,27 @@ const server = createServer((req, res) => {
   res.setHeader('X-Frame-Options', 'DENY');
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
   res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+  // The console renders its own inline styles and inline event handlers, so
+  // 'unsafe-inline' is unavoidable without a full nonce refactor. Everything
+  // else is locked to this origin; Google Fonts is the only external resource
+  // the UI loads, and no page uses iframes, workers or cross-origin fetch.
+  res.setHeader(
+    'Content-Security-Policy',
+    [
+      "default-src 'self'",
+      "base-uri 'self'",
+      "object-src 'none'",
+      "frame-ancestors 'none'",
+      "form-action 'self'",
+      "script-src 'self' 'unsafe-inline'",
+      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+      "font-src 'self' data: https://fonts.gstatic.com",
+      "img-src 'self' data: https:",
+      "connect-src 'self'",
+    ].join('; '),
+  );
   if (process.env.NODE_ENV === 'production') {
-    res.setHeader('Strict-Transport-Security', 'max-age=31536000');
+    res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
   }
 
   const url = req.url || '/';
@@ -9017,6 +9145,7 @@ switch (path) {
     case '/platform/settlement':   html = platformSettlement();  break;
     case '/platform/risk':         html = platformRisk();        break;
     case '/platform/monitoring':   html = platformMonitoring();  break;
+    case '/platform/security':     html = platformSecurity();     break;
     case '/platform/ping':         html = platformPing();        break;
     case '/platform/merchants':    html = platformMerchants();   break;
     case '/platform/merchant-access': html = platformMerchantPortalAccess(); break;

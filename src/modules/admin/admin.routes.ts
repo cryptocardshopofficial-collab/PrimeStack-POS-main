@@ -1,6 +1,6 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 import { AdminService } from "./admin.service.js";
-import { loginSchema, createUserSchema, updateUserSchema, updateKycSchema } from "./types.js";
+import { loginSchema, createUserSchema, updateUserSchema, updateKycSchema, mfaCodeSchema } from "./types.js";
 import { sendSuccess, sendCreated, sendPaginated, parsePagination } from "../../shared/utils/response.js";
 import { ForbiddenError, ValidationError } from "../../core/errors.js";
 
@@ -45,6 +45,7 @@ export function registerAdminRoutes(
         parsed.data.password,
         reply as never,
         parsed.data.pin,
+        parsed.data.totp,
       );
       return sendSuccess(reply, result);
     },
@@ -197,5 +198,48 @@ export function registerAdminRoutes(
     const authUser = request.user as { id: string };
     const updated = await adminService.updateKyc(merchantId, parsed.data, authUser.id);
     return sendSuccess(reply, updated);
+  });
+
+  // ── Two-factor authentication (self-service, JWT required) ──
+  //
+  // These always act on the *calling* account — there is deliberately no :id
+  // parameter, so nobody can flip two-factor on someone else's account.
+
+  app.get("/admin/mfa", {
+    preHandler: app.authenticate,
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const { id } = request.user as { id: string };
+    reply.header("cache-control", "no-store");
+    return sendSuccess(reply, await adminService.getMfaStatus(id));
+  });
+
+  app.post("/admin/mfa/setup", {
+    preHandler: app.authenticate,
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const { id } = request.user as { id: string };
+    reply.header("cache-control", "no-store");
+    return sendSuccess(reply, await adminService.beginMfaEnrollment(id));
+  });
+
+  app.post("/admin/mfa/verify", {
+    preHandler: app.authenticate,
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const { id } = request.user as { id: string };
+    const parsed = mfaCodeSchema.safeParse(request.body);
+    if (!parsed.success) {
+      throw new ValidationError("Enter the 6-digit code from your authenticator app", { errors: parsed.error.errors });
+    }
+    return sendSuccess(reply, await adminService.confirmMfaEnrollment(id, parsed.data.code));
+  });
+
+  app.post("/admin/mfa/disable", {
+    preHandler: app.authenticate,
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const { id } = request.user as { id: string };
+    const parsed = mfaCodeSchema.safeParse(request.body);
+    if (!parsed.success) {
+      throw new ValidationError("Enter the 6-digit code from your authenticator app", { errors: parsed.error.errors });
+    }
+    return sendSuccess(reply, await adminService.disableMfa(id, parsed.data.code));
   });
 }
