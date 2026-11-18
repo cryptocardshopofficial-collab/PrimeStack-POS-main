@@ -229,6 +229,8 @@ footer{padding:26px 5%;border-top:1px solid var(--border);text-align:center;colo
         <li>An authorized operator or merchant calls <code>POST /t2t/whitelist</code> with <code>{"ip":"...","action":"add"}</code> and the optional <code>callbackUrl</code>. This route uses a JWT, not the merchant HMAC signature.</li>
         <li>The platform stores the entry, probes that IP on TCP 443 then 80, and POSTs a signed <code>{"event":"t2t.whitelist.ping",...}</code> notice to the callback so the sender knows the entry is reachable.</li>
         <li>List the current entries with <code>GET /t2t/whitelist</code>, or probe them again with <code>POST /t2t/whitelist/ping</code>.</li>
+        <li>The allowlist entry — not the ping result — is what authorizes a transfer. A non-allowlisted IP is rejected with <code>403</code> even when it can reach the API, and a reachable ping never grants access on its own. The callback notice is optional and diagnostic: with no <code>callbackUrl</code>, or when a delivery fails, the sender can still transfer.</li>
+        <li>The allowlist compares the caller IP that reaches the API, so trust-proxy settings must be correct on the server. Behind a reverse proxy (for example Render) set <code>TRUSTED_PROXIES</code> to the proxy ranges so the real client IP is used; otherwise every request looks like it came from the proxy and no sender IP can ever match.</li>
       </ol>
       <pre>POST https://primestack-switch.onrender.com/t2t/whitelist
 Authorization: Bearer &lt;operator or merchant JWT&gt;

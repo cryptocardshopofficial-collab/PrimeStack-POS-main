@@ -1379,7 +1379,7 @@ footer p{color:var(--fl-dim);font-size:11px;letter-spacing:.16em;text-transform:
     </div>
     <div class="cred-card reveal d4">
       <div class="cred-label">Ping the Platform</div>
-      <div class="cred-value">POST /t2t/ping returns reachable and whitelisted for the calling IP</div>
+      <div class="cred-value">POST /t2t/ping returns reachable and whitelisted for the calling IP. This only reports status — the allowlist entry, not the ping, is what authorizes a transfer</div>
     </div>
     <div class="cred-card reveal d1">
       <div class="cred-label">Review the Whitelist</div>
@@ -1395,7 +1395,7 @@ footer p{color:var(--fl-dim);font-size:11px;letter-spacing:.16em;text-transform:
     </div>
   </div>
   <div style="margin-top:16px;padding:16px 20px;background:rgba(245,158,11,.06);border:1px solid rgba(245,158,11,.2);border-radius:10px;font-size:.82rem;color:var(--muted)" class="reveal">
-    <strong style="color:var(--gold)">Credential safety</strong> — the values above are the platform's public connection details. Keep the merchant HMAC secret on your server, never in browser code, and do not share administrator credentials or use another merchant's key. The T2T allowlist matches the caller's own egress IP, so send the exact address you will call from.
+    <strong style="color:var(--gold)">Credential safety</strong> — the values above are the platform's public connection details. Keep the merchant HMAC secret on your server, never in browser code, and do not share administrator credentials or use another merchant's key. The T2T allowlist matches the caller's own egress IP, so send the exact address you will call from. The allowlist entry — not the ping result — authorizes a transfer: a non-allowlisted IP is rejected with 403, and the callback notice is optional and diagnostic, so a sender that is whitelisted can transfer even when no notice is delivered. Because the allowlist reads the IP that reaches the API, the server must trust its reverse proxy (the <code>TRUSTED_PROXIES</code> setting) so the real client IP is used behind a load balancer.
   </div>
 </section>
 
@@ -1438,7 +1438,7 @@ footer p{color:var(--fl-dim);font-size:11px;letter-spacing:.16em;text-transform:
           <div class="flow-num" style="background:var(--emerald)">4</div>
           <div>
             <h4>Verify the Connection</h4>
-            <p>Call <code>POST /t2t/ping</code> from the approved egress IP with a fresh timestamp, nonce, and valid merchant HMAC signature.</p>
+            <p>Call <code>POST /t2t/ping</code> from the approved egress IP with a fresh timestamp, nonce, and valid merchant HMAC signature. A successful ping only confirms status — the allowlist entry, not the ping, authorizes the transfer.</p>
           </div>
         </div>
         <div class="flow-step reveal d5">

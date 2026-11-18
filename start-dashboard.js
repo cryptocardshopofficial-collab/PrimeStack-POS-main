@@ -7610,7 +7610,7 @@ function t2tEnginePage() {
     </div>
     <div class="card">
       <div class="card-title" style="margin-bottom:12px">IP Whitelist</div>
-      <p style="font-size:.82rem;color:var(--muted);margin-bottom:12px">Only whitelisted IPs can send you transfers. Optionally add the sender&rsquo;s callback URL so pinging this IP also pushes a signed notice to their system.</p>
+      <p style="font-size:.82rem;color:var(--muted);margin-bottom:12px">Only whitelisted IPs can send you transfers — a non-whitelisted IP is rejected with 403. Optionally add the sender&rsquo;s callback URL so pinging this IP also pushes a signed notice to their system; the notice is informational and a sender that is whitelisted can transfer whether or not the notice is delivered. The allowlist matches the caller IP that reaches the API, so the server must trust its reverse proxy (TRUSTED_PROXIES) for the real sender IP to be used behind a proxy.</p>
       <div style="display:flex;gap:8px;margin-bottom:8px">
         <input id="t2e-ip-in" class="input-mono" placeholder="e.g. 216.24.57.16" style="flex:1">
         <button class="btn btn-success btn-sm" onclick="t2eAdd()">+ Add IP</button>
@@ -7637,7 +7637,7 @@ function t2tEnginePage() {
 <div id="t2e-ping" class="tab-pane" data-g="t2e">
   <div class="card" style="max-width:520px">
     <div class="card-title" style="margin-bottom:12px">Test a Sender IP</div>
-    <p style="font-size:.82rem;color:var(--muted);margin-bottom:16px">Choose an IP already in your whitelist, then click Ping IP. This tests TCP 443, then 80, from the API server; opening this tab alone does not send a probe.</p>
+    <p style="font-size:.82rem;color:var(--muted);margin-bottom:16px">Choose an IP already in your whitelist, then click Ping IP. This tests TCP 443, then 80, from the API server; opening this tab alone does not send a probe. A reachable ping only reports status and does not authorize transfers — the whitelist entry itself is what lets a sender transfer.</p>
     <div class="form-group">
       <label>Whitelisted Sender IP</label>
       <input id="t2e-ping-in" class="input-mono" placeholder="e.g. 212.159.69.89">
