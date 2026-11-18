@@ -89,7 +89,17 @@ const SESSION_COOKIE =
     : PORTAL_MODE === 'admin'
       ? 'ps_admin_token'
       : 'ps_console_token';
-const SESSION_TTL_SECONDS = 60 * 60 * 12;
+// The console keeps no long-lived "remember me" state: the session cookie is a
+// browser-session cookie (it dies when the browser closes) and the operator is
+// additionally signed out after a period of inactivity, so an unattended
+// browser never leaves the software unlocked.
+const SESSION_IDLE_MS = 15 * 60 * 1000;
+const ACTIVITY_COOKIE =
+  PORTAL_MODE === 'merchant'
+    ? 'ps_merchant_seen'
+    : PORTAL_MODE === 'admin'
+      ? 'ps_admin_seen'
+      : 'ps_console_seen';
 
 // Live receiving bank accounts — LOUIS CALTEN INTERNATIONAL LLP
 const banks = [
@@ -6374,13 +6384,42 @@ function readSession(req) {
   return claims ? { token, claims } : null;
 }
 
+// No Max-Age/Expires → a browser-session cookie: closing the browser ends it.
 function sessionCookie(token) {
   const secure = process.env.COOKIE_SECURE === 'true' ? '; Secure' : '';
-  return `${SESSION_COOKIE}=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${SESSION_TTL_SECONDS}${secure}`;
+  return `${SESSION_COOKIE}=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=Lax${secure}`;
 }
 
 function clearedSessionCookie() {
   return `${SESSION_COOKIE}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0`;
+}
+
+// Idle tracking. A signed timestamp rides alongside the session cookie so the
+// console can time an operator out without keeping state on the server (which
+// would not survive a redeploy).
+function signActivity(timestamp) {
+  const mac = createHmac('sha256', JWT_SECRET).update(`activity:${timestamp}`).digest('hex');
+  return `${timestamp}.${mac}`;
+}
+
+function parseActivity(value) {
+  if (!value || typeof value !== 'string') return null;
+  const [rawTimestamp, mac] = value.split('.');
+  if (!rawTimestamp || !mac) return null;
+  const expected = createHmac('sha256', JWT_SECRET).update(`activity:${rawTimestamp}`).digest('hex');
+  if (expected.length !== mac.length) return null;
+  if (!timingSafeEqual(Buffer.from(expected), Buffer.from(mac))) return null;
+  const timestamp = Number(rawTimestamp);
+  return Number.isFinite(timestamp) ? timestamp : null;
+}
+
+function activityCookie() {
+  const secure = process.env.COOKIE_SECURE === 'true' ? '; Secure' : '';
+  return `${ACTIVITY_COOKIE}=${encodeURIComponent(signActivity(Date.now()))}; Path=/; HttpOnly; SameSite=Lax${secure}`;
+}
+
+function clearedActivityCookie() {
+  return `${ACTIVITY_COOKIE}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0`;
 }
 
 function signRequest(keyId, timestamp, nonce, rawBody) {
@@ -8711,7 +8750,10 @@ function handleLogin(req, res) {
           }
 
           if (status === 200 && token) {
-            res.writeHead(302, { 'Set-Cookie': sessionCookie(token), Location: dashboardHome(role) });
+            res.writeHead(302, {
+              'Set-Cookie': [sessionCookie(token), activityCookie()],
+              Location: dashboardHome(role),
+            });
             res.end();
             return;
           }
@@ -8758,13 +8800,8 @@ function handleLogin(req, res) {
 
 function handleMerchantLogin(req, res) {
   if (req.method === 'GET') {
-    const existing = readSession(req);
-    if (existing) {
-      const destination = existing.claims.role === 'MERCHANT' ? '/merchant-dashboard' : dashboardHome(existing.claims.role);
-      res.writeHead(302, { Location: destination });
-      res.end();
-      return;
-    }
+    // Always present the sign-in form, exactly like the operator login — never
+    // auto-resume a stored session.
     const pageHeaders = {
       'Content-Type': 'text/html; charset=utf-8',
       'Cache-Control': 'no-store',
@@ -8824,7 +8861,10 @@ function handleMerchantLogin(req, res) {
           const status = upstream.statusCode || 0;
 
           if (status === 200 && token && role === 'MERCHANT') {
-            res.writeHead(302, { 'Set-Cookie': sessionCookie(token), Location: '/merchant-dashboard' });
+            res.writeHead(302, {
+              'Set-Cookie': [sessionCookie(token), activityCookie()],
+              Location: '/merchant-dashboard',
+            });
             res.end();
             return;
           }
@@ -9005,7 +9045,7 @@ const server = createServer((req, res) => {
   }
   if (path === '/logout') {
     res.writeHead(302, {
-      'Set-Cookie': clearedSessionCookie(),
+      'Set-Cookie': [clearedSessionCookie(), clearedActivityCookie()],
       Location: loginPath(),
     });
     res.end();
@@ -9023,6 +9063,26 @@ const server = createServer((req, res) => {
       res.end();
     }
     return;
+  }
+
+  // Inactivity timeout — an operator who walks away is signed out so an
+  // unattended browser does not leave the console unlocked. Only real page
+  // navigations count as activity: the dashboards poll /api/ on a timer
+  // (health, ping, T2T) and that must not keep an unattended session alive.
+  const lastSeen = parseActivity(parseCookies(req)[ACTIVITY_COOKIE]);
+  if (lastSeen !== null && Date.now() - lastSeen > SESSION_IDLE_MS) {
+    const clear = [clearedSessionCookie(), clearedActivityCookie()];
+    if (path.startsWith('/api/')) {
+      res.writeHead(401, { 'Content-Type': 'application/json', 'Set-Cookie': clear });
+      res.end(JSON.stringify({ error: 'Unauthorized', message: 'Session timed out — please sign in again' }));
+    } else {
+      res.writeHead(302, { 'Set-Cookie': clear, Location: loginPath() });
+      res.end();
+    }
+    return;
+  }
+  if (!path.startsWith('/api/')) {
+    res.setHeader('Set-Cookie', activityCookie());
   }
 
   const role = session.claims.role;
