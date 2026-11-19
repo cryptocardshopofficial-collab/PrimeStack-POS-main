@@ -143,10 +143,19 @@ export const config = {
     apiKey: process.env.WISE_API_KEY?.trim() ?? "",
     profileId: process.env.WISE_PROFILE_ID?.trim() ?? "",
     environment: required("WISE_ENV", "sandbox").toLowerCase() === "live" ? "live" as const : "sandbox" as const,
-    liveUrl: required("WISE_LIVE_URL", "https://api.transferwise.com"),
-    sandboxUrl: required("WISE_SANDBOX_URL", "https://api.sandbox.transferwise.tech"),
+    liveUrl: process.env.WISE_LIVE_URL?.trim() || "https://api.transferwise.com",
+    sandboxUrl: process.env.WISE_SANDBOX_URL?.trim() || "https://api.sandbox.transferwise.tech",
     webhookPublicKey: process.env.WISE_WEBHOOK_PUBLIC_KEY?.trim().replace(/\\n/g, "\n") ?? "",
-    defaultCreditAccount: required("WISE_DEFAULT_CREDIT_ACCOUNT", "PLATFORM:RESERVE:USD"),
+    /**
+     * Public HTTPS URL Wise delivers `balances#update` events to. It must be
+     * reachable from the internet and must end in `/wise/webhook`.
+     */
+    webhookUrl: process.env.WISE_WEBHOOK_URL?.trim() ?? "",
+    /**
+     * `delivery.version` sent when the webhook subscription is created. It sets
+     * the `schema_version` Wise stamps on every delivered event.
+     */
+    webhookDeliveryVersion: process.env.WISE_WEBHOOK_DELIVERY_VERSION?.trim() || "4.0.0",
   },
   banks: {
     sg: {

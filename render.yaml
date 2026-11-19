@@ -122,24 +122,28 @@ services:
         value: ICICINBBCTS
 
       # ── Wise rails (fiat receiving + virtual IBANs) ───
-      # Fill the three secrets in the Render dashboard — they are not stored
-      # in this blueprint. Without them the rails service stays in simulation.
+      # Live receiving. WISE_API_KEY / WISE_PROFILE_ID / WISE_WEBHOOK_PUBLIC_KEY
+      # are secrets kept in the Render dashboard (sync: false), never in this file.
       - key: WISE_ENV
-        value: sandbox
-      # Provisioning flags for the admin "Create virtual account" flow. Flip both
-      # to "true" (with the key/profile/public key set) to return real Wise
-      # receiving-account details (IBAN / local account number); while "false"
-      # the flow stores a local identifier only. The API also needs
-      # WISE_VIRTUAL_ACCOUNT_PROVISIONING_ENABLED=true to attempt a live call.
+        value: live
+      # Provisioning flags for the admin "Create virtual account" flow. Both must
+      # be "true" (with the key/profile set) for the flow to return real Wise
+      # receiving-account details (IBAN / local account number) and to attempt the
+      # live bank-details call.
       - key: WISE_VIRTUAL_ACCOUNTS_ENABLED
-        value: "false"
+        value: "true"
       - key: WISE_VIRTUAL_ACCOUNT_PROVISIONING_ENABLED
-        value: "false"
+        value: "true"
       - key: WISE_API_KEY
         sync: false
       - key: WISE_PROFILE_ID
         sync: false
       - key: WISE_WEBHOOK_PUBLIC_KEY
+        sync: false
+      # Public HTTPS URL Wise delivers `balances#update` events to. Set it in the
+      # Render dashboard to https://<this-service>.onrender.com/wise/webhook,
+      # then call POST /admin/wise/webhook-subscriptions once to register it.
+      - key: WISE_WEBHOOK_URL
         sync: false
       - key: RAILS_PORT
         value: 9007

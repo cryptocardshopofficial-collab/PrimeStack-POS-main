@@ -290,3 +290,82 @@ export function verifyWiseWebhookSignature(
     return false;
   }
 }
+
+/** Wise event that carries multi-currency account credits and debits. */
+const BALANCE_UPDATE_TRIGGER = "balances#update";
+
+export interface WiseWebhookSubscription {
+  id: string | null;
+  name: string | null;
+  triggerOn: string | null;
+  url: string | null;
+  version: string | null;
+}
+
+function normalizeSubscription(node: unknown): WiseWebhookSubscription {
+  const record = asRecord(node);
+  const delivery = asRecord(record.delivery);
+  return {
+    id: text(record.id) ?? null,
+    name: text(record.name) ?? null,
+    triggerOn: text(record.trigger_on) ?? null,
+    url: text(delivery.url) ?? null,
+    version: text(delivery.version) ?? null,
+  };
+}
+
+function assertWiseSubscriptionsAvailable(): void {
+  if (!isWiseProvisioningEnabled()) {
+    throw new Error("Wise provisioning is not enabled or fully configured");
+  }
+}
+
+/**
+ * Lists the profile's webhook subscriptions. Wise only delivers
+ * `balances#update` events once a matching subscription exists, so operators use
+ * this to confirm the platform is actually wired up.
+ */
+export async function listWiseWebhookSubscriptions(): Promise<WiseWebhookSubscription[]> {
+  assertWiseSubscriptionsAvailable();
+  const listed = await wiseRequest<unknown>(
+    "GET",
+    `/v3/profiles/${config.wise.profileId}/subscriptions`,
+  );
+  return (Array.isArray(listed) ? listed : []).map(normalizeSubscription);
+}
+
+/**
+ * Creates the `balances#update` subscription pointing at
+ * `WISE_WEBHOOK_URL` unless one already targets that URL. Without this
+ * subscription Wise has no callback URL and inbound balance credits are never
+ * delivered, so no funds reach the ledger. Safe to call repeatedly.
+ */
+export async function ensureWiseWebhookSubscription(): Promise<{
+  created: boolean;
+  subscription: WiseWebhookSubscription;
+}> {
+  assertWiseSubscriptionsAvailable();
+  if (!config.wise.webhookUrl) {
+    throw new Error("WISE_WEBHOOK_URL is not configured");
+  }
+  const existing = (await listWiseWebhookSubscriptions()).find(
+    (subscription) =>
+      subscription.triggerOn === BALANCE_UPDATE_TRIGGER &&
+      subscription.url === config.wise.webhookUrl,
+  );
+  if (existing) return { created: false, subscription: existing };
+
+  const created = await wiseRequest<unknown>(
+    "POST",
+    `/v3/profiles/${config.wise.profileId}/subscriptions`,
+    {
+      name: "PrimeStack inbound balance credits",
+      trigger_on: BALANCE_UPDATE_TRIGGER,
+      delivery: {
+        version: config.wise.webhookDeliveryVersion,
+        url: config.wise.webhookUrl,
+      },
+    },
+  );
+  return { created: true, subscription: normalizeSubscription(created) };
+}

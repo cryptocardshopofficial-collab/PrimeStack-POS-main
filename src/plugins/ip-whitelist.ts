@@ -101,14 +101,34 @@ export async function invalidateIpWhitelistCache(): Promise<void> {
   }
 }
 
+/**
+ * Routes that authenticate via cryptographic signature (RSA-SHA256 webhook
+ * signatures or HMAC) rather than source IP. Their senders use dynamic IPs
+ * that cannot be allowlisted, so they bypass the IP whitelist entirely.
+ */
+const SIGNATURE_AUTH_ROUTES = [
+  "/wise/webhook",
+  "/webhooks/inbound",
+  "/t2t/inbound",
+  "/s2s/connections/",
+];
+
+function isSignatureAuthRoute(url: string): boolean {
+  return SIGNATURE_AUTH_ROUTES.some((prefix) => url.startsWith(prefix));
+}
+
 export async function ipWhitelistPlugin(app: FastifyInstance): Promise<void> {
   app.addHook("onRequest", async (request: FastifyRequest, _reply: FastifyReply) => {
-    // Skip for health checks and internal routes
-    if (request.url.startsWith("/health") || request.url.startsWith("/docs")) {
+    // Skip for health checks, documentation, and signature-authenticated webhooks
+    if (
+      request.url.startsWith("/health") ||
+      request.url.startsWith("/docs") ||
+      isSignatureAuthRoute(request.url)
+    ) {
       return;
     }
 
-    // Check if route has ipWhitelist enabled
+    // Check if route has ipWhitelist disabled
     if (request.routeOptions?.config?.ipWhitelist === false) {
       return; // explicitly disabled on this route
     }

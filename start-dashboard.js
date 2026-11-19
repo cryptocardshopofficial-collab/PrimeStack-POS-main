@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿﻿// start-dashboard.js — PrimeStack Global Server Network Admin Dashboard
+﻿﻿﻿﻿﻿﻿﻿﻿// start-dashboard.js — PrimeStack Global Server Network Admin Dashboard
 // Node.js HTTP server, no framework, no external deps
 import { createServer } from 'http';
 import { request as httpRequest } from 'http';
@@ -542,6 +542,7 @@ function sidebar(active) {
     ${link('/platform/banks','Bank Connections','<svg width="14" height="14" fill="none" viewBox="0 0 16 16"><rect x="1" y="5" width="14" height="9" rx="1.5" stroke="currentColor" stroke-width="1.5"/><path d="M1 8h14M5 8v6M11 8v6" stroke="currentColor" stroke-width="1.5"/><path d="M8 2L1 5h14L8 2z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>')}
     ${link('/platform/funding','Funding','<svg width="14" height="14" fill="none" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.5" stroke="currentColor" stroke-width="1.5"/><path d="M8 5v6M6 9.5c0 .83.67 1.5 2 1.5s2-.67 2-1.5S10.5 8 8 8s-2-.67-2-1.5S6.67 5 8 5s2 .67 2 1.5" stroke="currentColor" stroke-width="1.5"/></svg>')}
     ${link('/platform/receive-funds','Receive Funds','<svg width="14" height="14" fill="none" viewBox="0 0 16 16"><path d="M2 8h8m0 0L7 5m3 3L7 11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><rect x="10" y="3" width="4" height="10" rx="1" stroke="currentColor" stroke-width="1.5"/></svg>')}
+    ${link('/platform/wise-virtual-bank','Wise Virtual Bank','<svg width="14" height="14" fill="none" viewBox="0 0 16 16"><path d="M2 3.5h12M2 3.5v9a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-9M5 6.5h6M5 9h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>')}
     ${link('/platform/server-funds','Server Funds','<svg width="14" height="14" fill="none" viewBox="0 0 16 16"><ellipse cx="8" cy="4" rx="6" ry="2" stroke="currentColor" stroke-width="1.5"/><path d="M2 4v4c0 1.1 2.7 2 6 2s6-.9 6-2V4M2 8v4c0 1.1 2.7 2 6 2s6-.9 6-2V8" stroke="currentColor" stroke-width="1.5"/></svg>')}
     ${link('/platform/s2s-engine','S2S Engine','<svg width="14" height="14" fill="none" viewBox="0 0 16 16"><path d="M2 8h9M8 5l3 3-3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><circle cx="3" cy="8" r="1.5" fill="currentColor"/></svg>', active)}
     ${link('/platform/rails','Payment Rails','<svg width="14" height="14" fill="none" viewBox="0 0 16 16"><path d="M1 4h14M1 12h14M4 1v14M12 1v14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>')}
@@ -6810,6 +6811,167 @@ document.addEventListener('DOMContentLoaded',function(){initTabs('s2e');s2eLoad(
 `);
 }
 
+function wiseVirtualBankPage() {
+  return page('Wise Virtual Bank', '/platform/wise-virtual-bank', `
+<div class="page-header">
+  <div class="breadcrumb"><a href="/">Home</a><span>/</span><a href="/platform">Platform</a><span>/</span>Wise Virtual Bank</div>
+  <h1>Wise Virtual Bank</h1>
+  <p>Provision Wise receiving accounts (virtual accounts) and register the webhook subscription so inbound balance credits flow into the ledger automatically. Funds credited to a Wise virtual account are posted to the wallet that owns it.</p>
+</div>
+
+<div class="stat-row" style="margin-bottom:20px">
+  <div class="stat" id="wise-stat-config">
+    <div class="stat-val" style="font-size:1.1rem">—</div>
+    <div class="stat-lbl">Configuration</div>
+  </div>
+  <div class="stat" id="wise-stat-env">
+    <div class="stat-val" style="font-size:1.1rem">—</div>
+    <div class="stat-lbl">Environment</div>
+  </div>
+  <div class="stat" id="wise-stat-sub">
+    <div class="stat-val" style="font-size:1.1rem">—</div>
+    <div class="stat-lbl">Webhook Subscription</div>
+  </div>
+  <div class="stat" id="wise-stat-accounts">
+    <div class="stat-val" style="font-size:1.1rem">—</div>
+    <div class="stat-lbl">Virtual Accounts</div>
+  </div>
+</div>
+
+<div class="tabs">
+  <div class="tab active" data-g="wise" data-t="wise-status" onclick="wiseTab('wise-status',this)">Status &amp; Subscription</div>
+  <div class="tab" data-g="wise" data-t="wise-provision" onclick="wiseTab('wise-provision',this)">Provision Account</div>
+  <div class="tab" data-g="wise" data-t="wise-list" onclick="wiseTab('wise-list',this)">My Accounts</div>
+</div>
+
+<div id="wise-status" class="tab-pane active" data-g="wise">
+  <div class="card">
+    <div class="card-header">
+      <div><div class="card-title">Wise Configuration</div><div class="card-sub">Live status of the Wise integration on this server</div></div>
+      <button class="btn btn-ghost btn-sm" onclick="wiseLoadConfig()">↻ Refresh</button>
+    </div>
+    <div id="wise-config-body" class="card-body"><div style="color:var(--muted)">Loading…</div></div>
+  </div>
+  <div class="card" style="margin-top:16px">
+    <div class="card-header">
+      <div><div class="card-title">Webhook Subscription</div><div class="card-sub">Wise delivers <code>balances#update</code> events to <code>/wise/webhook</code></div></div>
+      <button class="btn btn-primary btn-sm" onclick="wiseRegisterSubscription()">Register Subscription</button>
+    </div>
+    <div id="wise-sub-body" class="card-body"><div style="color:var(--muted)">Loading…</div></div>
+  </div>
+</div>
+
+<div id="wise-provision" class="tab-pane" data-g="wise">
+  <div class="card" style="max-width:520px">
+    <div class="card-title" style="margin-bottom:16px">Provision a Wise Virtual Account</div>
+    <div class="form-group"><label>Wallet Address *</label><input id="wise-wallet" placeholder="e.g. TEST-RECEIVE-001"></div>
+    <div class="form-group"><label>Currency *</label>
+      <select id="wise-cur">
+        <option>USD</option><option>EUR</option><option>GBP</option><option>AUD</option><option>CAD</option>
+        <option>NZD</option><option>SGD</option><option>MYR</option><option>INR</option><option>PLN</option><option>RON</option>
+      </select>
+    </div>
+    <p class="card-sub" style="margin:12px 0">This calls Wise to create a balance and bank details for the chosen currency, then links them to the wallet. The returned account number / routing / IBAN is what you send real money to.</p>
+    <button class="btn btn-primary" onclick="wiseProvision()" style="width:100%;justify-content:center;padding:11px">Provision Account</button>
+    <div id="wise-prov-result" class="result"></div>
+  </div>
+</div>
+
+<div id="wise-list" class="tab-pane" data-g="wise">
+  <div class="card">
+    <div class="card-header">
+      <div><div class="card-title">Provisioned Virtual Accounts</div><div class="card-sub">Receiving accounts created via Wise</div></div>
+      <button class="btn btn-ghost btn-sm" onclick="wiseLoadList()">↻ Refresh</button>
+    </div>
+    <div id="wise-list-body" class="card-body"><div style="color:var(--muted)">Enter a wallet address above and provision an account, then list it here.</div></div>
+  </div>
+</div>
+
+<div id="_wise_toast" class="toast"></div>
+<script>
+function wiseTab(id,btn){
+  document.querySelectorAll('[data-g="wise"].tab').forEach(function(b){b.classList.remove('active')});
+  document.querySelectorAll('[data-g="wise"].tab-pane').forEach(function(p){p.classList.remove('active')});
+  btn.classList.add('active');
+  var pane=document.getElementById(id);if(pane)pane.classList.add('active');
+}
+function wiseToast(msg,kind){
+  var t=document.getElementById('_wise_toast');
+  if(!t)return;
+  t.textContent=msg;t.className='toast show '+(kind||'ok');
+  setTimeout(function(){t.className='toast';},4000);
+}
+function wiseJson(resp){return resp.json().then(function(d){return {ok:resp.ok,status:resp.status,data:d};});}
+function wiseLoadConfig(){
+  fetch('/api/admin/virtual-account/configuration').then(wiseJson).then(function(r){
+    var d=r.data||{};
+    var cfg=document.getElementById('wise-config-body');
+    cfg.innerHTML='<table class="kv"><tr><th>Provider</th><td>WISE</td></tr>'+
+      '<tr><th>Enabled</th><td>'+(d.enabled?'<span class="badge badge-green">enabled</span>':'<span class="badge badge-gray">disabled</span>')+'</td></tr>'+
+      '<tr><th>Provisioning</th><td>'+(d.provisioningEnabled?'<span class="badge badge-green">on</span>':'<span class="badge badge-gray">off</span>')+'</td></tr>'+
+      '<tr><th>Environment</th><td><code>'+(d.environment||'—')+'</code></td></tr>'+
+      '<tr><th>API Key</th><td>'+(d.apiKeyConfigured?'<span class="badge badge-green">configured</span>':'<span class="badge badge-gray">missing</span>')+'</td></tr>'+
+      '<tr><th>Profile ID</th><td>'+(d.profileIdConfigured?'<span class="badge badge-green">configured</span>':'<span class="badge badge-gray">missing</span>')+'</td></tr>'+
+      '<tr><th>Webhook Public Key</th><td>'+(d.webhookPublicKeyConfigured?'<span class="badge badge-green">set</span>':'<span class="badge badge-blue">auto (Wise published key)</span>')+'</td></tr>'+
+      '<tr><th>Webhook URL</th><td><code>'+(d.webhookUrl||d.webhookUrlConfigured||'not set')+'</code></td></tr>'+
+      '<tr><th>Fully Configured</th><td>'+(d.configured?'<span class="badge badge-green">yes</span>':'<span class="badge badge-red">no</span>')+'</td></tr></table>';
+    var s1=document.querySelector('#wise-stat-config .stat-val'); if(s1)s1.textContent=d.configured?'READY':'NOT READY';
+    var s2=document.querySelector('#wise-stat-env .stat-val'); if(s2)s2.textContent=d.environment||'—';
+  }).catch(function(e){document.getElementById('wise-config-body').innerHTML='<div style="color:var(--danger)">'+e.message+'</div>';});
+  fetch('/api/admin/wise/webhook-subscriptions').then(wiseJson).then(function(r){
+    var subs=(r.data&&r.data.subscriptions)||[];
+    var body=document.getElementById('wise-sub-body');
+    if(!subs.length){body.innerHTML='<div style="color:var(--muted)">No subscriptions registered. Click <b>Register Subscription</b> to start receiving <code>balances#update</code> events.</div>';}
+    else{
+      body.innerHTML='<div class="table-wrap"><table><thead><tr><th>ID</th><th>Trigger</th><th>URL</th><th>Delivery Version</th></tr></thead><tbody>'+
+        subs.map(function(s){return '<tr><td><code>'+(s.id||'—')+'</code></td><td><code>'+(s.trigger_on||s.triggerOn||'—')+'</code></td><td><code>'+(s.url||'—')+'</code></td><td>'+(s.delivery_version||s.deliveryVersion||'—')+'</td></tr>';}).join('')+
+        '</tbody></table></div>';
+    }
+    var s3=document.querySelector('#wise-stat-sub .stat-val'); if(s3)s3.textContent=subs.length?(subs.length+' registered'):'none';
+  }).catch(function(e){document.getElementById('wise-sub-body').innerHTML='<div style="color:var(--danger)">'+e.message+'</div>';});
+}
+function wiseRegisterSubscription(){
+  var btn=document.querySelector('[onclick="wiseRegisterSubscription()"]');
+  if(btn){btn.disabled=true;btn.textContent='Registering…';}
+  fetch('/api/admin/wise/webhook-subscriptions',{method:'POST'}).then(wiseJson).then(function(r){
+    if(!r.ok){wiseToast('Failed: '+(r.data&&r.data.error||'HTTP '+r.status),'err');return;}
+    wiseToast(r.data&&r.data.created?'Subscription registered':'Subscription already exists','ok');
+    wiseLoadConfig();
+  }).catch(function(e){wiseToast('Error: '+e.message,'err');})
+    .finally(function(){if(btn){btn.disabled=false;btn.textContent='Register Subscription';}});
+}
+function wiseProvision(){
+  var wallet=document.getElementById('wise-wallet').value.trim();
+  var cur=document.getElementById('wise-cur').value;
+  if(!wallet){wiseToast('Wallet address is required','err');return;}
+  var btn=document.querySelector('[onclick="wiseProvision()"]');
+  if(btn){btn.disabled=true;btn.textContent='Provisioning…';}
+  fetch('/api/admin/wallets/'+encodeURIComponent(wallet)+'/virtual-accounts',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({currency:cur})}).then(wiseJson).then(function(r){
+    var res=document.getElementById('wise-prov-result');
+    res.className='result show '+(r.ok?'ok':'err');
+    res.textContent=JSON.stringify(r.data,null,2);
+    if(r.ok){wiseToast('Virtual account provisioned for '+cur,'ok');wiseLoadList();}
+    else wiseToast('Failed: '+(r.data&&r.data.error||'HTTP '+r.status),'err');
+  }).catch(function(e){wiseToast('Error: '+e.message,'err');})
+    .finally(function(){if(btn){btn.disabled=false;btn.textContent='Provision Account';}});
+}
+function wiseLoadList(){
+  var wallet=document.getElementById('wise-wallet').value.trim();
+  var body=document.getElementById('wise-list-body');
+  if(!wallet){body.innerHTML='<div style="color:var(--muted)">Enter a wallet address to list its virtual accounts.</div>';var s4=document.querySelector('#wise-stat-accounts .stat-val');if(s4)s4.textContent='—';return;}
+  fetch('/api/admin/wallets/'+encodeURIComponent(wallet)+'/virtual-accounts').then(wiseJson).then(function(r){
+    var list=(r.data&&r.data.data)||r.data||[];
+    if(!Array.isArray(list)||!list.length){body.innerHTML='<div style="color:var(--muted)">No virtual accounts for this wallet yet.</div>';var s4=document.querySelector('#wise-stat-accounts .stat-val');if(s4)s4.textContent='0';return;}
+    body.innerHTML='<div class="table-wrap"><table><thead><tr><th>Currency</th><th>Account Number</th><th>Routing / Sort</th><th>IBAN</th><th>SWIFT/BIC</th><th>Holder</th></tr></thead><tbody>'+
+      list.map(function(a){var d=a.details||{};return '<tr><td><strong>'+(a.currency||'')+'</strong></td><td><code>'+(d.accountNumber||'—')+'</code></td><td><code>'+(d.routingNumber||d.sortCode||'—')+'</code></td><td><code>'+(d.iban||'—')+'</code></td><td><code>'+(d.swiftCode||'—')+'</code></td><td>'+(d.accountHolder||'—')+'</td></tr>';}).join('')+
+      '</tbody></table></div>';
+    var s4=document.querySelector('#wise-stat-accounts .stat-val');if(s4)s4.textContent=list.length;
+  }).catch(function(e){body.innerHTML='<div style="color:var(--danger)">'+e.message+'</div>';});
+}
+wiseLoadConfig();
+</script>`);
+}
+
 function serverFundsPage() {
   return page('Server Funds', '/platform/server-funds', `
 <div class="page-header">
@@ -9212,6 +9374,7 @@ switch (path) {
     case '/platform/agents':       html = platformAgentRegistration(); break;
     case '/platform/receive-funds': html = receiveFundsPage();  break;
     case '/platform/server-funds':  html = serverFundsPage();   break;
+    case '/platform/wise-virtual-bank': html = wiseVirtualBankPage(); break;
     case '/platform/rails':         html = railsPage();         break;
     case '/platform/bank-guide':    html = bankIntegrationGuidePage(); break;
     case '/merchant/t2t':           html = t2tEnginePage();     break;

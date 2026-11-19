@@ -24,8 +24,8 @@ set "INBOUND_FUNDING_ACCOUNT_PREFIX=SYSTEM-FUNDING"
 set "T2T_NOTIFY_TIMEOUT_MS=5000"
 
 rem --- Wise virtual accounts (set to true and add WISE_API_KEY/WISE_PROFILE_ID to provision real accounts) ---
-set "WISE_VIRTUAL_ACCOUNTS_ENABLED=false"
-set "WISE_VIRTUAL_ACCOUNT_PROVISIONING_ENABLED=false"
+set "WISE_VIRTUAL_ACCOUNTS_ENABLED=true"
+set "WISE_VIRTUAL_ACCOUNT_PROVISIONING_ENABLED=true"
 
 rem --- Reverse-proxy trust (leave empty locally; set to real proxy CIDRs when hosted behind Render/nginx) ---
 set "TRUSTED_PROXIES="

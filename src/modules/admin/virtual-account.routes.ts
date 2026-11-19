@@ -4,7 +4,11 @@ import type { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 import { config } from "../../config/index.js";
 import { ForbiddenError, ValidationError } from "../../core/errors.js";
 import { sendCreated, sendSuccess } from "../../shared/utils/response.js";
-import { wiseWebhookPublicKey } from "../wallet/wise-virtual-account.js";
+import {
+  ensureWiseWebhookSubscription,
+  listWiseWebhookSubscriptions,
+  wiseWebhookPublicKey,
+} from "../wallet/wise-virtual-account.js";
 import type { WalletService } from "../wallet/wallet.service.js";
 
 const VIRTUAL_ACCOUNT_ROLES = new Set(["SUPER_ADMIN", "ADMIN"]);
@@ -41,7 +45,8 @@ export function registerAdminVirtualAccountRoutes(
       profileIdConfigured: Boolean(config.wise.profileId),
       apiKeyConfigured: Boolean(config.wise.apiKey),
       webhookPublicKeyConfigured: Boolean(wiseWebhookPublicKey()),
-      defaultCreditAccount: config.wise.defaultCreditAccount,
+      webhookUrl: config.wise.webhookUrl || null,
+      webhookUrlConfigured: Boolean(config.wise.webhookUrl),
     });
   });
 
@@ -86,5 +91,53 @@ export function registerAdminVirtualAccountRoutes(
       return created;
     });
     return sendCreated(reply, account);
+  });
+
+  // Wise only delivers `balances#update` events once a subscription points at
+  // this platform's /wise/webhook URL. Without one, inbound balance credits are
+  // never delivered, so no real funds reach the ledger.
+  app.get("/admin/wise/webhook-subscriptions", {
+    preHandler: app.authenticate,
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    assertVirtualAccountAdmin(request);
+    reply.header("Cache-Control", "no-store");
+    if (!config.wise.provisioningEnabled || !config.wise.apiKey || !config.wise.profileId) {
+      throw new ForbiddenError("Wise provisioning is not enabled or fully configured");
+    }
+    return sendSuccess(reply, {
+      webhookUrl: config.wise.webhookUrl || null,
+      subscriptions: await listWiseWebhookSubscriptions(),
+    });
+  });
+
+  app.post("/admin/wise/webhook-subscriptions", {
+    preHandler: app.authenticate,
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const actor = assertVirtualAccountAdmin(request);
+    reply.header("Cache-Control", "no-store");
+    if (!config.wise.provisioningEnabled || !config.wise.apiKey || !config.wise.profileId) {
+      throw new ForbiddenError("Wise provisioning is not enabled or fully configured");
+    }
+    const result = await ensureWiseWebhookSubscription();
+    if (result.created) {
+      await prisma.auditLog.create({
+        data: {
+          userId: actor.id,
+          action: "CREATE_WISE_WEBHOOK_SUBSCRIPTION",
+          entity: "WiseWebhookSubscription",
+          entityId: result.subscription.id ?? config.wise.webhookUrl,
+          after: {
+            triggerOn: result.subscription.triggerOn,
+            url: result.subscription.url,
+            version: result.subscription.version,
+          },
+          ipAddress: request.ip,
+          userAgent: auditUserAgent(request),
+        },
+      });
+    }
+    return result.created
+      ? sendCreated(reply, result)
+      : sendSuccess(reply, result);
   });
 }
