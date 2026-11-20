@@ -1,0 +1,688 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ORBIT | PrimeStack Intelligence Command</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;500;600;700;800&family=Orbitron:wght@400;500;600;700;800&display=swap');
+:root{--bg:#030914;--panel:#071629;--panel2:#081d33;--line:#123d5d;--cyan:#32d9ff;--blue:#168bdb;--red:#ff465e;--amber:#ffb84d;--green:#38e0ad;--text:#d8efff;--muted:#66869f;--glow:0 0 22px #14b8ff55}
+*{box-sizing:border-box}html,body{margin:0;min-height:100%;background:radial-gradient(ellipse at 50% 0,#0b2743 0,#040d1b 42%,#020711 100%);color:var(--text);font-family:'Barlow Condensed',sans-serif}body{overflow-x:hidden}
+body:before{content:"";position:fixed;inset:0;pointer-events:none;opacity:.12;background:linear-gradient(transparent 50%,#50cfff0c 50%);background-size:100% 4px;z-index:8}
+button{font:inherit}.app{max-width:1800px;margin:auto;padding:14px 20px 22px}
+.top{height:54px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #16405e;padding:0 4px;gap:15px}
+.brand{display:flex;align-items:center;gap:10px;min-width:220px}.brandmark{width:34px;height:34px;border:1px solid var(--cyan);display:grid;place-items:center;color:var(--cyan);font-size:23px;clip-path:polygon(50% 0,94% 20%,94% 80%,50% 100%,6% 80%,6% 20%);text-shadow:var(--glow)}
+.brand strong{font:700 17px Orbitron;letter-spacing:3px;display:block}.brand small{font:8px Orbitron;color:#7396b0;letter-spacing:1.7px}
+.nav{display:flex;gap:5px;align-items:center;flex:1;justify-content:center}.nav span{font:8px Orbitron;color:#7898b2;padding:9px 11px;border:1px solid transparent;letter-spacing:.8px;cursor:pointer}.nav .selected{color:var(--cyan);border-color:#17618b;background:#0b2942;box-shadow:inset 0 0 14px #00bfff16}
+.topright{display:flex;align-items:center;gap:13px;font:9px Orbitron;color:#91aec3}.pulse{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 10px var(--green);margin-right:6px;animation:pulse 1.5s infinite}
+.pulse.red{background:var(--red);box-shadow:0 0 10px var(--red)}
+button.refresh{background:#09243b;border:1px solid #1b628b;color:var(--cyan);padding:8px 11px;font:8px Orbitron;letter-spacing:1px;cursor:pointer}
+.hero{display:flex;justify-content:space-between;align-items:end;padding:22px 2px 16px}.eyebrow{font:9px Orbitron;color:var(--cyan);letter-spacing:2px}.hero h1{font:700 clamp(22px,3vw,37px) Orbitron;letter-spacing:2px;margin:7px 0 4px}.hero h1 em{font-style:normal;color:var(--cyan);text-shadow:0 0 22px #1cbfff88}.hero p{margin:0;color:#82a4bd;font-size:15px;letter-spacing:.4px}.heroState{text-align:right;font:9px Orbitron;color:#8aa9bf;line-height:2}.heroState b{color:var(--amber);font-weight:500}.heroState b.live{color:var(--green)}
+.overview{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.stat{position:relative;background:linear-gradient(135deg,#0a2037ef,#061326);border:1px solid #16415f;padding:12px 15px;min-height:82px;overflow:hidden}.stat:before,.panel:before,.module:before{content:"";position:absolute;left:0;top:0;width:34px;height:1px;background:var(--cyan);box-shadow:0 0 10px var(--cyan)}.stat label{font:8px Orbitron;color:#7595ac;letter-spacing:1.3px}.stat strong{display:block;font:600 21px Orbitron;margin-top:8px;color:#e6f8ff}.stat small{font-size:11px;color:var(--muted)}.stat .line{position:absolute;right:12px;bottom:15px;width:64px;height:23px;border-bottom:1px solid #168ac9;transform:skewY(-15deg);opacity:.8}
+.layout{display:grid;grid-template-columns:minmax(210px,1fr) minmax(400px,2.05fr) minmax(210px,1fr);gap:10px;margin-top:10px}
+.stack{display:grid;gap:10px;align-content:start}.panel{position:relative;background:linear-gradient(145deg,#081a2eeb,#061224f2);border:1px solid #143b59;padding:12px;min-height:150px;overflow:hidden}.panelhead{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}.panelhead b{font:600 10px Orbitron;letter-spacing:1px}.kicker{font:9px Orbitron;color:var(--cyan);letter-spacing:2px}.tag{font:7px Orbitron;color:var(--green);border:1px solid #1a725f;padding:4px 6px}.tag.red{color:var(--red);border-color:#7a2030}.tag.amber{color:var(--amber);border-color:#7a5a1f}
+.threatgraph{height:42px;border-bottom:1px solid #153c58;position:relative;overflow:hidden}.threatgraph svg{width:100%;height:100%}.threatgraph polyline{fill:none;stroke:#ff4d63;stroke-width:1.5;filter:drop-shadow(0 0 4px #ff405a)}.miniStats{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin-top:10px}.miniStats b{display:block;font:600 14px Orbitron;color:#e2f6ff}.miniStats span{font:7px Orbitron;color:#688ba4}
+.event{display:grid;grid-template-columns:52px 1fr auto;gap:7px;align-items:center;padding:7px 0;border-bottom:1px solid #12324b;font-size:11px}.sev{font:7px Orbitron;padding:4px 5px;text-align:center;background:#5d1b2a;color:#ff7888}.sev.med{background:#4a3517;color:#ffc46a}.sev.low{background:#0d3328;color:#3edfad}.sev.info{background:#0b2a3f;color:#38cfff}.event small{display:block;color:#698ba3;font-size:9px}.event time{font:7px Orbitron;color:#587b96}
+.core{min-height:410px;padding:12px;display:flex;flex-direction:column}.coretop{display:flex;justify-content:space-between;align-items:center}.coretop h2{font:600 12px Orbitron;letter-spacing:1.4px;margin:4px 0}.coreviz{position:relative;flex:1;min-height:300px;display:grid;place-items:center;overflow:hidden}
+#coreCanvas{position:absolute;inset:0;width:100%;height:100%}.corelabel{position:relative;text-align:center;pointer-events:none;z-index:1}.corelabel .shield{width:108px;height:108px;border:1px solid #31cfff;border-radius:50%;display:grid;place-items:center;margin:auto;color:#6de6ff;font-size:48px;text-shadow:0 0 20px #19baff;box-shadow:0 0 0 9px #0a4b6b44,0 0 35px #12aaff66,inset 0 0 25px #13baff22;animation:corepulse 3s infinite}.corelabel b{display:block;font:600 10px Orbitron;color:#4be6c1;letter-spacing:1.5px;margin-top:13px}.corelabel small{font:8px Orbitron;color:#7499b3;letter-spacing:1px}
+.orbitInfo{position:absolute;bottom:10px;left:10px;right:10px;display:flex;justify-content:space-between;font:7px Orbitron;color:#648ba7;letter-spacing:1px}
+.rightMetric{display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #12344e;padding:8px 0;font-size:11px}.rightMetric b{font:10px Orbitron;color:#ccecff}.bar{height:4px;background:#102d46;margin-top:6px}.bar i{display:block;height:100%;background:linear-gradient(90deg,#0879bc,#36dfff);box-shadow:0 0 8px #22cfff;transition:width .6s}
+.aiBrain{height:75px;display:flex;align-items:center;justify-content:center;color:var(--cyan);font-size:42px;text-shadow:0 0 18px #1ebeff;position:relative}.aiBrain:before,.aiBrain:after{content:"";position:absolute;width:90px;height:35px;border:1px solid #1478a4;border-radius:50%;animation:orbit 5s linear infinite}.aiBrain:after{transform:rotate(60deg);animation-duration:7s}
+.matrixTitle{display:flex;justify-content:space-between;align-items:end;margin:17px 2px 9px}.matrixTitle h2{font:600 12px Orbitron;letter-spacing:1.5px;margin:0}.matrixTitle span{font:8px Orbitron;color:#7294ad}
+.modules{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:8px}
+.module{position:relative;min-height:116px;background:linear-gradient(145deg,#0a2036,#061224);border:1px solid #16415e;padding:9px 9px 8px;overflow:hidden;cursor:pointer;transition:.25s;isolation:isolate}.module:hover,.module.active{border-color:#39d8ff;box-shadow:0 0 18px #12aaff2b,inset 0 0 20px #0aaaff12;transform:translateY(-2px)}.module.online{border-color:#1a724f}.module.offline{border-color:#7a1f2e}.moduleTop{display:flex;justify-content:space-between;align-items:center}.moduleNo{font:7px Orbitron;color:#527d99}.moduleState{width:6px;height:6px;border-radius:50%;background:var(--amber);box-shadow:0 0 7px var(--amber)}.moduleState.on{background:var(--green);box-shadow:0 0 7px var(--green)}.moduleState.off{background:var(--red);box-shadow:0 0 7px var(--red)}.moduleName{font:600 10px Orbitron;letter-spacing:.3px;margin-top:8px;white-space:nowrap}.objectStage{height:39px;display:grid;place-items:center;position:relative;margin-top:3px}.object{width:25px;height:25px;border:1px solid #39d8ff;border-radius:50%;position:relative;box-shadow:0 0 12px #16bfff77,inset 0 0 9px #14aaff55;animation:float 2.6s ease-in-out infinite,spin 7s linear infinite}.object:before{content:"";position:absolute;inset:5px;border:1px dashed #6ceaff;border-radius:50%;animation:spin 3s linear infinite reverse}.object:after{content:"";position:absolute;width:5px;height:5px;left:50%;top:-3px;border-radius:50%;background:#d8fbff;box-shadow:0 0 8px #55eaff}.module:nth-child(3n) .object{border-radius:5px;transform:rotate(45deg);animation:float 2.2s ease-in-out infinite,spin 6s linear infinite}.module:nth-child(4n) .object{border-color:#a68bff;box-shadow:0 0 12px #9171ff77}.module:nth-child(5n) .object:after{background:#ff6b80;box-shadow:0 0 8px #ff5167}.moduleFoot{display:flex;justify-content:space-between;align-items:center;font:7px Orbitron;color:#6f92ab}.moduleFoot b{color:var(--amber);font-weight:500}.moduleFoot b.on{color:var(--green)}.moduleFoot b.off{color:var(--red)}.module .track{height:2px;background:#102e47;margin-top:6px;overflow:hidden}.module .track i{display:block;width:35%;height:100%;background:var(--cyan);box-shadow:0 0 7px var(--cyan);animation:travel 2.5s ease-in-out infinite alternate}
+.bottom{display:grid;grid-template-columns:1.4fr 1fr;gap:10px;margin-top:10px}.feedrows{display:grid;grid-template-columns:1.2fr 1fr 1fr auto;gap:8px;padding:7px 0;border-bottom:1px solid #12324a;font-size:10px;color:#9fc1d6}.feedrows b{font:8px Orbitron;color:#cceeff}.feedrows em{font-style:normal;color:var(--amber);font:8px Orbitron}.feedrows em.on{color:var(--green)}.feedrows em.off{color:var(--red)}
+
+/* ALARM OVERLAY */
+.alarm-overlay{position:fixed;inset:0;z-index:1000;display:none;pointer-events:none}
+.alarm-overlay.active{display:block;animation:alarmFlash 0.5s infinite}
+@keyframes alarmFlash{0%,100%{background:rgba(255,0,30,0)}50%{background:rgba(255,0,30,0.07)}}
+.alarm-banner{position:fixed;top:0;left:0;right:0;z-index:1001;background:linear-gradient(90deg,#8b0000,#ff0030,#8b0000);color:#fff;font:700 13px Orbitron;letter-spacing:2px;padding:10px 20px;display:none;align-items:center;justify-content:space-between;box-shadow:0 0 40px #ff003088;border-bottom:2px solid #ff0030}
+.alarm-banner.active{display:flex}
+.alarm-banner .alarm-icon{font-size:20px;animation:blink 0.4s infinite}
+@keyframes blink{50%{opacity:0}}
+
+/* BREACH LOG */
+.breach-log{max-height:220px;overflow-y:auto;font-size:10px}
+.breach-entry{padding:5px 0;border-bottom:1px solid #12324b;display:grid;grid-template-columns:60px 1fr auto;gap:6px;align-items:center}
+.breach-sev{font:7px Orbitron;padding:3px 5px;text-align:center}
+.breach-sev.crit{background:#5d1b2a;color:#ff7888}
+.breach-sev.high{background:#4a2510;color:#ff9a4d}
+.breach-sev.med{background:#4a3517;color:#ffc46a}
+.breach-sev.info{background:#0b2a3f;color:#38cfff}
+
+.detail{position:fixed;inset:0;background:#020813bb;z-index:20;display:none;place-items:center;padding:18px}.detail.open{display:grid}.detailbox{width:min(520px,100%);background:#071a2e;border:1px solid #2abfff;box-shadow:0 0 40px #0aaaff44;padding:20px;position:relative}.detailbox h3{font:600 17px Orbitron;margin:8px 0}.detailbox p{color:#89a9bf;line-height:1.5}.close{position:absolute;right:12px;top:10px;color:var(--cyan);background:none;border:1px solid #245574;padding:5px 9px;cursor:pointer}.api{background:#04101e;border:1px solid #153b58;padding:10px;font:9px monospace;color:#80cbe8;overflow-wrap:anywhere;margin-bottom:10px}
+.svc-metric{display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #12344e;font-size:11px}
+.svc-metric b{font:9px Orbitron;color:#cceeff}
+
+footer{display:flex;justify-content:space-between;gap:10px;padding:14px 2px 0;color:#56758f;font:7px Orbitron;letter-spacing:1px}footer b{color:#8caec3}
+@keyframes pulse{50%{opacity:.3;box-shadow:0 0 2px var(--green)}}@keyframes spin{to{transform:rotate(360deg)}}@keyframes float{50%{translate:0 -5px}}@keyframes corepulse{50%{box-shadow:0 0 0 15px #0a4b6b22,0 0 48px #12aaff99,inset 0 0 30px #13baff44}}@keyframes orbit{to{transform:rotate(360deg)}}@keyframes travel{to{transform:translateX(170%)}}
+@media(max-width:1200px){.modules{grid-template-columns:repeat(4,minmax(0,1fr))}.layout{grid-template-columns:1fr 1.6fr 1fr}}
+@media(max-width:850px){.layout{grid-template-columns:1fr 1fr}.core{grid-column:1/-1;grid-row:1}.stack{grid-template-columns:1fr}.modules{grid-template-columns:repeat(4,minmax(0,1fr))}.nav{display:none}}
+@media(max-width:560px){.app{padding:10px}.hero{align-items:start}.heroState{display:none}.overview{grid-template-columns:repeat(2,1fr)}.layout{grid-template-columns:1fr}.core{grid-column:auto}.modules{grid-template-columns:repeat(2,minmax(0,1fr))}.bottom{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<!-- ALARM OVERLAY -->
+<div class="alarm-overlay" id="alarmOverlay"></div>
+<div class="alarm-banner" id="alarmBanner">
+  <span class="alarm-icon">⚠</span>
+  <span id="alarmText">SECURITY BREACH DETECTED</span>
+  <span class="alarm-icon">⚠</span>
+</div>
+
+<div class="app">
+<header class="top">
+ <div class="brand"><div class="brandmark">◈</div><div><strong>ORBIT</strong><small>PRIMESTACK // INTELLIGENCE GRID</small></div></div>
+ <nav class="nav">
+   <span class="selected" onclick="setNav(this,'command')">COMMAND</span>
+   <span onclick="setNav(this,'network')">NETWORK</span>
+   <span onclick="setNav(this,'modules')">MODULES</span>
+   <span onclick="setNav(this,'security')">SECURITY</span>
+   <span onclick="setNav(this,'telemetry')">TELEMETRY</span>
+ </nav>
+ <div class="topright">
+   <span><i class="pulse" id="connPulse"></i> <span id="connStatus">CONNECTING...</span></span>
+   <button class="refresh" id="refresh">RE-SCAN ↻</button>
+   <span id="clock">--:--:-- GST</span>
+ </div>
+</header>
+
+<section class="hero">
+ <div>
+   <div class="eyebrow">GLOBAL PAYMENT INFRASTRUCTURE // COMMAND DECK 01</div>
+   <h1>PRIMESTACK <em>INTELLIGENCE</em></h1>
+   <p>Fourteen service domains. One unified operational picture.</p>
+ </div>
+ <div class="heroState">
+   CONNECTION MODE<br>
+   <b class="live" id="heroConn">INITIALIZING...</b><br>
+   <span id="heroApi">CONNECTING TO API</span>
+ </div>
+</section>
+
+<section class="overview">
+ <article class="stat"><label>SERVICES ONLINE</label><strong id="svcOnline">— / 14</strong><small id="svcOnlineNote">Checking...</small><i class="line"></i></article>
+ <article class="stat"><label>SECURITY THREATS</label><strong id="threatCount" style="color:var(--amber)">—</strong><small id="threatNote">Scanning...</small><i class="line"></i></article>
+ <article class="stat"><label>API LATENCY</label><strong id="apiLatency">— ms</strong><small>Last health check</small><i class="line"></i></article>
+ <article class="stat"><label>BREACH ALERTS</label><strong id="breachCount" style="color:var(--green)">0</strong><small id="breachNote">All clear</small><i class="line"></i></article>
+</section>
+
+<main class="layout">
+ <aside class="stack">
+  <section class="panel">
+    <div class="panelhead"><b>THREAT TELEMETRY</b><span class="tag" id="threatTag">SCANNING</span></div>
+    <div class="threatgraph"><svg viewBox="0 0 300 50" preserveAspectRatio="none" id="threatSvg"><polyline id="threatLine" points="0,35 300,35"/></svg></div>
+    <div class="miniStats">
+      <div><b id="critCount">0</b><span>CRITICAL</span></div>
+      <div><b id="highCount">0</b><span>HIGH</span></div>
+      <div><b id="medCount">0</b><span>MEDIUM</span></div>
+      <div><b id="lowCount">0</b><span>LOW</span></div>
+    </div>
+  </section>
+  <section class="panel">
+    <div class="panelhead"><b>SECURITY EVENT FEED</b><span class="tag" id="secTag">LIVE</span></div>
+    <div id="secFeed" class="breach-log">
+      <div class="breach-entry"><span class="breach-sev info">INFO</span><span>System initializing...<small>Connecting to API</small></span><time>--:--</time></div>
+    </div>
+  </section>
+ </aside>
+
+ <section class="panel core">
+   <div class="coretop">
+     <div><div class="kicker">CENTRAL OPERATIONS // 14-NODE TOPOLOGY</div><h2>UNIFIED SERVICE INTELLIGENCE CORE</h2></div>
+     <span class="tag" id="coreTag">CONNECTING</span>
+   </div>
+   <div class="coreviz">
+     <canvas id="coreCanvas"></canvas>
+     <div class="corelabel">
+       <div class="shield">⬡</div>
+       <b>PRIMESTACK CORE</b>
+       <small id="coreStatus">CONNECTING TO LIVE API...</small>
+     </div>
+     <div class="orbitInfo">
+       <span id="orbitOnline">NODES: —</span>
+       <span id="orbitData">DATA: CONNECTING</span>
+       <span>GST / UTC+4</span>
+     </div>
+   </div>
+ </section>
+
+ <aside class="stack">
+  <section class="panel">
+    <div class="panelhead"><b>AI ANALYSIS ENGINE</b><span class="tag" id="aiTag">ACTIVE</span></div>
+    <div class="aiBrain">◉</div>
+    <div class="rightMetric"><span>Behavior analysis</span><b id="aiBehav">SCANNING</b></div>
+    <div class="rightMetric"><span>Anomaly detection</span><b id="aiAnom">SCANNING</b></div>
+    <div class="rightMetric"><span>Threat correlation</span><b id="aiThreat">SCANNING</b></div>
+  </section>
+  <section class="panel">
+    <div class="panelhead"><b>NETWORK INTEGRITY</b><span class="tag" id="netTag">CHECKING</span></div>
+    <div class="rightMetric"><span>Service health</span><b id="netHealth">— / 14</b></div>
+    <div class="bar"><i id="netBar" style="width:0%"></i></div>
+    <div class="rightMetric"><span>API latency</span><b id="netLatency">— ms</b></div>
+    <div class="rightMetric"><span>Last health check</span><b id="netLastCheck">—</b></div>
+    <div class="rightMetric"><span>Failed auth attempts</span><b id="netFailedAuth" style="color:var(--amber)">—</b></div>
+  </section>
+ </aside>
+</main>
+
+<div class="matrixTitle"><h2>14 SERVICE OBJECTS // LIVE VISUAL MATRIX</h2><span id="matrixNote">CONNECTING TO LIVE ENDPOINTS</span></div>
+<section class="modules" id="modules"></section>
+
+<section class="bottom">
+ <section class="panel">
+   <div class="panelhead"><b>OPERATIONAL ACTIVITY STREAM</b><span class="tag" id="actTag">LIVE</span></div>
+   <div class="feedrows"><b>SERVICE</b><b>EVENT</b><b>SOURCE</b><em>STATE</em></div>
+   <div id="actFeed"></div>
+ </section>
+ <section class="panel">
+   <div class="panelhead"><b>INTEGRATION STATUS</b><span class="tag" id="intTag">LIVE</span></div>
+   <div class="rightMetric"><span>Health endpoint</span><b id="intHealth">CHECKING</b></div>
+   <div class="rightMetric"><span>Admin API</span><b id="intAdmin">CHECKING</b></div>
+   <div class="rightMetric"><span>Monitoring API</span><b id="intMonitor">CHECKING</b></div>
+   <div class="rightMetric"><span>Audit log</span><b id="intAudit">CHECKING</b></div>
+   <div class="rightMetric"><span>Last full scan</span><b id="intLastScan">—</b></div>
+ </section>
+</section>
+
+<footer>
+  <span>ORBIT // PRIMESTACK INTELLIGENCE <b>v2.0 LIVE CONNECTED</b></span>
+  <span id="footerStatus">CONNECTING TO LIVE API...</span>
+  <span>GST · ASIA/DUBAI</span>
+</footer>
+</div>
+
+<!-- SERVICE DETAIL MODAL -->
+<div class="detail" id="detail">
+  <div class="detailbox">
+    <button class="close" id="close">CLOSE ✕</button>
+    <div class="kicker" id="dno">SERVICE NODE</div>
+    <h3 id="dtitle">MODULE</h3>
+    <p id="ddesc"></p>
+    <div class="api" id="dapi"></div>
+    <div id="dmetrics"></div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════
+// ORBIT INTELLIGENCE — LIVE API CONNECTOR
+// Connects to PrimeStack API for real-time monitoring
+// ═══════════════════════════════════════════════════
+
+const API_BASE = window.location.origin;  // Uses same origin (dashboard proxies to API)
+const SCAN_INTERVAL = 15000;  // 15 second scan cycle
+const BREACH_SCAN_INTERVAL = 8000;  // 8 second security scan
+
+// ── State ──────────────────────────────────────────
+let state = {
+  connected: false,
+  services: {},
+  threats: { critical: 0, high: 0, medium: 0, low: 0 },
+  breaches: [],
+  latency: 0,
+  lastScan: null,
+  adminToken: null,
+  failedAuths: 0,
+  totalRequests: 0,
+  onlineCount: 0
+};
+
+// ── Service definitions ────────────────────────────
+const SERVICES = [
+  {id:'9010',name:'Ledger',   desc:'Accounts, balances and journal entries',    routes:'/ledger/accounts · /ledger/entries',    endpoint:'/ledger/accounts'},
+  {id:'9011',name:'IP Whitelist',desc:'Trusted network address policies',       routes:'/ipwhitelist/entries',                  endpoint:'/ipwhitelist/entries'},
+  {id:'9012',name:'Auth',     desc:'Identity, sessions and HMAC key admin',     routes:'/network/hmac-keys · /admin/users',     endpoint:'/admin/health'},
+  {id:'9013',name:'Terminal', desc:'Terminal registry and health',              routes:'/terminals · /terminals/:id/health',    endpoint:'/terminals'},
+  {id:'9014',name:'Transfer', desc:'Transfer lifecycle and processing',         routes:'/admin/transfers',                      endpoint:'/admin/transfers?pageSize=1'},
+  {id:'9015',name:'Risk',     desc:'Risk scoring and fraud intelligence',       routes:'/fraud/risk-scores',                    endpoint:'/fraud/rules'},
+  {id:'9016',name:'Audit',    desc:'Immutable security audit trail',           routes:'/admin/audit-logs',                     endpoint:'/admin/audit-logs?limit=5'},
+  {id:'9017',name:'Settlement',desc:'Settlement batches and reconciliation',   routes:'/settlement/batches',                   endpoint:'/settlement/batches'},
+  {id:'9018',name:'Notifications',desc:'Delivery and notification orchestration',routes:'/notifications',                      endpoint:'/notifications/health'},
+  {id:'9019',name:'Switch Core',desc:'Transaction switching and authorization', routes:'/transactions',                        endpoint:'/transactions?limit=1'},
+  {id:'9020',name:'Security', desc:'API keys, certificates and controls',      routes:'/network/api-keys',                     endpoint:'/network/api-keys'},
+  {id:'9021',name:'Routing',  desc:'Payment route configuration',              routes:'/routes · /bins',                       endpoint:'/routes'},
+  {id:'9022',name:'ISO 8583', desc:'Message parsing and host config',          routes:'/iso8583/parse · /iso8583/hosts',       endpoint:'/iso8583/hosts'},
+  {id:'9024',name:'API Gateway',desc:'Unified API ingress and reverse proxy',  routes:'/api/*',                               endpoint:'/health'}
+];
+
+// ── Clock ──────────────────────────────────────────
+function clock(){
+  document.getElementById('clock').textContent =
+    new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Dubai',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}).format(new Date())+' GST';
+}
+clock(); setInterval(clock,1000);
+
+// ── Nav ────────────────────────────────────────────
+function setNav(el){document.querySelectorAll('.nav span').forEach(s=>s.classList.remove('selected'));el.classList.add('selected');}
+
+// ── Alarm System ───────────────────────────────────
+let alarmActive = false;
+let alarmAudio = null;
+
+function triggerAlarm(severity, message) {
+  const banner = document.getElementById('alarmBanner');
+  const overlay = document.getElementById('alarmOverlay');
+  const text = document.getElementById('alarmText');
+
+  text.textContent = '⚠ ' + severity.toUpperCase() + ': ' + message + ' ⚠';
+  banner.className = 'alarm-banner active';
+  overlay.className = 'alarm-overlay active';
+  alarmActive = true;
+
+  // Audio alarm using Web Audio API
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    function beep(freq, start, dur) {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.frequency.value = freq;
+      osc.type = 'square';
+      gain.gain.setValueAtTime(0.3, ctx.currentTime + start);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + start + dur);
+      osc.start(ctx.currentTime + start);
+      osc.stop(ctx.currentTime + start + dur + 0.1);
+    }
+    // Danger alarm pattern
+    beep(880, 0, 0.15); beep(660, 0.2, 0.15); beep(880, 0.4, 0.15); beep(440, 0.6, 0.3);
+  } catch(e) {}
+
+  addSecEvent('CRIT', message, 'ALARM SYSTEM');
+
+  // Auto-dismiss after 10 seconds for non-critical
+  if (severity !== 'CRITICAL') {
+    setTimeout(() => {
+      if (!alarmActive) return;
+      banner.className = 'alarm-banner';
+      overlay.className = 'alarm-overlay';
+      alarmActive = false;
+    }, 10000);
+  }
+}
+
+function dismissAlarm() {
+  document.getElementById('alarmBanner').className = 'alarm-banner';
+  document.getElementById('alarmOverlay').className = 'alarm-overlay';
+  alarmActive = false;
+}
+document.getElementById('alarmBanner').addEventListener('click', dismissAlarm);
+
+// ── Security event feed ────────────────────────────
+let secEvents = [];
+
+function addSecEvent(severity, message, source) {
+  const time = new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Dubai',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}).format(new Date());
+  secEvents.unshift({severity, message, source, time});
+  if (secEvents.length > 50) secEvents.pop();
+  renderSecFeed();
+
+  // Update breach counter
+  if (severity === 'CRIT' || severity === 'HIGH') {
+    state.breaches.push({severity, message, time});
+    document.getElementById('breachCount').textContent = state.breaches.length;
+    document.getElementById('breachCount').style.color = 'var(--red)';
+    document.getElementById('breachNote').textContent = state.breaches.length + ' breach(es) detected';
+  }
+}
+
+function renderSecFeed() {
+  const feed = document.getElementById('secFeed');
+  feed.innerHTML = secEvents.slice(0,15).map(e => {
+    const cls = e.severity==='CRIT'?'crit':e.severity==='HIGH'?'high':e.severity==='MED'?'med':'info';
+    return `<div class="breach-entry">
+      <span class="breach-sev ${cls}">${e.severity}</span>
+      <span>${e.message}<small>${e.source}</small></span>
+      <time>${e.time}</time>
+    </div>`;
+  }).join('');
+}
+
+// ── Health check ───────────────────────────────────
+async function checkHealth() {
+  const t0 = Date.now();
+  try {
+    const r = await fetch(API_BASE + '/health', {signal: AbortSignal.timeout(5000)});
+    const ms = Date.now() - t0;
+    state.latency = ms;
+    if (r.ok) {
+      const d = await r.json();
+      state.connected = true;
+      updateConnectionUI(true, ms);
+      return d;
+    }
+  } catch(e) {
+    state.connected = false;
+    updateConnectionUI(false, 0);
+    addSecEvent('HIGH', 'API health check failed: ' + e.message, 'HEALTH MONITOR');
+    triggerAlarm('HIGH', 'API UNREACHABLE — PLATFORM MAY BE DOWN');
+  }
+  return null;
+}
+
+function updateConnectionUI(online, ms) {
+  const pulse = document.getElementById('connPulse');
+  const status = document.getElementById('connStatus');
+  const heroConn = document.getElementById('heroConn');
+  const heroApi = document.getElementById('heroApi');
+
+  if (online) {
+    pulse.className = 'pulse';
+    status.textContent = 'LIVE · ' + ms + 'ms';
+    heroConn.textContent = 'LIVE CONNECTED · ' + ms + 'ms';
+    heroConn.className = 'live';
+    heroApi.textContent = API_BASE;
+    document.getElementById('apiLatency').textContent = ms + ' ms';
+    document.getElementById('netLatency').textContent = ms + ' ms';
+    document.getElementById('coreTag').textContent = 'LIVE';
+    document.getElementById('coreTag').className = 'tag';
+    document.getElementById('orbitData').textContent = 'DATA: LIVE';
+    document.getElementById('footerStatus').textContent = 'CONNECTED · ' + API_BASE;
+    document.getElementById('intHealth').textContent = 'ONLINE';
+    document.getElementById('intHealth').style.color = 'var(--green)';
+    const now = new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Dubai',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}).format(new Date());
+    document.getElementById('netLastCheck').textContent = now;
+    document.getElementById('intLastScan').textContent = now;
+    if (ms > 2000) {
+      addSecEvent('MED', 'High API latency detected: ' + ms + 'ms', 'LATENCY MONITOR');
+    }
+  } else {
+    pulse.className = 'pulse red';
+    status.textContent = 'DISCONNECTED';
+    heroConn.textContent = 'OFFLINE — API NOT RESPONDING';
+    heroConn.style.color = 'var(--red)';
+    document.getElementById('apiLatency').textContent = '— ms';
+    document.getElementById('coreTag').textContent = 'OFFLINE';
+    document.getElementById('coreTag').className = 'tag red';
+  }
+}
+
+// ── Admin login (get JWT for protected endpoints) ──
+async function getAdminToken() {
+  // Try to get token from dashboard session via proxy
+  try {
+    const r = await fetch(API_BASE + '/api/admin/me', {signal: AbortSignal.timeout(5000)});
+    if (r.ok) {
+      state.adminToken = 'session';
+      document.getElementById('intAdmin').textContent = 'AUTHENTICATED';
+      document.getElementById('intAdmin').style.color = 'var(--green)';
+      return true;
+    }
+  } catch(e) {}
+  document.getElementById('intAdmin').textContent = 'NO SESSION';
+  document.getElementById('intAdmin').style.color = 'var(--amber)';
+  return false;
+}
+
+// ── Scan all services ──────────────────────────────
+async function scanServices() {
+  let online = 0;
+  const results = [];
+
+  const checks = SERVICES.map(async (svc, i) => {
+    const t0 = Date.now();
+    try {
+      const r = await fetch(API_BASE + '/api' + svc.endpoint, {signal: AbortSignal.timeout(6000)});
+      const ms = Date.now() - t0;
+      const ok = r.status < 500; // 401/403 means service is up but needs auth
+      state.services[svc.id] = { online: ok, latency: ms, status: r.status };
+      if (ok) online++;
+      return { idx: i, ok, ms, status: r.status };
+    } catch(e) {
+      state.services[svc.id] = { online: false, latency: 0, status: 0 };
+      addSecEvent('HIGH', svc.name + ' service unreachable', 'SERVICE MONITOR');
+      return { idx: i, ok: false, ms: 0, status: 0 };
+    }
+  });
+
+  const res = await Promise.all(checks);
+  state.onlineCount = online;
+
+  // Update overview stats
+  document.getElementById('svcOnline').textContent = online + ' / 14';
+  document.getElementById('svcOnlineNote').textContent = online === 14 ? 'All systems operational' : (14 - online) + ' service(s) offline';
+  document.getElementById('netHealth').textContent = online + ' / 14';
+  document.getElementById('netBar').style.width = Math.round(online/14*100) + '%';
+  document.getElementById('orbitOnline').textContent = 'NODES: ' + online + '/14';
+  document.getElementById('matrixNote').textContent = online + ' NODES ONLINE · ' + (14-online) + ' OFFLINE';
+  document.getElementById('coreStatus').textContent = online + ' NODES LIVE · SCANNING';
+
+  // Update module cards
+  res.forEach(r => {
+    const cards = document.querySelectorAll('.module');
+    if (!cards[r.idx]) return;
+    const card = cards[r.idx];
+    const dot = card.querySelector('.moduleState');
+    const foot = card.querySelector('.moduleFoot b');
+    if (r.ok) {
+      dot.className = 'moduleState on';
+      card.classList.add('online'); card.classList.remove('offline');
+      if (foot) { foot.textContent = r.ms + 'ms'; foot.className = 'on'; }
+    } else {
+      dot.className = 'moduleState off';
+      card.classList.add('offline'); card.classList.remove('online');
+      if (foot) { foot.textContent = 'OFFLINE'; foot.className = 'off'; }
+    }
+  });
+
+  // Trigger alarm if too many services offline
+  const offline = 14 - online;
+  if (offline >= 7) triggerAlarm('CRITICAL', offline + ' SERVICES OFFLINE — PLATFORM CRITICAL');
+  else if (offline >= 3) triggerAlarm('HIGH', offline + ' SERVICES OFFLINE');
+
+  updateActivityFeed(res);
+  return online;
+}
+
+// ── Scan audit logs for security events ───────────
+async function scanSecurity() {
+  try {
+    const r = await fetch(API_BASE + '/api/admin/audit-logs?limit=10', {signal: AbortSignal.timeout(6000)});
+    if (r.ok) {
+      const d = await r.json();
+      const logs = d?.data?.logs || d?.data || [];
+
+      // Look for suspicious events
+      let crit=0, high=0, med=0, low=0;
+      logs.forEach(log => {
+        const action = (log.action||'').toUpperCase();
+        if (action.includes('FAIL') || action.includes('BREACH') || action.includes('BLOCK') || action.includes('DENIED')) {
+          crit++;
+          addSecEvent('CRIT', log.action + ': ' + (log.resourceId||''), log.actor||'SYSTEM');
+          triggerAlarm('CRITICAL', 'SECURITY EVENT: ' + log.action);
+        } else if (action.includes('LOGIN') || action.includes('AUTH')) {
+          if (log.metadata?.success === false) {
+            high++;
+            state.failedAuths++;
+            addSecEvent('HIGH', 'Failed authentication attempt', log.actor||log.ipAddress||'UNKNOWN');
+            if (state.failedAuths >= 3) triggerAlarm('HIGH', state.failedAuths + ' FAILED AUTH ATTEMPTS DETECTED');
+          } else {
+            addSecEvent('INFO', 'Admin login: ' + (log.actor||''), log.ipAddress||'');
+          }
+        } else if (action.includes('DELETE') || action.includes('REVOKE')) {
+          med++;
+          addSecEvent('MED', log.action + ' by ' + (log.actor||''), 'AUDIT LOG');
+        } else {
+          low++;
+        }
+      });
+
+      state.threats = {critical:crit, high:high, medium:med, low:low};
+      document.getElementById('critCount').textContent = crit;
+      document.getElementById('highCount').textContent = high;
+      document.getElementById('medCount').textContent = med;
+      document.getElementById('lowCount').textContent = low;
+      document.getElementById('threatCount').textContent = crit + high + med + low;
+      document.getElementById('threatNote').textContent = crit > 0 ? 'CRITICAL THREATS ACTIVE' : high > 0 ? 'High severity events' : 'Normal activity';
+      document.getElementById('threatCount').style.color = crit > 0 ? 'var(--red)' : high > 0 ? 'var(--amber)' : 'var(--green)';
+      document.getElementById('netFailedAuth').textContent = state.failedAuths;
+
+      // Update threat graph
+      updateThreatGraph(crit + high);
+
+      // AI analysis
+      document.getElementById('aiBehav').textContent = crit > 0 ? 'ANOMALY DETECTED' : 'NORMAL';
+      document.getElementById('aiBehav').style.color = crit > 0 ? 'var(--red)' : 'var(--green)';
+      document.getElementById('aiAnom').textContent = high > 0 ? high + ' ANOMALIES' : 'CLEAR';
+      document.getElementById('aiAnom').style.color = high > 0 ? 'var(--amber)' : 'var(--green)';
+      document.getElementById('aiThreat').textContent = (crit+high) > 0 ? 'THREATS CORRELATED' : 'NO THREATS';
+      document.getElementById('aiThreat').style.color = (crit+high) > 0 ? 'var(--red)' : 'var(--green)';
+
+      document.getElementById('intAudit').textContent = logs.length + ' EVENTS';
+      document.getElementById('intAudit').style.color = 'var(--green)';
+    }
+  } catch(e) {
+    addSecEvent('MED', 'Audit log scan failed: ' + e.message, 'SECURITY SCANNER');
+  }
+
+  // Also scan monitoring endpoint
+  try {
+    const r2 = await fetch(API_BASE + '/api/monitoring/health', {signal: AbortSignal.timeout(5000)});
+    if (r2.ok) {
+      document.getElementById('intMonitor').textContent = 'ONLINE';
+      document.getElementById('intMonitor').style.color = 'var(--green)';
+    }
+  } catch(e) {}
+}
+
+// ── Threat graph ───────────────────────────────────
+let threatHistory = [];
+function updateThreatGraph(val) {
+  threatHistory.push(val);
+  if (threatHistory.length > 20) threatHistory.shift();
+  const max = Math.max(...threatHistory, 1);
+  const pts = threatHistory.map((v,i) => {
+    const x = i * (300/(threatHistory.length-1||1));
+    const y = 48 - (v/max)*42;
+    return x+','+y;
+  }).join(' ');
+  document.getElementById('threatLine').setAttribute('points', pts);
+}
+
+// ── Activity feed ──────────────────────────────────
+function updateActivityFeed(results) {
+  const feed = document.getElementById('actFeed');
+  const html = results.slice(0,8).map((r,i) => {
+    const svc = SERVICES[r.idx] || SERVICES[i];
+    const state_text = r.ok ? (r.status === 401||r.status===403 ? 'AUTH REQ' : 'ONLINE') : 'OFFLINE';
+    const state_cls = r.ok ? 'on' : 'off';
+    return `<div class="feedrows">
+      <span>${svc.name}</span>
+      <span>${r.ok ? r.ms+'ms response' : 'No response'}</span>
+      <span>${API_BASE.replace('https://','').replace('http://','')}</span>
+      <em class="${state_cls}">${state_text}</em>
+    </div>`;
+  }).join('');
+  feed.innerHTML = html;
+  document.getElementById('actTag').textContent = 'LIVE · ' + new Date().toLocaleTimeString();
+  document.getElementById('actTag').className = 'tag';
+}
+
+// ── Build module cards ─────────────────────────────
+function buildModules() {
+  const host = document.getElementById('modules');
+  SERVICES.forEach((s,i) => {
+    const card = document.createElement('article');
+    card.className = 'module'; card.tabIndex = 0;
+    card.innerHTML = `
+      <div class="moduleTop"><span class="moduleNo">NODE // ${s.id}</span><i class="moduleState"></i></div>
+      <div class="moduleName">${s.name}</div>
+      <div class="objectStage"><div class="object" style="animation-delay:${i*.13}s"></div></div>
+      <div class="moduleFoot"><span>${s.routes.split('·')[0].trim()}</span><b>—</b></div>
+      <div class="track"><i style="animation-delay:${i*.17}s"></i></div>`;
+    const open = () => showDetail(s, i);
+    card.addEventListener('click', open);
+    card.addEventListener('keydown', e => { if(e.key==='Enter'||e.key===' '){e.preventDefault();open();} });
+    host.appendChild(card);
+  });
+}
+
+function showDetail(s, idx) {
+  document.getElementById('dno').textContent = 'SERVICE NODE // ' + s.id;
+  document.getElementById('dtitle').textContent = s.name;
+  document.getElementById('ddesc').textContent = s.desc;
+  document.getElementById('dapi').textContent = 'API ROUTES: ' + s.routes + '\nENDPOINT: ' + API_BASE + '/api' + s.endpoint;
+  const svcState = state.services[s.id];
+  document.getElementById('dmetrics').innerHTML = svcState ? `
+    <div class="svc-metric"><span>Status</span><b style="color:${svcState.online?'var(--green)':'var(--red)'}">${svcState.online?'ONLINE':'OFFLINE'}</b></div>
+    <div class="svc-metric"><span>Last latency</span><b>${svcState.latency}ms</b></div>
+    <div class="svc-metric"><span>HTTP status</span><b>${svcState.status||'N/A'}</b></div>
+  ` : '<div class="svc-metric"><span>Not yet scanned</span><b>—</b></div>';
+  document.getElementById('detail').classList.add('open');
+}
+
+document.getElementById('close').onclick = () => document.getElementById('detail').classList.remove('open');
+document.getElementById('detail').addEventListener('click', e => { if(e.target.id==='detail') e.currentTarget.classList.remove('open'); });
+document.getElementById('refresh').onclick = () => runFullScan();
+
+// ── Canvas orbit visualisation ─────────────────────
+const canvas = document.getElementById('coreCanvas'), ctx = canvas.getContext('2d');
+let w=0,h=0,t=0;
+function resize(){const r=canvas.getBoundingClientRect(),d=window.devicePixelRatio||1;w=r.width;h=r.height;canvas.width=w*d;canvas.height=h*d;ctx.setTransform(d,0,0,d,0,0)}
+new ResizeObserver(resize).observe(canvas); resize();
+function draw(){
+  ctx.clearRect(0,0,w,h);
+  const cx=w/2,cy=h/2+3,rx=Math.min(w*.37,190),ry=Math.min(h*.39,125);
+  ctx.save();ctx.translate(cx,cy);
+  for(let ring=0;ring<3;ring++){ctx.beginPath();ctx.ellipse(0,0,rx*(.58+ring*.22),ry*(.58+ring*.22),ring*.45,0,Math.PI*2);ctx.strokeStyle=`rgba(36,180,238,${.22-ring*.045})`;ctx.lineWidth=1;ctx.stroke()}
+  for(let i=0;i<14;i++){
+    const a=t*.006+i*Math.PI*2/14,rad=1+Math.sin(t*.015+i)*.025,x=Math.cos(a)*rx*rad,y=Math.sin(a)*ry*rad;
+    ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(x,y);ctx.strokeStyle='rgba(35,174,235,.17)';ctx.stroke();
+    const svcId = SERVICES[i].id;
+    const svcState = state.services[svcId];
+    const online = svcState?.online;
+    const color = online === true ? '#38e0ad' : online === false ? '#ff465e' : '#54eaff';
+    ctx.beginPath();ctx.arc(x,y,3.1+(Math.sin(t*.04+i)+1)*1.1,0,Math.PI*2);
+    ctx.fillStyle=color;ctx.shadowBlur=12;ctx.shadowColor=ctx.fillStyle;ctx.fill();ctx.shadowBlur=0;
+    const px=Math.cos(a+t*.002)*rx*.64,py=Math.sin(a+t*.002)*ry*.64;
+    ctx.beginPath();ctx.arc(px,py,1.6,0,Math.PI*2);ctx.fillStyle='#b6f8ff';ctx.fill();
+  }
+  ctx.restore();t++;requestAnimationFrame(draw);
+}
+draw();
+
+// ── Full scan ──────────────────────────────────────
+async function runFullScan() {
+  document.getElementById('connStatus').textContent = 'SCANNING...';
+  addSecEvent('INFO', 'Full system scan initiated', 'ORBIT INTELLIGENCE');
+  await checkHealth();
+  await getAdminToken();
+  await scanServices();
+  await scanSecurity();
+  state.lastScan = new Date();
+  addSecEvent('INFO', 'Full scan complete · ' + state.onlineCount + '/14 online', 'ORBIT INTELLIGENCE');
+}
+
+// ── Continuous security watch ──────────────────────
+function startSecurityWatch() {
+  // Monitor for unusual activity patterns
+  let lastFailCount = 0;
+  setInterval(async () => {
+    if (!state.connected) return;
+    // Re-scan security events
+    await scanSecurity();
+    // Check if failed auth increased
+    if (state.failedAuths > lastFailCount) {
+      const delta = state.failedAuths - lastFailCount;
+      if (delta >= 2) triggerAlarm('HIGH', delta + ' NEW FAILED AUTH ATTEMPTS — POSSIBLE BRUTE FORCE');
+      lastFailCount = state.failedAuths;
+    }
+  }, BREACH_SCAN_INTERVAL);
+}
+
+// ── Init ───────────────────────────────────────────
+buildModules();
+addSecEvent('INFO', 'ORBIT Intelligence v2.0 initialized', 'SYSTEM');
+addSecEvent('INFO', 'Connecting to ' + API_BASE, 'API CONNECTOR');
+
+// Initial scan
+runFullScan().then(() => {
+  // Start continuous scanning
+  setInterval(runFullScan, SCAN_INTERVAL);
+  startSecurityWatch();
+});
+</script>
+</body>
+</html>
