@@ -201,9 +201,8 @@ export class TransferService {
   /**
    * Submit an external payout (bank account or crypto wallet).
    *
-   * Payouts always move money out of the platform, so every one of them is held
-   * as PENDING until an administrator approves it. No journal entry is posted
-   * and no balance moves at this point.
+   * Payouts execute immediately: the journal entry is posted and the transfer
+   * is marked COMPLETED on submission, with no administrator approval step.
    */
   async createPayout(input: CreatePayoutInput) {
     const amount = new Decimal(input.amount);
@@ -240,18 +239,22 @@ export class TransferService {
 
     const commission = amount.times(PLATFORM_COMMISSION_RATE);
     const reference = generateReference("PAY");
+    const { profile, accountCode: commissionAccountCode } =
+      await this.resolveCommissionAccount(currency);
 
     const transfer = await this.prisma.transfer.create({
       data: {
         reference,
         type: input.type,
-        status: "PENDING",
-        approvalStatus: "PENDING",
+        status: "PROCESSING",
+        approvalStatus: "APPROVED",
         amount: amount.toNumber(),
         currency,
         feeAmount: 0,
         netAmount: amount.minus(commission).toNumber(),
         commissionAmount: commission.toNumber(),
+        commissionAccountId: commissionAccountCode,
+        commissionProfileId: profile.id,
         sourceType: "MERCHANT",
         sourceId: merchant.id,
         destType: "BANK",
@@ -264,12 +267,68 @@ export class TransferService {
       },
     });
 
-    logger.info(
-      { reference, amount: amount.toString(), currency, merchantId: merchant.id },
-      "Payout submitted for administrator approval",
-    );
+    try {
+      const journalEntry = await this.ledgerService.postEntry({
+        reference: `JE-${reference}`,
+        entryType: "TRANSFER",
+        description: `Payout: ${input.description ?? reference}`,
+        source: input.type,
+        lines: [
+          {
+            accountCode: sourceAccountCode,
+            debit: amount.toString(),
+            credit: "0",
+          },
+          {
+            accountCode: payoutAccountCode,
+            debit: "0",
+            credit: amount.minus(commission).toString(),
+          },
+          {
+            accountCode: commissionAccountCode,
+            debit: "0",
+            credit: commission.toString(),
+          },
+        ],
+        postedBy: merchant.id,
+      });
 
-    return transfer;
+      const completed = await this.prisma.transfer.update({
+        where: { id: transfer.id },
+        data: {
+          status: "COMPLETED",
+          journalEntryRef: journalEntry.reference,
+          processedAt: new Date(),
+          completedAt: new Date(),
+        },
+      });
+
+      logger.info(
+        {
+          reference,
+          amount: amount.toString(),
+          currency,
+          merchantId: merchant.id,
+          commission: commission.toString(),
+        },
+        "Payout executed without approval",
+      );
+
+      return completed;
+    } catch (error) {
+      await this.prisma.transfer.update({
+        where: { id: transfer.id },
+        data: {
+          status: "FAILED",
+          failureReason:
+            error instanceof Error ? error.message : "Unknown error",
+          processedAt: new Date(),
+        },
+      });
+
+      logger.error({ err: error, reference }, "Payout failed");
+      throw error;
+    }
   }
 
   /**

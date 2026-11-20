@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>PrimeStack — Server Fund Load Complete Guide</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Inter',Arial,sans-serif;color:#1a2332;background:#fff;font-size:13px}
+  .page{width:794px;margin:0 auto;padding:60px 64px}
+  .header{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #003B70;padding-bottom:24px;margin-bottom:32px}
+  .logo{font-size:20px;font-weight:800;color:#003B70;letter-spacing:-.03em}
+  .logo span{color:#E2B93B}
+  .doc-meta{text-align:right;font-size:11px;color:#64748b;line-height:1.8}
+  .chapter{margin:0 0 48px;page-break-before:always}
+  .chapter:first-of-type{page-break-before:auto}
+  .chapter-header{background:#003B70;color:#fff;padding:20px 24px;border-radius:10px;margin-bottom:24px;display:flex;align-items:center;gap:14px}
+  .chapter-icon{font-size:28px}
+  .chapter-title{font-size:18px;font-weight:800;letter-spacing:-.02em}
+  .chapter-sub{font-size:12px;opacity:.8;margin-top:3px}
+  .section{margin-bottom:22px}
+  .section-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#003B70;border-left:3px solid #E2B93B;padding-left:10px;margin-bottom:12px}
+  table{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:12px}
+  th{background:#003B70;color:#fff;padding:8px 12px;text-align:left;font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:.05em}
+  td{padding:8px 12px;border-bottom:1px solid #E5E7EB;vertical-align:top}
+  tr:nth-child(even) td{background:#F8FAFC}
+  td:first-child{font-weight:600;color:#003B70;width:36%}
+  .required{color:#b50909;font-size:10px;font-weight:700}
+  .optional{color:#64748b;font-size:10px}
+  .step{display:flex;gap:14px;margin-bottom:14px;align-items:flex-start}
+  .step-num{flex-shrink:0;width:26px;height:26px;background:#003B70;color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700}
+  .step-body{flex:1}
+  .step-title{font-weight:700;color:#1a2332;font-size:12.5px;margin-bottom:2px}
+  .step-desc{color:#64748b;font-size:11.5px;line-height:1.6}
+  .alert{border-radius:7px;padding:11px 14px;font-size:12px;line-height:1.6;margin-bottom:12px;display:flex;gap:9px}
+  .alert-info{background:#EFF6FF;border:1px solid #BFDBFE;color:#1e40af}
+  .alert-warn{background:#FFFBEB;border:1px solid #FDE68A;color:#92400e}
+  .alert-success{background:#F0FDF4;border:1px solid #BBF7D0;color:#166534}
+  .alert-icon{font-size:15px;flex-shrink:0}
+  code{background:#F1F5F9;border:1px solid #E2E8F0;border-radius:4px;padding:1px 5px;font-family:'Courier New',monospace;font-size:10.5px;color:#003B70}
+  .ledger-box{background:#0f1f35;border-radius:8px;padding:16px 18px;margin-bottom:12px;color:#e2e8f0;font-family:'Courier New',monospace;font-size:11.5px;line-height:1.9}
+  .ledger-box .debit{color:#f87171}
+  .ledger-box .credit{color:#4ade80}
+  .ledger-box .label{color:#94a3b8;font-size:10px}
+  .flow{display:flex;align-items:center;gap:0;margin-bottom:16px;flex-wrap:wrap}
+  .flow-box{background:#003B70;color:#fff;padding:9px 13px;border-radius:6px;font-size:10.5px;font-weight:700;text-align:center;min-width:88px}
+  .flow-arrow{color:#E2B93B;font-size:18px;padding:0 6px;font-weight:700}
+  .flow-box.gold{background:#E2B93B;color:#1a2332}
+  .flow-box.green{background:#166534;color:#fff}
+  .flow-box.blue{background:#1d4ed8;color:#fff}
+  .flow-box.cyan{background:#0891b2;color:#fff}
+  .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
+  .mini-card{background:#F8FAFC;border:1px solid #E2E8F0;border-radius:7px;padding:12px 14px}
+  .mini-card-title{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#64748b;margin-bottom:5px}
+  .mini-card-val{font-size:12.5px;font-weight:700;color:#003B70}
+  .divider{border:none;border-top:1px solid #E5E7EB;margin:20px 0}
+  .footer{border-top:1px solid #D9E1E8;margin-top:40px;padding-top:14px;display:flex;justify-content:space-between;font-size:10px;color:#94A3B8}
+  .toc-item{display:flex;align-items:center;padding:9px 0;border-bottom:1px solid #f1f5f9;font-size:12.5px}
+  .toc-icon{font-size:18px;margin-right:12px;width:28px}
+  .toc-name{font-weight:700;color:#003B70;flex:1}
+  .toc-page{color:#94a3b8;font-size:11px}
+</style>
+</head>
+<body>
+<div class="page">
+
+<!-- COVER -->
+<div class="header">
+  <div>
+    <div class="logo">Prime<span>Stack</span></div>
+    <div style="font-size:10px;color:#94a3b8;margin-top:3px">Global Server Network</div>
+  </div>
+  <div class="doc-meta">
+    Document Type: Fund Load Operations Guide<br>
+    Version: 1.0 — November 2026<br>
+    Classification: Confidential — Internal Use
+  </div>
+</div>
+
+<div style="text-align:center;padding:20px 0 32px">
+  <div style="font-size:28px;font-weight:800;color:#003B70;letter-spacing:-.03em">Server Fund Load</div>
+  <div style="font-size:28px;font-weight:800;color:#E2B93B;letter-spacing:-.03em">Complete Operations Guide</div>
+  <div style="font-size:14px;color:#64748b;margin-top:10px">How real money flows into the PrimeStack platform from every server type</div>
+</div>
+
+<!-- TOC -->
+<div style="background:#F0F5FB;border:1px solid #D9E1E8;border-radius:10px;padding:20px 24px;margin-bottom:32px">
+  <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#003B70;margin-bottom:14px">Contents</div>
+  <div class="toc-item"><span class="toc-icon">🌐</span><span class="toc-name">1. Global Server Fund Load</span><span class="toc-page">PGSN — Real-time gross settlement</span></div>
+  <div class="toc-item"><span class="toc-icon">💳</span><span class="toc-name">2. Visa Server Funds</span><span class="toc-page">VSS — Card network clearing settlement</span></div>
+  <div class="toc-item"><span class="toc-icon">🏦</span><span class="toc-name">3. M1 Server Fund Load</span><span class="toc-page">Institutional private banking server</span></div>
+  <div class="toc-item" style="border:none"><span class="toc-icon">💰</span><span class="toc-name">4. M1 Funds — Direct Transfer</span><span class="toc-page">M1 wallet direct confirmation</span></div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     CHAPTER 1 — GLOBAL SERVER
+═══════════════════════════════════════════════════ -->
+<div class="chapter">
+  <div class="chapter-header">
+    <div class="chapter-icon">🌐</div>
+    <div>
+      <div class="chapter-title">Chapter 1 — Global Server Fund Load</div>
+      <div class="chapter-sub">PrimeStack Global Settlement Network (PGSN) — Real-Time Gross Settlement</div>
+    </div>
+  </div>
+
+  <div class="alert alert-info">
+    <span class="alert-icon">ℹ</span>
+    <div>The Global Server is the primary correspondent network node. It sends large settlement batches to your platform via the PGSN protocol over TLS 1.3. Every load creates an immutable ledger entry. Minimum transfer: $10,000. Max per transaction: unlimited.</div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">How Real Money Flows</div>
+    <div class="flow">
+      <div class="flow-box">Global Node<br><span style="font-size:9px;opacity:.8">PGSN Network</span></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box gold">TLS 1.3<br><span style="font-size:9px">Port 9443</span></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box">Auth Check<br><span style="font-size:9px;opacity:.8">API Key + IP</span></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box">Ledger Post<br><span style="font-size:9px;opacity:.8">Double Entry</span></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box green">Reserve<br><span style="font-size:9px;opacity:.8">Funded ✓</span></div>
+    </div>
+
+    <div class="ledger-box">
+      <div class="label">// LEDGER ENTRY CREATED ON LOAD</div>
+      <div class="debit">DEBIT  &nbsp;GLOBAL:SERVER:INCOMING &nbsp;&nbsp;&nbsp;$500,000.00 USD</div>
+      <div class="credit">CREDIT &nbsp;PLATFORM:RESERVE:USD &nbsp;&nbsp;&nbsp;&nbsp;$500,000.00 USD</div>
+      <div class="label" style="margin-top:6px">Ref: GS-TXN-2026-001 | Node: GSN-001 | Officer: [Name] | 2026-11-20T15:00:00Z</div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">What You Need from the Global Server Operator</div>
+    <table>
+      <tr><th>Credential</th><th>Description</th><th>Format</th><th>Status</th></tr>
+      <tr><td>Global Server Host</td><td>Hostname of the PGSN node</td><td><code>global.switch.primestack.io</code></td><td><span class="required">REQUIRED</span></td></tr>
+      <tr><td>Server Port</td><td>TLS port</td><td><code>9443</code></td><td><span class="required">REQUIRED</span></td></tr>
+      <tr><td>Node ID</td><td>Unique node identifier</td><td><code>GSN-001</code></td><td><span class="required">REQUIRED</span></td></tr>
+      <tr><td>Auth Token / API Key</td><td>Issued by global server operator</td><td><code>gsk_live_xxxxxxxxxxxx</code></td><td><span class="required">REQUIRED</span></td></tr>
+      <tr><td>Source Account Code</td><td>Account to debit on global server</td><td><code>GLOBAL:RESERVE:USD</code></td><td><span class="required">REQUIRED</span></td></tr>
+      <tr><td>Global Reference / Tx ID</td><td>Unique transaction reference</td><td><code>GS-TXN-2026-001</code></td><td><span class="required">REQUIRED</span></td></tr>
+      <tr><td>Settlement Amount</td><td>Agreed settlement amount</td><td>Decimal, 2 places</td><td><span class="required">REQUIRED</span></td></tr>
+      <tr><td>Authorizing Officer</td><td>Name of approving officer</td><td>Full name + title</td><td><span class="required">REQUIRED</span></td></tr>
+    </table>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Step-by-Step in Dashboard</div>
+    <div class="step"><div class="step-num">1</div><div class="step-body"><div class="step-title">Log in → Platform → Server Funds → 🌐 Global Server tab</div><div class="step-desc">Admin dashboard at <strong>http://localhost:9006/login</strong>. Navigate to Platform → Server Funds.</div></div></div>
+    <div class="step"><div class="step-num">2</div><div class="step-body"><div class="step-title">Enter Amount and Currency</div><div class="step-desc">Type the agreed settlement amount. Select USD, EUR, GBP, AED, NGN, or KES. Use Quick Amount buttons for common values ($50K–$5M).</div></div></div>
+    <div class="step"><div class="step-num">3</div><div class="step-body"><div class="step-title">Enter Global Server Credentials</div><div class="step-desc">Host, Port, Node ID, and Auth Token from the global server operator. These are issued separately — keep them secret.</div></div></div>
+    <div class="step"><div class="step-num">4</div><div class="step-body"><div class="step-title">Set Source and Destination Accounts</div><div class="step-desc">Source: the account code on the global server (e.g. <code>GLOBAL:RESERVE:USD</code>). Destination: <code>PLATFORM:RESERVE:USD</code> for main reserve.</div></div></div>
+    <div class="step"><div class="step-num">5</div><div class="step-body"><div class="step-title">Enter Reference, Date, and Officer Name</div><div class="step-desc">Paste the global reference/transaction ID. Set settlement date. Enter the full name of the authorizing officer — this is recorded permanently.</div></div></div>
+    <div class="step"><div class="step-num">6</div><div class="step-body"><div class="step-title">Review Ledger Preview → Click Load</div><div class="step-desc">System shows DEBIT/CREDIT preview. Confirm amounts, then click <strong>🌐 Load from Global Server</strong>. Entry is posted immediately and cannot be reversed without an audit entry.</div></div></div>
+    <div class="step"><div class="step-num">7</div><div class="step-body"><div class="step-title">Verify Balance</div><div class="step-desc">Go to <strong>Platform → Server Funds → 📊 Global Server Balance</strong> tab. Query <code>PLATFORM:RESERVE:USD</code> to confirm balance increased.</div></div></div>
+  </div>
+
+  <div class="grid-2">
+    <div class="mini-card"><div class="mini-card-title">Protocol</div><div class="mini-card-val">PGSN over TLS 1.3</div></div>
+    <div class="mini-card"><div class="mini-card-title">Port</div><div class="mini-card-val">9443</div></div>
+    <div class="mini-card"><div class="mini-card-title">Settlement</div><div class="mini-card-val">Real-Time Gross (RTGS)</div></div>
+    <div class="mini-card"><div class="mini-card-title">Auth Method</div><div class="mini-card-val">API Key + IP Whitelist</div></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     CHAPTER 2 — VISA SERVER
+═══════════════════════════════════════════════════ -->
+<div class="chapter">
+  <div class="chapter-header" style="background:#1d4ed8">
+    <div class="chapter-icon">💳</div>
+    <div>
+      <div class="chapter-title">Chapter 2 — Visa Server Fund Load</div>
+      <div class="chapter-sub">Visa Settlement Service (VSS) — Card Network Clearing and Interchange</div>
+    </div>
+  </div>
+
+  <div class="alert alert-info">
+    <span class="alert-icon">ℹ</span>
+    <div>Visa Server Fund Load records incoming clearing and settlement funds from the Visa card network. This covers daily clearing settlements, interchange fee settlements, chargeback settlements, and network bonus payments. Requires Visa VSS credentials issued by Visa directly or your acquiring bank.</div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">How Real Money Flows</div>
+    <div class="flow">
+      <div class="flow-box blue">Visa Net<br><span style="font-size:9px;opacity:.8">Card Network</span></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box gold">VSS File<br><span style="font-size:9px">Settlement</span></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box">Acquiring Bank<br><span style="font-size:9px;opacity:.8">Fed Reserve</span></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box">Platform<br><span style="font-size:9px;opacity:.8">Reserve</span></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box green">Ledger<br><span style="font-size:9px;opacity:.8">Credited ✓</span></div>
+    </div>
+
+    <div class="ledger-box">
+      <div class="label">// LEDGER ENTRY — VISA CLEARING SETTLEMENT</div>
+      <div class="debit">DEBIT  &nbsp;VISA:NETWORK:SETTLEMENT &nbsp;&nbsp;$250,000.00 USD</div>
+      <div class="credit">CREDIT &nbsp;VISA:CLEARING:USD &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;$250,000.00 USD</div>
+      <div class="label" style="margin-top:6px">Type: CLEARING | File: VSF-20261026-001 | VMID: 123456789012 | 2026-11-20</div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">What You Need from Visa / Acquiring Bank</div>
+    <table>
+      <tr><th>Credential / Info</th><th>Description</th><th>Format</th><th>Status</th></tr>
+      <tr><td>Visa Merchant ID (VMID)</td><td>Your 12-digit Visa Merchant ID</td><td><code>123456789012</code></td><td><span class="required">REQUIRED</span></td></tr>
+      <tr><td>VSS Auth Token</td><td>Visa Settlement Service OAuth2 token</td><td><code>vss_live_xxxxxxxxxxxx</code></td><td><span class="required">REQUIRED</span></td></tr>
+      <tr><td>VSS Endpoint</td><td>Visa Settlement Service host</td><td><code>vss.visa.com</code></td><td><span class="required">REQUIRED</span></td></tr>
+      <tr><td>Settlement File Number</td><td>VSS batch file reference</td><td><code>VSF-20261026-001</code></td><td><span class="required">REQUIRED</span></td></tr>
+      <tr><td>Settlement Type</td><td>Type of Visa settlement</td><td>CLEARING / INTERCHANGE / CHARGEBACK</td><td><span class="required">REQUIRED</span></td></tr>
+      <tr><td>Settlement Cycle</td><td>Settlement timing</td><td>T+0 / T+1 / T+2 / WEEKLY</td><td><span class="required">REQUIRED</span></td></tr>
+      <tr><td>BIN Range</td><td>Card BIN range covered</td><td><code>411111-411199</code> or ALL</td><td><span class="optional">OPTIONAL</span></td></tr>
+      <tr><td>Settlement Reference</td><td>Unique settlement reference</td><td><code>VISA-STL-2026-001</code></td><td><span class="required">REQUIRED</span></td></tr>
+      <tr><td>Settlement Amount</td><td>Net clearing amount</td><td>Decimal, 2 places</td><td><span class="required">REQUIRED</span></td></tr>
+      <tr><td>Authorized By</td><td>Settlement officer name</td><td>Full name</td><td><span class="required">REQUIRED</span></td></tr>
+    </table>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Settlement Types Explained</div>
+    <table>
+      <tr><th>Type</th><th>When It Happens</th><th>Typical Amount</th></tr>
+      <tr><td>Clearing Settlement</td><td>Daily — net of all card transactions processed</td><td>Varies by volume</td></tr>
+      <tr><td>Interchange Fee</td><td>Monthly — Visa pays interchange to card issuers</td><td>% of transaction volume</td></tr>
+      <tr><td>Chargeback Settlement</td><td>On dispute resolution — Visa debits/credits chargebacks</td><td>Per disputed amount</td></tr>
+      <tr><td>Reversal Settlement</td><td>On reversal processing — corrects prior settlement</td><td>Per reversal</td></tr>
+      <tr><td>Network Bonus</td><td>Quarterly — Visa incentive payments for volume milestones</td><td>Negotiated amount</td></tr>
+    </table>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Step-by-Step in Dashboard</div>
+    <div class="step"><div class="step-num">1</div><div class="step-body"><div class="step-title">Platform → Server Funds → 💳 Visa Server Funds tab</div><div class="step-desc">Log in to admin dashboard. Navigate to Platform → Server Funds → Visa Server Funds.</div></div></div>
+    <div class="step"><div class="step-num">2</div><div class="step-body"><div class="step-title">Enter Amount, Currency, and Settlement Type</div><div class="step-desc">Enter the net settlement amount from your VSS file. Select settlement type (Clearing, Interchange, etc.) and cycle (T+0/T+1).</div></div></div>
+    <div class="step"><div class="step-num">3</div><div class="step-body"><div class="step-title">Enter VMID, VSS Token, and File Number</div><div class="step-desc">Your 12-digit Visa Merchant ID, VSS OAuth2 token, and the settlement file number from the VSS batch file.</div></div></div>
+    <div class="step"><div class="step-num">4</div><div class="step-body"><div class="step-title">Enter BIN Range and Settlement Reference</div><div class="step-desc">BIN range covered by this settlement. Settlement reference for reconciliation.</div></div></div>
+    <div class="step"><div class="step-num">5</div><div class="step-body"><div class="step-title">Select Destination and Enter Officer</div><div class="step-desc">Choose <code>VISA:CLEARING:USD</code> for Visa-specific pool or <code>PLATFORM:RESERVE:USD</code> for main reserve. Enter authorizing officer name.</div></div></div>
+    <div class="step"><div class="step-num">6</div><div class="step-body"><div class="step-title">Click 💳 Load Visa Settlement Funds</div><div class="step-desc">Ledger entry posted: DEBIT <code>VISA:NETWORK:SETTLEMENT</code> → CREDIT destination account.</div></div></div>
+  </div>
+
+  <div class="grid-2">
+    <div class="mini-card"><div class="mini-card-title">Auth Method</div><div class="mini-card-val">OAuth2 + mTLS Certificate</div></div>
+    <div class="mini-card"><div class="mini-card-title">Settlement</div><div class="mini-card-val">T+0 same day available</div></div>
+    <div class="mini-card"><div class="mini-card-title">Route</div><div class="mini-card-val">Visa Net → Fed Reserve → Platform</div></div>
+    <div class="mini-card"><div class="mini-card-title">VSS Port</div><div class="mini-card-val">443 (HTTPS)</div></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     CHAPTER 3 — M1 SERVER
+═══════════════════════════════════════════════════ -->
+<div class="chapter">
+  <div class="chapter-header" style="background:#0891b2">
+    <div class="chapter-icon">🏦</div>
+    <div>
+      <div class="chapter-title">Chapter 3 — M1 Server Fund Load</div>
+      <div class="chapter-sub">M1 Private Banking Server — Institutional Correspondent Banking</div>
+    </div>
+  </div>
+
+  <div class="alert alert-info">
+    <span class="alert-icon">ℹ</span>
+    <div>M1 Server is a dedicated private banking server for institutional transactions. It supports settlement transfers, liquidity injections, nostro account pulls, correspondent banking, and reserve replenishment. Minimum $10,000. Maximum $50,000,000 per transaction. Authenticated via API Key + Secret Token (HMAC-SHA512) + mTLS certificate.</div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">How Real Money Flows</div>
+    <div class="flow">
+      <div class="flow-box cyan">M1 Private<br><span style="font-size:9px;opacity:.8">Institution</span></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box gold">mTLS<br><span style="font-size:9px">Port 8443</span></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box">HMAC-SHA512<br><span style="font-size:9px;opacity:.8">Verified</span></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box">Bridge<br><span style="font-size:9px;opacity:.8">Institutional</span></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box green">Platform<br><span style="font-size:9px;opacity:.8">Reserve ✓</span></div>
+    </div>
+
+    <div class="ledger-box">
+      <div class="label">// LEDGER ENTRY — M1 SERVER LOAD</div>
+      <div class="debit">DEBIT  &nbsp;M1:INSTITUTIONAL:INCOMING &nbsp;$1,000,000.00 USD</div>
+      <div class="credit">CREDIT &nbsp;M1:CLEARING:USD &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;$1,000,000.00 USD</div>
+      <div class="label" style="margin-top:6px">Type: SETTLEMENT | Ref: M1-REF-20261026-001 | Inst: M1-INST-001 | 2026-11-20</div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">What You Need from M1 Server Operator</div>
+    <table>
+      <tr><th>Credential</th><th>Description</th><th>Format</th><th>Status</th></tr>
+      <tr><td>M1 Server Host</td><td>M1 private server hostname</td><td><code>m1.private.primestack.io</code></td><td><span class="required">REQUIRED</span></td></tr>
+      <tr><td>M1 Server Port</td><td>mTLS connection port</td><td><code>8443</code></td><td><span class="required">REQUIRED</span></td></tr>
+      <tr><td>M1 Institution Code</td><td>Your institution identifier on M1</td><td><code>M1-INST-001</code></td><td><span class="required">REQUIRED</span></td></tr>
+      <tr><td>M1 API Key</td><td>Primary API key</td><td><code>m1k_live_xxxxxxxxxxxx</code></td><td><span class="required">REQUIRED</span></td></tr>
+      <tr><td>M1 Secret Token</td><td>HMAC-SHA512 signing secret</td><td><code>m1s_xxxxxxxxxxxx</code></td><td><span class="required">REQUIRED</span></td></tr>
+      <tr><td>Source Account on M1</td><td>Account code on M1 to pull from</td><td><code>M1:ACCOUNT:USD:001</code></td><td><span class="required">REQUIRED</span></td></tr>
+      <tr><td>M1 Reference Number</td><td>Unique transaction reference</td><td><code>M1-REF-20261026-001</code></td><td><span class="required">REQUIRED</span></td></tr>
+      <tr><td>Transfer Type</td><td>Purpose of the transfer</td><td>SETTLEMENT / LIQUIDITY / NOSTRO</td><td><span class="required">REQUIRED</span></td></tr>
+      <tr><td>Authorizing Officer</td><td>Treasury officer name</td><td>Full name + title</td><td><span class="required">REQUIRED</span></td></tr>
+    </table>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Transfer Types</div>
+    <table>
+      <tr><th>Type</th><th>Use Case</th></tr>
+      <tr><td>Settlement Transfer</td><td>End-of-day net settlement from M1 clearing pool</td></tr>
+      <tr><td>Liquidity Injection</td><td>Emergency liquidity provision to maintain platform float</td></tr>
+      <tr><td>Nostro Account Pull</td><td>Pull funds from your nostro account held at M1</td></tr>
+      <tr><td>Correspondent Banking</td><td>Correspondent bank sends funds via M1 bridge</td></tr>
+      <tr><td>Reserve Replenishment</td><td>Top up platform reserve to maintain required ratio</td></tr>
+    </table>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Step-by-Step in Dashboard</div>
+    <div class="step"><div class="step-num">1</div><div class="step-body"><div class="step-title">Platform → Server Funds → 🏦 M1 Server tab</div><div class="step-desc">Admin dashboard → Platform → Server Funds → M1 Server.</div></div></div>
+    <div class="step"><div class="step-num">2</div><div class="step-body"><div class="step-title">Enter Amount, Currency, Transfer Type</div><div class="step-desc">Amount (min $10,000). Select currency. Select transfer type (Settlement, Liquidity, Nostro, etc.).</div></div></div>
+    <div class="step"><div class="step-num">3</div><div class="step-body"><div class="step-title">Enter M1 Server Credentials</div><div class="step-desc">Host, Port, Institution Code, API Key, and Secret Token. All issued by M1 server operator.</div></div></div>
+    <div class="step"><div class="step-num">4</div><div class="step-body"><div class="step-title">Enter Source Account and Reference</div><div class="step-desc">M1 source account code, M1 reference number, and value date.</div></div></div>
+    <div class="step"><div class="step-num">5</div><div class="step-body"><div class="step-title">Select Destination and Enter Officer</div><div class="step-desc"><code>M1:CLEARING:USD</code> for M1-specific pool or <code>PLATFORM:RESERVE:USD</code> for main reserve.</div></div></div>
+    <div class="step"><div class="step-num">6</div><div class="step-body"><div class="step-title">Click 🏦 Load from M1 Server</div><div class="step-desc">Ledger entry: DEBIT <code>M1:INSTITUTIONAL:INCOMING</code> → CREDIT destination. Audit event logged with IP, officer, timestamp.</div></div></div>
+  </div>
+
+  <div class="grid-2">
+    <div class="mini-card"><div class="mini-card-title">Auth</div><div class="mini-card-val">API Key + HMAC-SHA512 + mTLS</div></div>
+    <div class="mini-card"><div class="mini-card-title">Port</div><div class="mini-card-val">8443 (mTLS)</div></div>
+    <div class="mini-card"><div class="mini-card-title">Min Transfer</div><div class="mini-card-val">$10,000 USD equivalent</div></div>
+    <div class="mini-card"><div class="mini-card-title">Max per Tx</div><div class="mini-card-val">$50,000,000 USD</div></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     CHAPTER 4 — M1 FUNDS DIRECT
+═══════════════════════════════════════════════════ -->
+<div class="chapter">
+  <div class="chapter-header" style="background:#059669">
+    <div class="chapter-icon">💰</div>
+    <div>
+      <div class="chapter-title">Chapter 4 — M1 Funds Direct Transfer</div>
+      <div class="chapter-sub">M1 Wallet Direct — Manual Confirmation Receipt</div>
+    </div>
+  </div>
+
+  <div class="alert alert-warn">
+    <span class="alert-icon">⚠</span>
+    <div><strong>Manual Process:</strong> M1 Funds Direct does NOT auto-pull from M1. The sender initiates the transfer on their M1 account and provides you with a confirmation number. You then record it in PrimeStack. Always verify the confirmation number against the actual M1 transaction before crediting.</div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">How Real Money Flows</div>
+    <div class="flow">
+      <div class="flow-box cyan">M1 Wallet<br><span style="font-size:9px;opacity:.8">Sender</span></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box gold">Initiates<br><span style="font-size:9px">on M1 App</span></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box">Sends Conf#<br><span style="font-size:9px;opacity:.8">to You</span></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box">You Verify<br><span style="font-size:9px;opacity:.8">+ Record</span></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box green">Ledger<br><span style="font-size:9px;opacity:.8">Credited ✓</span></div>
+    </div>
+
+    <div class="ledger-box">
+      <div class="label">// LEDGER ENTRY — M1 DIRECT RECEIPT</div>
+      <div class="debit">DEBIT  &nbsp;M1:DIRECT:INCOMING &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;$75,000.00 USD</div>
+      <div class="credit">CREDIT &nbsp;PLATFORM:RESERVE:USD &nbsp;&nbsp;&nbsp;&nbsp;$75,000.00 USD</div>
+      <div class="label" style="margin-top:6px">Wallet: M1W-0000001234 | Conf: M1CONF-20261026-XXXXXXXXXX | Type: WALLET_TRANSFER</div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">What You Need from the M1 Sender</div>
+    <table>
+      <tr><th>Information</th><th>Description</th><th>Format</th><th>Status</th></tr>
+      <tr><td>M1 Wallet ID</td><td>Sender's M1 wallet identifier</td><td><code>M1W-0000001234</code></td><td><span class="required">REQUIRED</span></td></tr>
+      <tr><td>Account Holder Name</td><td>Full legal name on M1 account</td><td>Robert Smith / Acme Corp</td><td><span class="required">REQUIRED</span></td></tr>
+      <tr><td>M1 Confirmation Number</td><td>M1 sends via email/SMS after transfer</td><td><code>M1CONF-20261026-XXXXXXXXXX</code></td><td><span class="required">REQUIRED</span></td></tr>
+      <tr><td>M1 Transaction Hash</td><td>On-chain hash (for crypto M1 transfers)</td><td><code>0x...</code></td><td><span class="optional">OPTIONAL</span></td></tr>
+      <tr><td>Transfer Date + Time</td><td>When M1 confirmed the send</td><td><code>2026-11-20 15:00</code></td><td><span class="required">REQUIRED</span></td></tr>
+      <tr><td>Fund Type</td><td>How they sent from M1</td><td>Wallet / Debit Card / ACH / Wire / Crypto</td><td><span class="required">REQUIRED</span></td></tr>
+      <tr><td>Amount + Currency</td><td>Exact amount sent</td><td>Decimal + ISO 4217</td><td><span class="required">REQUIRED</span></td></tr>
+      <tr><td>Purpose of Transfer</td><td>Business reason</td><td>Platform funding, settlement, etc.</td><td><span class="required">REQUIRED</span></td></tr>
+    </table>
+  </div>
+
+  <div class="section">
+    <div class="section-title">M1 Fund Types</div>
+    <table>
+      <tr><th>Type</th><th>How Sender Initiates</th><th>Your Verification</th></tr>
+      <tr><td>M1 Wallet Transfer</td><td>M1 app → Send → Enter your M1 Wallet ID</td><td>Confirm on M1 dashboard, check wallet balance</td></tr>
+      <tr><td>M1 Debit Card Load</td><td>Loads from debit card into M1, then sends</td><td>Conf# + card last 4 digits</td></tr>
+      <tr><td>ACH Push from M1</td><td>M1 ACH push to your bank routing/account</td><td>Bank statement + M1 conf#</td></tr>
+      <tr><td>Wire from M1 Bank</td><td>M1 bank wire via SWIFT to your Wise account</td><td>SWIFT UETR + M1 conf#</td></tr>
+      <tr><td>M1 Crypto (USDT/USDC)</td><td>M1 crypto wallet → your wallet address</td><td>On-chain tx hash + M1 conf#</td></tr>
+    </table>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Step-by-Step in Dashboard</div>
+    <div class="step"><div class="step-num">1</div><div class="step-body"><div class="step-title">Platform → Server Funds → 💰 M1 Funds tab</div><div class="step-desc">Admin dashboard → Platform → Server Funds → M1 Funds.</div></div></div>
+    <div class="step"><div class="step-num">2</div><div class="step-body"><div class="step-title">Enter Amount, Currency, Fund Type</div><div class="step-desc">Exact amount the sender transferred. Select currency. Select fund type (Wallet Transfer, ACH, Wire, Crypto).</div></div></div>
+    <div class="step"><div class="step-num">3</div><div class="step-body"><div class="step-title">Enter M1 Wallet ID and Account Holder Name</div><div class="step-desc">Wallet ID starts with <code>M1W-</code>. Account holder name must match M1 records exactly.</div></div></div>
+    <div class="step"><div class="step-num">4</div><div class="step-body"><div class="step-title">Enter Confirmation Number and Tx Hash</div><div class="step-desc">Paste M1 confirmation number (from sender's email/SMS). Add on-chain hash if crypto transfer.</div></div></div>
+    <div class="step"><div class="step-num">5</div><div class="step-body"><div class="step-title">Set Date, Time, Destination, Purpose</div><div class="step-desc">Transfer date and time from M1 confirmation. Destination account. Purpose of transfer for compliance records.</div></div></div>
+    <div class="step"><div class="step-num">6</div><div class="step-body"><div class="step-title">Enter Authorized By → Click Receive M1 Funds</div><div class="step-desc">Your name as the recording officer. Click <strong>💰 Receive M1 Funds</strong>. Ledger entry posted: DEBIT <code>M1:DIRECT:INCOMING</code> → CREDIT destination.</div></div></div>
+    <div class="step"><div class="step-num">7</div><div class="step-body"><div class="step-title">Verify and Notify</div><div class="step-desc">Confirm balance in Ledger → Accounts. Notify sender that funds are received and credited. Keep M1 confirmation number for audit purposes.</div></div></div>
+  </div>
+
+  <div class="alert alert-success">
+    <span class="alert-icon">✅</span>
+    <div><strong>Compliance:</strong> Always retain the M1 confirmation number, sender wallet ID, and transfer date in your records. These are required for AML reporting and audit. All transactions above $10,000 USD equivalent are automatically flagged for compliance review.</div>
+  </div>
+</div>
+
+<!-- SUMMARY TABLE -->
+<div class="chapter" style="page-break-before:always">
+  <div class="chapter-header" style="background:#374151">
+    <div class="chapter-icon">📊</div>
+    <div>
+      <div class="chapter-title">Summary — All 4 Methods at a Glance</div>
+      <div class="chapter-sub">Quick reference for operations team</div>
+    </div>
+  </div>
+
+  <table>
+    <tr><th>Method</th><th>Protocol</th><th>Auth</th><th>Min Amount</th><th>Settlement</th><th>Debit Account</th></tr>
+    <tr><td>🌐 Global Server</td><td>PGSN / TLS 1.3</td><td>API Key + IP</td><td>$10,000</td><td>Real-time (RTGS)</td><td><code>GLOBAL:SERVER:INCOMING</code></td></tr>
+    <tr><td>💳 Visa Server</td><td>HTTPS / mTLS</td><td>OAuth2 + VSS Token</td><td>Per batch</td><td>T+0 / T+1</td><td><code>VISA:NETWORK:SETTLEMENT</code></td></tr>
+    <tr><td>🏦 M1 Server</td><td>ISO 20022 / mTLS</td><td>API Key + HMAC-SHA512</td><td>$10,000</td><td>Real-time</td><td><code>M1:INSTITUTIONAL:INCOMING</code></td></tr>
+    <tr><td>💰 M1 Funds</td><td>Manual confirmation</td><td>Conf# verification</td><td>No minimum</td><td>Manual record</td><td><code>M1:DIRECT:INCOMING</code></td></tr>
+  </table>
+
+  <div class="divider"></div>
+
+  <table>
+    <tr><th>Method</th><th>Dashboard Path</th><th>Button</th></tr>
+    <tr><td>🌐 Global Server</td><td>Platform → Server Funds → Global Server</td><td>🌐 Load from Global Server</td></tr>
+    <tr><td>💳 Visa Server</td><td>Platform → Server Funds → Visa Server Funds</td><td>💳 Load Visa Settlement Funds</td></tr>
+    <tr><td>🏦 M1 Server</td><td>Platform → Server Funds → M1 Server</td><td>🏦 Load from M1 Server</td></tr>
+    <tr><td>💰 M1 Funds</td><td>Platform → Server Funds → M1 Funds</td><td>💰 Receive M1 Funds</td></tr>
+  </table>
+
+  <div class="divider"></div>
+
+  <div class="alert alert-warn">
+    <span class="alert-icon">⚠</span>
+    <div><strong>Golden Rule:</strong> Never record a fund load without a verifiable reference number from the sending system. The reference is permanent and cannot be changed after the ledger entry is posted. For disputes and reconciliation, the reference is the only proof of the transaction.</div>
+  </div>
+</div>
+
+<div class="footer">
+  <div>PrimeStack Global Server Network — Confidential Internal Use</div>
+  <div>Server Fund Load Operations Guide v1.0 — November 2026</div>
+  <div>ops@primestack.io</div>
+</div>
+
+</div>
+</body>
+</html>

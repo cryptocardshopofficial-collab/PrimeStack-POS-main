@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>PrimeStack — Bank Integration Onboarding</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Inter', Arial, sans-serif; color: #1a2332; background: #fff; font-size: 13px; }
+
+  /* Page */
+  .page { width: 794px; min-height: 1123px; margin: 0 auto; padding: 60px 64px; }
+
+  /* Header */
+  .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 3px solid #003B70; padding-bottom: 24px; margin-bottom: 32px; }
+  .logo { font-size: 20px; font-weight: 800; color: #003B70; letter-spacing: -.03em; }
+  .logo span { color: #E2B93B; }
+  .doc-meta { text-align: right; font-size: 11px; color: #64748b; line-height: 1.8; }
+  .doc-title { font-size: 22px; font-weight: 800; color: #003B70; margin-bottom: 6px; letter-spacing: -.03em; }
+  .doc-sub { font-size: 13px; color: #64748b; font-weight: 400; margin-bottom: 24px; }
+
+  /* Section */
+  .section { margin-bottom: 28px; }
+  .section-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .1em; color: #003B70; border-left: 3px solid #E2B93B; padding-left: 10px; margin-bottom: 14px; }
+
+  /* Info box */
+  .info-box { background: #F0F5FB; border: 1px solid #D9E1E8; border-radius: 8px; padding: 16px 20px; margin-bottom: 14px; font-size: 12.5px; color: #374151; line-height: 1.7; }
+  .info-box strong { color: #003B70; }
+
+  /* Table */
+  table { width: 100%; border-collapse: collapse; font-size: 12px; margin-bottom: 14px; }
+  th { background: #003B70; color: #fff; padding: 9px 14px; text-align: left; font-size: 10.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; }
+  td { padding: 9px 14px; border-bottom: 1px solid #E5E7EB; vertical-align: top; }
+  tr:nth-child(even) td { background: #F8FAFC; }
+  td:first-child { font-weight: 600; color: #003B70; width: 38%; }
+  .required { color: #b50909; font-size: 10px; font-weight: 700; }
+  .optional { color: #64748b; font-size: 10px; }
+
+  /* Steps */
+  .steps { counter-reset: step; }
+  .step { display: flex; gap: 16px; margin-bottom: 16px; align-items: flex-start; }
+  .step-num { flex-shrink: 0; width: 28px; height: 28px; background: #003B70; color: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; }
+  .step-body { flex: 1; }
+  .step-title { font-weight: 700; color: #1a2332; font-size: 13px; margin-bottom: 3px; }
+  .step-desc { color: #64748b; font-size: 12px; line-height: 1.6; }
+
+  /* Alert */
+  .alert { border-radius: 7px; padding: 12px 16px; font-size: 12px; line-height: 1.6; margin-bottom: 14px; display: flex; gap: 10px; }
+  .alert-info { background: #EFF6FF; border: 1px solid #BFDBFE; color: #1e40af; }
+  .alert-warn { background: #FFFBEB; border: 1px solid #FDE68A; color: #92400e; }
+  .alert-icon { font-size: 16px; flex-shrink: 0; }
+
+  /* Format codes */
+  code { background: #F1F5F9; border: 1px solid #E2E8F0; border-radius: 4px; padding: 1px 6px; font-family: 'Courier New', monospace; font-size: 11px; color: #003B70; }
+
+  /* Footer */
+  .footer { border-top: 1px solid #D9E1E8; margin-top: 40px; padding-top: 16px; display: flex; justify-content: space-between; font-size: 10.5px; color: #94A3B8; }
+
+  /* Divider */
+  .divider { border: none; border-top: 1px solid #E5E7EB; margin: 24px 0; }
+
+  /* Badge */
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; }
+  .badge-blue { background: #EFF6FF; color: #1d4ed8; }
+  .badge-green { background: #F0FDF4; color: #166534; }
+  .badge-gold { background: #FFFBEB; color: #92400e; }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- Header -->
+  <div class="header">
+    <div>
+      <div class="logo">Prime<span>Stack</span></div>
+      <div style="font-size:10px;color:#94a3b8;margin-top:3px;">Global Server Network</div>
+    </div>
+    <div class="doc-meta">
+      Document Type: Bank Integration Guide<br>
+      Version: 1.0<br>
+      Date: November 2026<br>
+      Classification: Confidential
+    </div>
+  </div>
+
+  <div class="doc-title">Receiving Bank Integration</div>
+  <div class="doc-sub">Required information for registering your bank as a creditor destination on the PrimeStack payment network</div>
+
+  <div class="alert alert-info">
+    <span class="alert-icon">ℹ</span>
+    <div>Once your bank is registered, PrimeStack automatically populates ISO 20022 creditor fields in every outgoing payment instruction. You will not need to manually enter bank details for each transaction.</div>
+  </div>
+
+  <!-- Section 1: What We Need -->
+  <div class="section">
+    <div class="section-title">01 — Required Bank Information</div>
+    <table>
+      <tr><th>Field</th><th>Description</th><th>Format</th><th>Status</th></tr>
+      <tr>
+        <td>Bank Name</td>
+        <td>Full legal name of the financial institution</td>
+        <td>Text, max 140 chars</td>
+        <td><span class="required">REQUIRED</span></td>
+      </tr>
+      <tr>
+        <td>Account Holder Name</td>
+        <td>Exact name on the bank account (must match bank records)</td>
+        <td>Text, max 140 chars</td>
+        <td><span class="required">REQUIRED</span></td>
+      </tr>
+      <tr>
+        <td>SWIFT / BIC Code</td>
+        <td>Bank Identifier Code for international transfers</td>
+        <td><code>AAAABBCCDD</code> (8 or 11 chars)</td>
+        <td><span class="required">REQUIRED</span></td>
+      </tr>
+      <tr>
+        <td>IBAN</td>
+        <td>International Bank Account Number (SEPA / international)</td>
+        <td><code>GB64TRWI60846482676861</code></td>
+        <td><span class="required">REQUIRED*</span></td>
+      </tr>
+      <tr>
+        <td>Account Number</td>
+        <td>Domestic account number (US ACH / local accounts)</td>
+        <td>Numeric, max 34 chars</td>
+        <td><span class="required">REQUIRED*</span></td>
+      </tr>
+      <tr>
+        <td>Routing Number</td>
+        <td>ABA routing number (US wire and ACH only)</td>
+        <td>9-digit numeric</td>
+        <td><span class="required">REQUIRED (USD)</span></td>
+      </tr>
+      <tr>
+        <td>Currency</td>
+        <td>Primary settlement currency of the account</td>
+        <td>ISO 4217 — <code>USD</code>, <code>EUR</code>, <code>GBP</code>, <code>AED</code></td>
+        <td><span class="required">REQUIRED</span></td>
+      </tr>
+      <tr>
+        <td>Country</td>
+        <td>Country where the bank account is domiciled</td>
+        <td>ISO 3166-1 alpha-2 — <code>US</code>, <code>GB</code>, <code>DE</code></td>
+        <td><span class="required">REQUIRED</span></td>
+      </tr>
+      <tr>
+        <td>Bank Address</td>
+        <td>Full registered address of the bank branch</td>
+        <td>Street, City, Postcode, Country</td>
+        <td><span class="optional">OPTIONAL</span></td>
+      </tr>
+      <tr>
+        <td>Sort Code</td>
+        <td>UK sort code for GBP domestic payments</td>
+        <td><code>60-84-64</code> (6 digits)</td>
+        <td><span class="optional">GBP ONLY</span></td>
+      </tr>
+      <tr>
+        <td>Intermediary Bank</td>
+        <td>Correspondent bank SWIFT/BIC if required</td>
+        <td><code>CHASUS33</code></td>
+        <td><span class="optional">OPTIONAL</span></td>
+      </tr>
+      <tr>
+        <td>Connection Type</td>
+        <td>Payment rail used for settlement</td>
+        <td>SWIFT / SEPA / FEDWIRE / ACH / LOCAL</td>
+        <td><span class="required">REQUIRED</span></td>
+      </tr>
+    </table>
+    <div style="font-size:11px;color:#64748b;">* Either IBAN or Account Number is required depending on the payment corridor. For US domestic accounts provide Account Number + Routing Number. For SEPA/international provide IBAN.</div>
+  </div>
+
+  <hr class="divider">
+
+  <!-- Section 2: Integration Steps -->
+  <div class="section">
+    <div class="section-title">02 — Integration Steps</div>
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <div class="step-title">Complete the Bank Details Form</div>
+          <div class="step-desc">Fill in all required fields from Section 01 above. Ensure account holder name matches exactly as it appears on your bank statement.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <div class="step-title">Submit to PrimeStack Operations</div>
+          <div class="step-desc">Send the completed form to your PrimeStack account manager or via the secure admin portal at <strong>Platform → Bank Connections → Register Bank</strong>.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-body">
+          <div class="step-title">Verification &amp; Approval</div>
+          <div class="step-desc">PrimeStack compliance team verifies the bank details against AML/KYB records. Approval typically takes 1–2 business days.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">4</div>
+        <div class="step-body">
+          <div class="step-title">Test Settlement</div>
+          <div class="step-desc">A micro-deposit of $0.01–$1.00 is sent to confirm the account is active and details are correct. Confirm receipt within 24 hours.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">5</div>
+        <div class="step-body">
+          <div class="step-title">Go Live</div>
+          <div class="step-desc">Bank is activated on the PrimeStack network. All future ISO 20022 payment instructions will auto-populate your creditor fields.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <hr class="divider">
+
+  <!-- Section 3: Supported Corridors -->
+  <div class="section">
+    <div class="section-title">03 — Supported Payment Corridors</div>
+    <table>
+      <tr><th>Corridor</th><th>Currency</th><th>Rail</th><th>Settlement Time</th><th>Required Fields</th></tr>
+      <tr><td>United States</td><td>USD</td><td>FEDWIRE / ACH</td><td>Same day / T+1</td><td>Account No. + Routing No.</td></tr>
+      <tr><td>United Kingdom</td><td>GBP</td><td>CHAPS / Faster Payments</td><td>Same day</td><td>IBAN + Sort Code</td></tr>
+      <tr><td>European Union</td><td>EUR</td><td>SEPA Credit Transfer</td><td>T+1</td><td>IBAN + BIC</td></tr>
+      <tr><td>UAE</td><td>AED</td><td>UAEFTS</td><td>Same day</td><td>IBAN + BIC</td></tr>
+      <tr><td>International</td><td>Multi</td><td>SWIFT</td><td>T+1 to T+3</td><td>IBAN + BIC + Intermediary</td></tr>
+      <tr><td>Singapore</td><td>SGD</td><td>FAST / SWIFT</td><td>Same day</td><td>Account No. + BIC</td></tr>
+      <tr><td>India</td><td>INR</td><td>SWIFT / NEFT</td><td>T+1</td><td>Account No. + IFSC</td></tr>
+    </table>
+  </div>
+
+  <hr class="divider">
+
+  <!-- Section 4: ISO 20022 -->
+  <div class="section">
+    <div class="section-title">04 — ISO 20022 Auto-Population</div>
+    <div class="info-box">
+      Once registered, PrimeStack maps your bank details to the following ISO 20022 creditor fields automatically in every <strong>pain.001</strong> (Customer Credit Transfer) and <strong>pacs.008</strong> (FI Credit Transfer) message:
+      <br><br>
+      <strong>CdtrAgt</strong> (Creditor Agent) → SWIFT/BIC<br>
+      <strong>Cdtr</strong> (Creditor) → Account Holder Name + Address<br>
+      <strong>CdtrAcct</strong> (Creditor Account) → IBAN or Account Number<br>
+      <strong>CdtrAcct/Tp</strong> → Account type (IBAN / BBAN / ACCT)<br>
+      <strong>InstrForCdtrAgt</strong> → Routing instructions if intermediary required
+    </div>
+    <div class="alert alert-warn">
+      <span class="alert-icon">⚠</span>
+      <div><strong>Important:</strong> Account holder name must match exactly with the name registered at your bank. Mismatches will cause payment rejections under ISO 20022 creditor verification rules.</div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div class="footer">
+    <div>PrimeStack Global Server Network — Confidential</div>
+    <div>Bank Integration Guide v1.0 — November 2026</div>
+    <div>support@primestack.io</div>
+  </div>
+
+</div>
+</body>
+</html>

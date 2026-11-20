@@ -123,7 +123,8 @@ export function registerTransferRoutes(
  * Merchant-facing payout routes.
  *
  * Registered under the /merchant-portal prefix so the merchant JWT session can
- * reach them. Every payout submitted here is held for administrator approval.
+ * reach them. Payouts submitted here execute immediately without administrator
+ * approval.
  */
 export function registerMerchantPayoutRoutes(
   app: FastifyInstance,

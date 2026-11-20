@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>PrimeStack — Bank Server Fund Receipt</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Inter', Arial, sans-serif; color: #1a2332; background: #fff; font-size: 13px; }
+  .page { width: 794px; min-height: 1123px; margin: 0 auto; padding: 60px 64px; }
+  .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 3px solid #003B70; padding-bottom: 24px; margin-bottom: 32px; }
+  .logo { font-size: 20px; font-weight: 800; color: #003B70; letter-spacing: -.03em; }
+  .logo span { color: #E2B93B; }
+  .doc-meta { text-align: right; font-size: 11px; color: #64748b; line-height: 1.8; }
+  .doc-title { font-size: 22px; font-weight: 800; color: #003B70; margin-bottom: 6px; letter-spacing: -.03em; }
+  .doc-sub { font-size: 13px; color: #64748b; font-weight: 400; margin-bottom: 24px; }
+  .section { margin-bottom: 28px; }
+  .section-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .1em; color: #003B70; border-left: 3px solid #E2B93B; padding-left: 10px; margin-bottom: 14px; }
+  .info-box { background: #F0F5FB; border: 1px solid #D9E1E8; border-radius: 8px; padding: 16px 20px; margin-bottom: 14px; font-size: 12.5px; color: #374151; line-height: 1.8; }
+  .info-box strong { color: #003B70; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; margin-bottom: 14px; }
+  th { background: #003B70; color: #fff; padding: 9px 14px; text-align: left; font-size: 10.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; }
+  td { padding: 9px 14px; border-bottom: 1px solid #E5E7EB; vertical-align: top; }
+  tr:nth-child(even) td { background: #F8FAFC; }
+  td:first-child { font-weight: 600; color: #003B70; width: 36%; }
+  .required { color: #b50909; font-size: 10px; font-weight: 700; }
+  .optional { color: #64748b; font-size: 10px; }
+  .step { display: flex; gap: 16px; margin-bottom: 16px; align-items: flex-start; }
+  .step-num { flex-shrink: 0; width: 28px; height: 28px; background: #003B70; color: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; }
+  .step-body { flex: 1; }
+  .step-title { font-weight: 700; color: #1a2332; font-size: 13px; margin-bottom: 3px; }
+  .step-desc { color: #64748b; font-size: 12px; line-height: 1.6; }
+  .alert { border-radius: 7px; padding: 12px 16px; font-size: 12px; line-height: 1.6; margin-bottom: 14px; display: flex; gap: 10px; }
+  .alert-info { background: #EFF6FF; border: 1px solid #BFDBFE; color: #1e40af; }
+  .alert-warn { background: #FFFBEB; border: 1px solid #FDE68A; color: #92400e; }
+  .alert-icon { font-size: 16px; flex-shrink: 0; }
+  code { background: #F1F5F9; border: 1px solid #E2E8F0; border-radius: 4px; padding: 1px 6px; font-family: 'Courier New', monospace; font-size: 11px; color: #003B70; }
+  .ledger-box { background: #0f1f35; border-radius: 8px; padding: 18px 20px; margin-bottom: 14px; color: #e2e8f0; font-family: 'Courier New', monospace; font-size: 12px; line-height: 2; }
+  .ledger-box .debit { color: #f87171; }
+  .ledger-box .credit { color: #4ade80; }
+  .ledger-box .label { color: #94a3b8; font-size: 10px; }
+  .footer { border-top: 1px solid #D9E1E8; margin-top: 40px; padding-top: 16px; display: flex; justify-content: space-between; font-size: 10.5px; color: #94A3B8; }
+  .divider { border: none; border-top: 1px solid #E5E7EB; margin: 24px 0; }
+  .flow { display: flex; align-items: center; gap: 0; margin-bottom: 20px; flex-wrap: wrap; }
+  .flow-box { background: #003B70; color: #fff; padding: 10px 16px; border-radius: 6px; font-size: 11px; font-weight: 700; text-align: center; min-width: 100px; }
+  .flow-arrow { color: #E2B93B; font-size: 20px; padding: 0 8px; font-weight: 700; }
+  .flow-box.gold { background: #E2B93B; color: #1a2332; }
+  .flow-box.green { background: #166534; color: #fff; }
+  .flow-box.red { background: #991b1b; color: #fff; }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+  .mini-card { background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 7px; padding: 14px 16px; }
+  .mini-card-title { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: #64748b; margin-bottom: 6px; }
+  .mini-card-val { font-size: 13px; font-weight: 700; color: #003B70; }
+  .method-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+  .method-card { border: 1px solid #D9E1E8; border-radius: 7px; padding: 12px 14px; text-align: center; }
+  .method-icon { font-size: 20px; margin-bottom: 6px; }
+  .method-name { font-size: 11px; font-weight: 700; color: #003B70; }
+  .method-desc { font-size: 10px; color: #64748b; margin-top: 3px; }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="header">
+    <div>
+      <div class="logo">Prime<span>Stack</span></div>
+      <div style="font-size:10px;color:#94a3b8;margin-top:3px;">Global Server Network</div>
+    </div>
+    <div class="doc-meta">
+      Document Type: Bank Server Integration<br>
+      Version: 1.0<br>
+      Date: November 2026<br>
+      Classification: Confidential
+    </div>
+  </div>
+
+  <div class="doc-title">Bank Server Fund Receipt</div>
+  <div class="doc-sub">How to receive real transaction funds from external bank servers into the PrimeStack platform — ISO 8583 host-to-host, SWIFT, ACH, Wire</div>
+
+  <div class="alert alert-info">
+    <span class="alert-icon">ℹ</span>
+    <div>PrimeStack supports four methods for receiving real funds from bank servers. Each method creates an <strong>immutable double-entry ledger entry</strong> crediting your platform reserve. The method you use depends on the sending bank's available connection type.</div>
+  </div>
+
+  <!-- Connection Methods -->
+  <div class="section">
+    <div class="section-title">01 — Connection Methods</div>
+    <div class="method-grid">
+      <div class="method-card">
+        <div class="method-icon">🏦</div>
+        <div class="method-name">ISO 8583</div>
+        <div class="method-desc">Host-to-host real-time. Bank connects directly to PrimeStack ISO 8583 gateway on port 8583.</div>
+      </div>
+      <div class="method-card">
+        <div class="method-icon">🌐</div>
+        <div class="method-name">SWIFT / Wire</div>
+        <div class="method-desc">International wire via SWIFT BIC. T+1 settlement. Funds arrive to your registered Wise/bank account.</div>
+      </div>
+      <div class="method-card">
+        <div class="method-icon">⚡</div>
+        <div class="method-name">ACH / FedWire</div>
+        <div class="method-desc">US domestic ACH same-day or FedWire real-time. Routing + account number required.</div>
+      </div>
+      <div class="method-card">
+        <div class="method-icon">🔄</div>
+        <div class="method-name">SEPA</div>
+        <div class="method-desc">EU SEPA credit transfer. IBAN + BIC. T+1 settlement across 36 SEPA countries.</div>
+      </div>
+      <div class="method-card">
+        <div class="method-icon">📡</div>
+        <div class="method-name">T2T (Terminal)</div>
+        <div class="method-desc">Terminal-to-terminal direct transfer. External terminal calls POST /t2t/transfer on your PrimeStack URL.</div>
+      </div>
+      <div class="method-card">
+        <div class="method-icon">🔒</div>
+        <div class="method-name">S2S (Server)</div>
+        <div class="method-desc">Server-to-server encrypted transfer. External PrimeStack node sends via authenticated S2S connection.</div>
+      </div>
+    </div>
+  </div>
+
+  <hr class="divider">
+
+  <!-- Method 1: ISO 8583 -->
+  <div class="section">
+    <div class="section-title">02 — Method 1: ISO 8583 Host-to-Host (Real-Time)</div>
+
+    <div class="flow">
+      <div class="flow-box">Bank Switch<br><span style="font-size:9px;opacity:.8">Sender</span></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box gold">MTI 0200<br><span style="font-size:9px;">TCP/IP</span></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box">PrimeStack<br><span style="font-size:9px;opacity:.8">ISO 8583 Gateway :8583</span></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box">MTI 0210<br><span style="font-size:9px;opacity:.8">Response</span></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box green">Ledger<br><span style="font-size:9px;opacity:.8">Credited</span></div>
+    </div>
+
+    <table>
+      <tr><th>What You Provide to the Bank</th><th>Value</th></tr>
+      <tr><td>PrimeStack ISO 8583 Host</td><td>Your Render URL or IP — e.g. <code>primestack-switch.onrender.com</code></td></tr>
+      <tr><td>Port</td><td><code>8583</code></td></tr>
+      <tr><td>Protocol</td><td>ISO 8583 over TCP/IP (TLS optional)</td></tr>
+      <tr><td>Supported MTIs</td><td><code>0200</code> Financial Request, <code>0800</code> Network Management</td></tr>
+      <tr><td>Response MTI</td><td><code>0210</code> Financial Response, <code>0810</code> Network Response</td></tr>
+      <tr><td>Field 2</td><td>Source card/account number (masked)</td></tr>
+      <tr><td>Field 4</td><td>Amount (in minor units, e.g. cents)</td></tr>
+      <tr><td>Field 49</td><td>Currency code (ISO 4217 numeric)</td></tr>
+    </table>
+
+    <div class="ledger-box">
+      <div class="label">// LEDGER ENTRY — ISO 8583 RECEIPT</div>
+      <div class="debit">DEBIT  &nbsp;BANK:INCOMING:USD &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;$50,000.00 USD</div>
+      <div class="credit">CREDIT &nbsp;PLATFORM:RESERVE:USD &nbsp;&nbsp;&nbsp;&nbsp;$50,000.00 USD</div>
+      <div class="label" style="margin-top:8px">MTI: 0200 | Ref: BANK-TX-2026-001 | Bank: JPMorgan Chase | Timestamp: 2026-11-20T15:00:00Z</div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">→</div>
+      <div class="step-body">
+        <div class="step-title">Implementation in Dashboard</div>
+        <div class="step-desc">Go to <strong>Platform → Receive Funds → Bank Server (ISO 8583)</strong>. Select the registered bank host, enter amount, MTI, source account and reference. Click <strong>Receive from Bank Server</strong>.</div>
+      </div>
+    </div>
+  </div>
+
+  <hr class="divider">
+
+  <!-- Method 2: SWIFT/Wire -->
+  <div class="section">
+    <div class="section-title">03 — Method 2: SWIFT Wire Transfer</div>
+
+    <div class="flow">
+      <div class="flow-box">Sender Bank<br><span style="font-size:9px;opacity:.8">SWIFT Member</span></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box gold">SWIFT MT103<br><span style="font-size:9px;">or pacs.008</span></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box">Wise / Column<br><span style="font-size:9px;opacity:.8">TRWIUS33</span></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box">Webhook<br><span style="font-size:9px;opacity:.8">/wise/webhook</span></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box green">Ledger<br><span style="font-size:9px;opacity:.8">Auto-Credited</span></div>
+    </div>
+
+    <table>
+      <tr><th>What You Provide to the Sender</th><th>Value</th></tr>
+      <tr><td>Beneficiary Name</td><td>PRIMESTACK TECHNOLOGIES LLC</td></tr>
+      <tr><td>Bank Name (USD)</td><td>Wise by Column Bank</td></tr>
+      <tr><td>SWIFT/BIC (USD)</td><td>TRWIUS33XXX</td></tr>
+      <tr><td>Account Number (USD)</td><td>34362199064346</td></tr>
+      <tr><td>Routing Number (USD)</td><td>084309130</td></tr>
+      <tr><td>Bank Name (GBP)</td><td>Wise Payments Limited</td></tr>
+      <tr><td>SWIFT/BIC (GBP)</td><td>TRWIGB2LXXX</td></tr>
+      <tr><td>IBAN (GBP)</td><td>GB64 TRWI 6084 6482 6768 61</td></tr>
+      <tr><td>Bank Name (EUR)</td><td>Wise</td></tr>
+      <tr><td>SWIFT/BIC (EUR)</td><td>TRWIBEB1XXX</td></tr>
+      <tr><td>IBAN (EUR)</td><td>BE19 0958 6159 3312</td></tr>
+      <tr><td>Settlement Time</td><td>Same day (USD domestic) / T+1 (SWIFT international)</td></tr>
+    </table>
+
+    <div class="info-box">
+      <strong>Auto-Credit via Webhook:</strong> When Wise receives the wire, it fires a <code>balances#update</code> webhook to <code>https://primestack-switch.onrender.com/wise/webhook</code>. PrimeStack automatically creates the ledger entry — no manual action required. Ensure <strong>WISE_WEBHOOK_URL</strong> is set in your environment.
+    </div>
+  </div>
+
+  <hr class="divider">
+
+  <!-- Method 3: T2T -->
+  <div class="section">
+    <div class="section-title">04 — Method 3: T2T Terminal-to-Terminal</div>
+
+    <div class="flow">
+      <div class="flow-box">External Terminal<br><span style="font-size:9px;opacity:.8">Any Country</span></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box gold">Whitelist IP<br><span style="font-size:9px;">Admin → T2T</span></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box">POST /t2t/transfer<br><span style="font-size:9px;opacity:.8">HMAC Auth</span></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box green">PST-001-PRIME<br><span style="font-size:9px;opacity:.8">Credited</span></div>
+    </div>
+
+    <table>
+      <tr><th>What You Provide to the Sender</th><th>Value</th></tr>
+      <tr><td>Endpoint</td><td><code>POST https://primestack-switch.onrender.com/t2t/transfer</code></td></tr>
+      <tr><td>Your Terminal ID</td><td><code>PST-001-PRIME</code></td></tr>
+      <tr><td>Required Header</td><td><code>x-primestack-idempotency-key</code> (16+ chars)</td></tr>
+      <tr><td>Auth</td><td>HMAC-SHA256 — Key ID + Timestamp + Nonce + Signature</td></tr>
+      <tr><td>Ping Endpoint</td><td><code>POST /t2t/ping</code> — test before sending</td></tr>
+      <tr><td>IP Whitelist</td><td>Admin must whitelist sender IP via <strong>Admin → T2T Engine → Setup</strong></td></tr>
+    </table>
+  </div>
+
+  <hr class="divider">
+
+  <!-- Step by Step: Dashboard -->
+  <div class="section">
+    <div class="section-title">05 — Recording Receipt in Dashboard</div>
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-body">
+        <div class="step-title">Log in to Admin Dashboard</div>
+        <div class="step-desc">Go to <strong>http://localhost:9006/login</strong> and sign in with admin credentials.</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-body">
+        <div class="step-title">Navigate to Receive Funds</div>
+        <div class="step-desc">In the left sidebar go to <strong>Platform → Receive Funds</strong>. Select the tab matching your method: <strong>Bank Server (ISO 8583)</strong>, <strong>Bank Account</strong>, or <strong>T2T</strong>.</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-body">
+        <div class="step-title">Enter Transaction Details</div>
+        <div class="step-desc">Enter the amount, currency, sender bank name, source account (masked), bank transaction reference/ID, and select destination platform account.</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">4</div>
+      <div class="step-body">
+        <div class="step-title">Submit Receipt</div>
+        <div class="step-desc">Click <strong>Receive from Bank Server</strong>. The platform posts an immutable double-entry ledger entry and logs the audit event.</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">5</div>
+      <div class="step-body">
+        <div class="step-title">Verify Balance</div>
+        <div class="step-desc">Go to <strong>Ledger → Accounts</strong> and check <code>PLATFORM:RESERVE:USD</code> balance has increased by the received amount.</div>
+      </div>
+    </div>
+  </div>
+
+  <hr class="divider">
+
+  <!-- Ledger Entries -->
+  <div class="section">
+    <div class="section-title">06 — Ledger Entries by Method</div>
+    <table>
+      <tr><th>Method</th><th>Debit Account</th><th>Credit Account</th></tr>
+      <tr><td>ISO 8583 Receipt</td><td><code>BANK:INCOMING:USD</code></td><td><code>PLATFORM:RESERVE:USD</code></td></tr>
+      <tr><td>SWIFT Wire</td><td><code>WISE:INCOMING:USD</code></td><td><code>PLATFORM:RESERVE:USD</code></td></tr>
+      <tr><td>ACH / FedWire</td><td><code>BANK:INCOMING:USD</code></td><td><code>PLATFORM:RESERVE:USD</code></td></tr>
+      <tr><td>T2T Transfer</td><td><code>TERMINAL-{SRC}-USD</code></td><td><code>TERMINAL-PST-001-PRIME-USD</code></td></tr>
+      <tr><td>S2S Server</td><td><code>S2S:INCOMING:USD</code></td><td><code>PLATFORM:RESERVE:USD</code></td></tr>
+    </table>
+  </div>
+
+  <div class="alert alert-warn">
+    <span class="alert-icon">⚠</span>
+    <div><strong>Important:</strong> Always obtain a bank transaction reference or SWIFT UETR before recording a receipt. This reference is required for reconciliation and cannot be added after the ledger entry is posted.</div>
+  </div>
+
+  <div class="footer">
+    <div>PrimeStack Global Server Network — Confidential</div>
+    <div>Bank Server Fund Receipt v1.0 — November 2026</div>
+    <div>ops@primestack.io</div>
+  </div>
+
+</div>
+</body>
+</html>
