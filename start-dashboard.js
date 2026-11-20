@@ -632,6 +632,72 @@ ${content}
 </main>
 </div>
 ${JS}
+<script>
+(function(){
+  var _locked=false;
+  function _lockout(){
+    if(_locked)return;
+    _locked=true;
+    // Clear session cookie and redirect to logout
+    document.cookie="ps_console_token=;expires=Thu,01 Jan 1970 00:00:00 GMT;path=/";
+    document.cookie="ps_activity=;expires=Thu,01 Jan 1970 00:00:00 GMT;path=/";
+    fetch("/signout",{method:"POST"}).catch(function(){});
+    setTimeout(function(){window.location.replace("/login?reason=security");},300);
+  }
+
+  // 1. Block right-click -> logout
+  document.addEventListener("contextmenu",function(e){
+    e.preventDefault();
+    _lockout();
+    return false;
+  });
+
+  // 2. Block F12, Ctrl+Shift+I/J/C, Ctrl+U -> logout
+  document.addEventListener("keydown",function(e){
+    var k=e.keyCode;
+    var ctrl=e.ctrlKey||e.metaKey;
+    var shift=e.shiftKey;
+    if(k===123||(ctrl&&shift&&(k===73||k===74||k===67))||(ctrl&&k===85)){
+      e.preventDefault();
+      e.stopPropagation();
+      _lockout();
+      return false;
+    }
+  },true);
+
+  // 3. Devtools size detection -> logout
+  var _dtTimer=setInterval(function(){
+    var wDiff=window.outerWidth-window.innerWidth;
+    var hDiff=window.outerHeight-window.innerHeight;
+    if(wDiff>200||hDiff>200){
+      clearInterval(_dtTimer);
+      _lockout();
+    }
+  },800);
+
+  // 4. Console override -> logout
+  try{
+    var _c=0;
+    Object.defineProperty(window,"_dtProbe",{get:function(){_c++;if(_c>1)_lockout();return 0;}});
+    setInterval(function(){_c=0;console.log("%c",window._dtProbe);},2000);
+  }catch(e){}
+
+  // 5. Block text selection on non-inputs
+  document.addEventListener("selectstart",function(e){
+    if(e.target.tagName!=="INPUT"&&e.target.tagName!=="TEXTAREA"){
+      e.preventDefault();return false;
+    }
+  });
+
+  // 6. Watermark
+  document.addEventListener("DOMContentLoaded",function(){
+    var w=document.createElement("div");
+    w.style.cssText="position:fixed;bottom:6px;right:10px;font-size:9px;color:rgba(100,116,139,.3);pointer-events:none;z-index:99999;user-select:none;font-family:monospace;";
+    w.textContent="PrimeStack \u00a9 "+new Date().getFullYear()+" \u2022 Authorized Access Only";
+    document.body.appendChild(w);
+  });
+})();
+<\/script>
 </body>
 </html>`;
 }
@@ -717,6 +783,72 @@ ${CSS}
   </div>
 </div>
 ${JS}
+<script>
+(function(){
+  var _locked=false;
+  function _lockout(){
+    if(_locked)return;
+    _locked=true;
+    // Clear session cookie and redirect to logout
+    document.cookie="ps_console_token=;expires=Thu,01 Jan 1970 00:00:00 GMT;path=/";
+    document.cookie="ps_activity=;expires=Thu,01 Jan 1970 00:00:00 GMT;path=/";
+    fetch("/signout",{method:"POST"}).catch(function(){});
+    setTimeout(function(){window.location.replace("/login?reason=security");},300);
+  }
+
+  // 1. Block right-click -> logout
+  document.addEventListener("contextmenu",function(e){
+    e.preventDefault();
+    _lockout();
+    return false;
+  });
+
+  // 2. Block F12, Ctrl+Shift+I/J/C, Ctrl+U -> logout
+  document.addEventListener("keydown",function(e){
+    var k=e.keyCode;
+    var ctrl=e.ctrlKey||e.metaKey;
+    var shift=e.shiftKey;
+    if(k===123||(ctrl&&shift&&(k===73||k===74||k===67))||(ctrl&&k===85)){
+      e.preventDefault();
+      e.stopPropagation();
+      _lockout();
+      return false;
+    }
+  },true);
+
+  // 3. Devtools size detection -> logout
+  var _dtTimer=setInterval(function(){
+    var wDiff=window.outerWidth-window.innerWidth;
+    var hDiff=window.outerHeight-window.innerHeight;
+    if(wDiff>200||hDiff>200){
+      clearInterval(_dtTimer);
+      _lockout();
+    }
+  },800);
+
+  // 4. Console override -> logout
+  try{
+    var _c=0;
+    Object.defineProperty(window,"_dtProbe",{get:function(){_c++;if(_c>1)_lockout();return 0;}});
+    setInterval(function(){_c=0;console.log("%c",window._dtProbe);},2000);
+  }catch(e){}
+
+  // 5. Block text selection on non-inputs
+  document.addEventListener("selectstart",function(e){
+    if(e.target.tagName!=="INPUT"&&e.target.tagName!=="TEXTAREA"){
+      e.preventDefault();return false;
+    }
+  });
+
+  // 6. Watermark
+  document.addEventListener("DOMContentLoaded",function(){
+    var w=document.createElement("div");
+    w.style.cssText="position:fixed;bottom:6px;right:10px;font-size:9px;color:rgba(100,116,139,.3);pointer-events:none;z-index:99999;user-select:none;font-family:monospace;";
+    w.textContent="PrimeStack \u00a9 "+new Date().getFullYear()+" \u2022 Authorized Access Only";
+    document.body.appendChild(w);
+  });
+})();
+<\/script>
 </body>
 </html>`;
 }
