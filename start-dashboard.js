@@ -570,6 +570,7 @@ function sidebar(active) {
     ${link('/merchant/wallet','My Wallet','<svg width="14" height="14" fill="none" viewBox="0 0 16 16"><rect x="1" y="4" width="14" height="9" rx="1.5" stroke="currentColor" stroke-width="1.5"/><path d="M1 7h14" stroke="currentColor" stroke-width="1.5"/><circle cx="11.5" cy="10" r="1" fill="currentColor"/></svg>')}
     ${link('/merchant/terminal-register','Terminal Registration','<svg width="14" height="14" fill="none" viewBox="0 0 16 16"><rect x="1" y="3" width="14" height="10" rx="1.5" stroke="currentColor" stroke-width="1.5"/><path d="M5 7h6M5 9.5h3M12 9.5h.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>')}
     ${link('/merchant/bank-connect','Receiving Bank Setup','<svg width="14" height="14" fill="none" viewBox="0 0 16 16"><rect x="1" y="5" width="14" height="9" rx="1.5" stroke="currentColor" stroke-width="1.5"/><path d="M1 8h14M5 8v6M11 8v6" stroke="currentColor" stroke-width="1.5"/><path d="M8 2L1 5h14L8 2z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>')}
+    ${link('/merchant/supe','\uD83D\uDD10 SUPE','<svg width="14" height="14" fill="none" viewBox="0 0 16 16"><path d="M8 1L2 4v4c0 3.3 2.5 6.4 6 7.4 3.5-1 6-4.1 6-7.4V4L8 1z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M5.5 8l2 2 3-3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>')}
   </div>
   <div class="sidebar-section nav-panel" id="nav-ops" role="tabpanel" aria-labelledby="nav-tab-ops" data-nav-panel="ops" hidden>
     ${link('/ops','Ops Hub','<svg width="14" height="14" fill="none" viewBox="0 0 16 16"><circle cx="8" cy="8" r="3" stroke="currentColor" stroke-width="1.5"/><path d="M8 1v2M8 13v2M1 8h2M13 8h2M3.05 3.05l1.41 1.41M11.54 11.54l1.41 1.41M3.05 12.95l1.41-1.41M11.54 4.46l1.41-1.41" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>')}
@@ -8187,6 +8188,340 @@ document.addEventListener('DOMContentLoaded',function(){const url=document.getEl
 `);
 }
 
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SECURE UPLOAD PROCESSING ENGINE (SUPE)
+// Parses SWIFT MT103, ISO 20022 XML, JSON fund payloads and auto-credits ledger
+// ─────────────────────────────────────────────────────────────────────────────
+function supePage() {
+  return page('SUPE — Secure Upload Processing Engine', '/merchant/supe', `
+<style>
+.supe-drop{border:2px dashed var(--border);border-radius:12px;padding:48px 24px;text-align:center;cursor:pointer;transition:.2s;background:var(--surf2)}
+.supe-drop:hover,.supe-drop.drag{border-color:var(--accent);background:var(--accent-bg)}
+.supe-drop input{display:none}
+.supe-drop-icon{font-size:2.5rem;margin-bottom:12px}
+.supe-drop-text{font-size:.9rem;font-weight:600;color:var(--text)}
+.supe-drop-sub{font-size:.75rem;color:var(--muted);margin-top:4px}
+.supe-parsed{background:var(--surf2);border:1px solid var(--border);border-radius:8px;padding:16px;margin-top:14px;font-size:.82rem}
+.supe-parsed table{width:100%;border-collapse:collapse}
+.supe-parsed td{padding:6px 0;border-bottom:1px solid var(--border)}
+.supe-parsed td:first-child{color:var(--muted);width:40%;font-size:.75rem;text-transform:uppercase;letter-spacing:.05em}
+.supe-parsed td:last-child{font-weight:600}
+.supe-status{display:flex;align-items:center;gap:8px;padding:12px 14px;border-radius:8px;font-size:.82rem;font-weight:600;margin-top:12px}
+.supe-status.ok{background:var(--success-bg);border:1px solid var(--success-border);color:var(--success)}
+.supe-status.err{background:var(--danger-bg);border:1px solid var(--danger-border);color:var(--danger)}
+.supe-status.warn{background:var(--warn-bg);border:1px solid var(--warn-border);color:var(--warn)}
+.supe-history{max-height:320px;overflow-y:auto}
+</style>
+<div class="page-header">
+  <div class="breadcrumb"><a href="/merchant">Merchant</a><span>/</span>SUPE</div>
+  <h1>🔐 Secure Upload Processing Engine</h1>
+  <p>Upload SWIFT MT103, ISO 20022 XML, or JSON fund files. The engine parses, validates, and auto-credits the selected destination account.</p>
+</div>
+<div class="page-body">
+  <div class="grid-2" style="gap:20px;align-items:start">
+
+    <!-- Upload Panel -->
+    <div>
+      <div class="card">
+        <div class="card-header"><div class="card-title">📁 Upload Fund File</div></div>
+
+        <div class="supe-drop" id="supeDrop" onclick="document.getElementById('supeFile').click()">
+          <input type="file" id="supeFile" accept=".txt,.fin,.mt103,.xml,.json,.pdf" onchange="supeHandleFile(this.files[0])">
+          <div class="supe-drop-icon">📂</div>
+          <div class="supe-drop-text">Drop file here or click to browse</div>
+          <div class="supe-drop-sub">SWIFT MT103 · ISO 20022 XML · JSON · PDF — max 5MB</div>
+        </div>
+
+        <div id="supeParseResult" style="display:none">
+          <div class="supe-parsed">
+            <div style="font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:10px">Extracted Fields</div>
+            <table id="supeFieldsTable"></table>
+          </div>
+
+          <div class="form-group" style="margin-top:14px">
+            <label>Destination Account</label>
+            <select id="supeDest" class="input-mono">
+              <option value="merchant-wallet">Merchant Wallet (default)</option>
+              <option value="platform-reserve">Platform Reserve</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>Override Note (optional)</label>
+            <input id="supeNote" placeholder="Reason for manual upload...">
+          </div>
+
+          <div class="alert alert-warn" style="margin-top:8px;font-size:.78rem">
+            ⚠ Verify the extracted amounts and references match the original document before crediting.
+          </div>
+
+          <button class="btn btn-success" style="width:100%;margin-top:12px;justify-content:center" onclick="supeCredit()">
+            ✅ Confirm & Auto-Credit Ledger
+          </button>
+        </div>
+
+        <div id="supeResult"></div>
+      </div>
+    </div>
+
+    <!-- Info + History Panel -->
+    <div>
+      <div class="card" style="margin-bottom:14px">
+        <div class="card-header"><div class="card-title">📋 Supported File Types</div></div>
+        <table style="font-size:.8rem;width:100%;border-collapse:collapse">
+          <tr style="border-bottom:1px solid var(--border)"><td style="padding:7px 0;font-weight:600">SWIFT MT103</td><td style="padding:7px 0;color:var(--muted)">.txt · .fin · .mt103</td><td style="padding:7px 0"><span class="badge badge-green">Auto-parse</span></td></tr>
+          <tr style="border-bottom:1px solid var(--border)"><td style="padding:7px 0;font-weight:600">ISO 20022 XML</td><td style="padding:7px 0;color:var(--muted)">pain.001 · pacs.008 · camt.054</td><td style="padding:7px 0"><span class="badge badge-green">Auto-parse</span></td></tr>
+          <tr style="border-bottom:1px solid var(--border)"><td style="padding:7px 0;font-weight:600">JSON Payload</td><td style="padding:7px 0;color:var(--muted)">.json — PrimeStack format</td><td style="padding:7px 0"><span class="badge badge-green">Auto-parse</span></td></tr>
+          <tr><td style="padding:7px 0;font-weight:600">PDF Statement</td><td style="padding:7px 0;color:var(--muted)">.pdf — text extraction</td><td style="padding:7px 0"><span class="badge badge-blue">Manual review</span></td></tr>
+        </table>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">📜 Upload History</div>
+          <button class="btn btn-ghost btn-sm" onclick="supeLoadHistory()">↻ Refresh</button>
+        </div>
+        <div id="supeHistory" class="supe-history">
+          <div style="color:var(--muted);font-size:.8rem;padding:8px 0">Click Refresh to load history</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  var _parsed = null;
+
+  // ── Drag & drop ────────────────────────────────
+  var drop = document.getElementById('supeDrop');
+  drop.addEventListener('dragover', function(e){ e.preventDefault(); drop.classList.add('drag'); });
+  drop.addEventListener('dragleave', function(){ drop.classList.remove('drag'); });
+  drop.addEventListener('drop', function(e){
+    e.preventDefault(); drop.classList.remove('drag');
+    var file = e.dataTransfer.files[0];
+    if (file) supeHandleFile(file);
+  });
+
+  // ── File handler ───────────────────────────────
+  window.supeHandleFile = function(file) {
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) { toast('File too large (max 5MB)', 'err'); return; }
+    var reader = new FileReader();
+    reader.onload = function(e) {
+      var content = e.target.result;
+      var parsed = supeParseFile(file.name, content);
+      _parsed = parsed;
+      _parsed.fileName = file.name;
+      _parsed.fileSize = file.size;
+      supeShowParsed(parsed);
+    };
+    reader.readAsText(file);
+  };
+
+  // ── Parser ─────────────────────────────────────
+  function supeParseFile(name, content) {
+    var ext = name.split('.').pop().toLowerCase();
+
+    // JSON
+    if (ext === 'json') {
+      try {
+        var d = JSON.parse(content);
+        return {
+          format: 'JSON',
+          amount: d.amount || d.value || d.instructedAmount?.amount || '',
+          currency: d.currency || d.instructedAmount?.currency || 'USD',
+          reference: d.reference || d.endToEndId || d.txRef || d.id || '',
+          sender: d.sender || d.debtorName || d.from || '',
+          senderAccount: d.senderAccount || d.debtorAccount || '',
+          date: d.date || d.createdAt || d.valueDate || new Date().toISOString().split('T')[0],
+          description: d.description || d.remittanceInfo || d.purpose || '',
+          raw: content.substring(0, 500)
+        };
+      } catch(e) { return { format: 'JSON', error: 'Invalid JSON: ' + e.message }; }
+    }
+
+    // ISO 20022 XML
+    if (ext === 'xml') {
+      var amt = (content.match(/<InstdAmt[^>]*Ccy="([A-Z]{3})"[^>]*>([\d.]+)<\/InstdAmt>/) ||
+                 content.match(/<Amt[^>]*Ccy="([A-Z]{3})"[^>]*>([\d.]+)<\/Amt>/) || []);
+      var ref = content.match(/<EndToEndId>(.*?)<\/EndToEndId>/) ||
+                content.match(/<InstrId>(.*?)<\/InstrId>/) || [];
+      var sender = content.match(/<Nm>(.*?)<\/Nm>/) || [];
+      var date = content.match(/<ReqdExctnDt>(.*?)<\/ReqdExctnDt>/) ||
+                 content.match(/<IntrBkSttlmDt>(.*?)<\/IntrBkSttlmDt>/) || [];
+      var msgType = content.includes('pain.001') ? 'pain.001' :
+                    content.includes('pacs.008') ? 'pacs.008' :
+                    content.includes('camt.054') ? 'camt.054' : 'ISO 20022';
+      return {
+        format: 'ISO 20022 XML (' + msgType + ')',
+        amount: amt[2] || '',
+        currency: amt[1] || 'USD',
+        reference: ref[1] || '',
+        sender: sender[1] || '',
+        senderAccount: '',
+        date: date[1] || '',
+        description: msgType + ' payment instruction',
+        raw: content.substring(0, 500)
+      };
+    }
+
+    // SWIFT MT103
+    if (ext === 'txt' || ext === 'fin' || ext === 'mt103' || content.includes(':32A:') || content.includes('{1:')) {
+      var val = content.match(/:32A:(\d{6})([A-Z]{3})([\d,]+)/) || [];
+      var txRef = content.match(/:20:([^\r\n]+)/) || [];
+      var ord = content.match(/:50[AFK]?:[^\r\n]*[\r\n]+([^\r\n:]+)/) || [];
+      var ben = content.match(/:59[A]?:[^\r\n]*[\r\n]+([^\r\n:]+)/) || [];
+      var remit = content.match(/:70:([^\r\n]+)/) || [];
+      var amtStr = val[3] ? val[3].replace(',', '.') : '';
+      return {
+        format: 'SWIFT MT103',
+        amount: amtStr,
+        currency: val[2] || 'USD',
+        reference: (txRef[1] || '').trim(),
+        sender: (ord[1] || '').trim(),
+        senderAccount: '',
+        date: val[1] ? '20'+val[1].substring(0,2)+'-'+val[1].substring(2,4)+'-'+val[1].substring(4,6) : '',
+        description: (remit[1] || 'SWIFT MT103 wire transfer').trim(),
+        raw: content.substring(0, 500)
+      };
+    }
+
+    // PDF / unknown — manual
+    return {
+      format: 'PDF / Unknown',
+      amount: '',
+      currency: 'USD',
+      reference: '',
+      sender: '',
+      senderAccount: '',
+      date: new Date().toISOString().split('T')[0],
+      description: 'Manual upload — please fill fields',
+      requiresManual: true,
+      raw: content.substring(0, 200)
+    };
+  }
+
+  // ── Show parsed fields ─────────────────────────
+  function supeShowParsed(p) {
+    var el = document.getElementById('supeParseResult');
+    var tbl = document.getElementById('supeFieldsTable');
+    if (p.error) {
+      el.style.display = 'none';
+      document.getElementById('supeResult').innerHTML = '<div class="supe-status err">❌ Parse error: ' + p.error + '</div>';
+      return;
+    }
+    var rows = [
+      ['Format', p.format],
+      ['Amount', p.amount || '—'],
+      ['Currency', p.currency],
+      ['Reference', p.reference || '—'],
+      ['Sender', p.sender || '—'],
+      ['Date', p.date || '—'],
+      ['Description', (p.description||'').substring(0,60)],
+    ];
+    tbl.innerHTML = rows.map(function(r){
+      return '<tr><td>'+r[0]+'</td><td style="font-family:monospace">'+(r[1]||'—')+'</td></tr>';
+    }).join('');
+    el.style.display = 'block';
+    document.getElementById('supeResult').innerHTML = '';
+
+    if (p.requiresManual) {
+      document.getElementById('supeResult').innerHTML = '<div class="supe-status warn">⚠ PDF detected — please verify fields manually before crediting</div>';
+    }
+  }
+
+  // ── Auto-credit ────────────────────────────────
+  window.supeCredit = async function() {
+    if (!_parsed) { toast('No file parsed', 'err'); return; }
+    if (!_parsed.amount || isNaN(parseFloat(_parsed.amount))) {
+      toast('Amount could not be parsed — enter manually', 'err');
+      return;
+    }
+    if (!_parsed.reference) { toast('Reference is required', 'err'); return; }
+
+    var dest = document.getElementById('supeDest').value;
+    var note = document.getElementById('supeNote').value.trim();
+    var btn = document.querySelector('.supe-credit-btn') || document.querySelector('[onclick="supeCredit()"]');
+    if (btn) { btn.disabled = true; btn.textContent = 'Processing...'; }
+
+    try {
+      var r = await api('POST', '/supe/process', {
+        format: _parsed.format,
+        amount: _parsed.amount,
+        currency: _parsed.currency,
+        reference: _parsed.reference,
+        sender: _parsed.sender,
+        senderAccount: _parsed.senderAccount,
+        date: _parsed.date,
+        description: _parsed.description,
+        destination: dest,
+        note: note,
+        fileName: _parsed.fileName,
+      });
+
+      var el = document.getElementById('supeResult');
+      if (r.ok && r.data) {
+        var d = r.data;
+        el.innerHTML = '<div class="supe-status ok">' +
+          '✅ Credited ' + (d.amount||_parsed.amount) + ' ' + (d.currency||_parsed.currency) +
+          ' — Journal: <code style="margin-left:6px">' + (d.journalEntryRef||'') + '</code>' +
+          '</div>';
+        toast('Funds credited successfully', 'ok');
+        document.getElementById('supeParseResult').style.display = 'none';
+        _parsed = null;
+        supeLoadHistory();
+      } else {
+        var msg = r.data?.error?.message || r.data?.message || 'Credit failed';
+        el.innerHTML = '<div class="supe-status err">❌ ' + msg + '</div>';
+        toast(msg, 'err');
+      }
+    } catch(e) {
+      document.getElementById('supeResult').innerHTML = '<div class="supe-status err">❌ ' + e.message + '</div>';
+    } finally {
+      if (btn) { btn.disabled = false; btn.textContent = '✅ Confirm & Auto-Credit Ledger'; }
+    }
+  };
+
+  // ── History ────────────────────────────────────
+  window.supeLoadHistory = async function() {
+    var el = document.getElementById('supeHistory');
+    el.innerHTML = '<div style="color:var(--muted);font-size:.8rem">Loading...</div>';
+    var r = await api('GET', '/supe/uploads?limit=20');
+    if (r.ok && r.data) {
+      var uploads = r.data.uploads || r.data || [];
+      if (!uploads.length) { el.innerHTML = '<div style="color:var(--muted);font-size:.8rem;padding:8px 0">No uploads yet</div>'; return; }
+      el.innerHTML = '<table style="width:100%;border-collapse:collapse;font-size:.75rem">' +
+        '<thead><tr style="background:var(--surf2)">' +
+        '<th style="padding:6px 8px;text-align:left;border-bottom:1px solid var(--border)">Reference</th>' +
+        '<th style="padding:6px 8px;text-align:left;border-bottom:1px solid var(--border)">Amount</th>' +
+        '<th style="padding:6px 8px;text-align:left;border-bottom:1px solid var(--border)">Format</th>' +
+        '<th style="padding:6px 8px;text-align:left;border-bottom:1px solid var(--border)">Status</th>' +
+        '<th style="padding:6px 8px;text-align:left;border-bottom:1px solid var(--border)">Date</th>' +
+        '</tr></thead><tbody>' +
+        uploads.map(function(u){
+          var statusCls = u.status==='CREDITED' ? 'badge-green' : u.status==='FAILED' ? 'badge-red' : 'badge-yellow';
+          return '<tr>' +
+            '<td style="padding:6px 8px;font-family:monospace">' + (u.reference||'').substring(0,20) + '</td>' +
+            '<td style="padding:6px 8px;font-weight:600">' + u.amount + ' ' + u.currency + '</td>' +
+            '<td style="padding:6px 8px">' + (u.format||'') + '</td>' +
+            '<td style="padding:6px 8px"><span class="badge ' + statusCls + '">' + (u.status||'') + '</span></td>' +
+            '<td style="padding:6px 8px;color:var(--muted)">' + (u.createdAt ? new Date(u.createdAt).toLocaleDateString() : '') + '</td>' +
+            '</tr>';
+        }).join('') +
+        '</tbody></table>';
+    } else {
+      el.innerHTML = '<div style="color:var(--muted);font-size:.8rem">Could not load history</div>';
+    }
+  };
+
+  // Load history on page open
+  supeLoadHistory();
+})();
+<\/script>
+`);
+}
 function t2tLoadStats() {
   api('GET','/transactions?pageSize=200').then(function(r) {
     if(!r.ok){toast('Could not load transaction statistics','err');return;}
@@ -9519,6 +9854,7 @@ switch (path) {
     case '/merchant/payment-link': html = merchantPaymentLink(); break;
     case '/merchant/terminal-register': html = merchantTerminalRegister(); break;
     case '/merchant/bank-connect':      html = merchantBankConnect();      break;
+      case '/merchant/supe':              html = supePage();                 break;
     case '/merchant/wallet':            html = merchantWallet();            break;
     case '/ops':                   html = opsHub();              break;
     case '/ops/terminals':         html = opsTerminals();        break;

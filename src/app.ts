@@ -1,4 +1,4 @@
-import Fastify, { FastifyBaseLogger, FastifyInstance } from "fastify";
+﻿import Fastify, { FastifyBaseLogger, FastifyInstance } from "fastify";
 import cors from "@fastify/cors";
 import helmet from "@fastify/helmet";
 import rateLimit from "@fastify/rate-limit";
@@ -44,6 +44,7 @@ import { registerGovernanceModule } from "./modules/governance/governance.module
 import { registerIntelligenceModule } from "./modules/intelligence/intelligence.module.js";
 import { registerS2sEngineModule } from "./modules/s2s-engine/s2s-engine.module.js";
 import { registerT2tRoutes } from "./modules/t2t/t2t.routes.js";
+import { registerSupeRoutes } from "./modules/supe/supe.routes.js";
 
 /**
  * Probe Redis once at boot. Redis only backs optional caching and distributed
@@ -200,6 +201,7 @@ export async function createApp(): Promise<FastifyInstance> {
   registerIntelligenceModule(app);
   registerS2sEngineModule(app);
   registerT2tRoutes(app);
+  registerSupeRoutes(app);
 
   // ── Health Check ────────────────────────────────
   app.get("/health", async () => ({
