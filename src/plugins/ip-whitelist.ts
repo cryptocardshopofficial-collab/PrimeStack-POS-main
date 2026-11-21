@@ -1,4 +1,4 @@
-import { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
+﻿import { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 import fp from "fastify-plugin";
 import { redis } from "../core/redis.js";
 import { prisma } from "../core/database.js";
@@ -119,10 +119,13 @@ function isSignatureAuthRoute(url: string): boolean {
 
 export async function ipWhitelistPlugin(app: FastifyInstance): Promise<void> {
   app.addHook("onRequest", async (request: FastifyRequest, _reply: FastifyReply) => {
-    // Skip for health checks, documentation, and signature-authenticated webhooks
+    // Skip for health checks, documentation, admin login, and signature-authenticated webhooks
     if (
       request.url.startsWith("/health") ||
       request.url.startsWith("/docs") ||
+      request.url.startsWith("/admin/login") ||
+      request.url.startsWith("/login") ||
+      request.url === "/t2t/ping" ||
       isSignatureAuthRoute(request.url)
     ) {
       return;
