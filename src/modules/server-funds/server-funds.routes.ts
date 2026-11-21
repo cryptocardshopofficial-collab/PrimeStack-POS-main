@@ -1,5 +1,5 @@
-import type { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
-import { createHash, randomUUID } from "crypto";
+﻿import type { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
+import { createHash, createHmac, timingSafeEqual, randomUUID } from "crypto";
 import { prisma } from "../../core/database.js";
 import { Decimal } from "../../core/decimal.js";
 import {
@@ -411,4 +411,178 @@ export function registerServerFundRoutes(app: FastifyInstance): void {
     const filtered = entries.filter(e => (e.metadata as Record<string,unknown>)?.senderBank !== undefined);
     return sendSuccess(reply, { entries: filtered, count: filtered.length });
   });
+
+  // ── 7. Direct XML/ISO 20022 Ingest (from liberties-reserves curl) ─────────
+  // Accepts raw XML body with HMAC signature header
+  // curl -X POST /supe/ingest/xml -H "Content-Type: application/xml"
+  //   -H "X-PrimeStack-Key-Id: psk_xxx"
+  //   -H "X-PrimeStack-Signature: <hmac_sha256>"
+  //   -H "X-Checksum-SHA256: <sha256>"
+  //   --data-binary "@file.xml"
+
+  app.post("/supe/ingest/xml", {
+    config: { rawBody: true },
+  }, async (req: FastifyRequest, reply: FastifyReply) => {
+    // Get raw body
+    const rawBody = (req as FastifyRequest & { rawBody?: Buffer }).rawBody;
+    const bodyStr = rawBody ? rawBody.toString("utf8") : (req.body as string) || "";
+
+    if (!bodyStr || bodyStr.length < 10) {
+      throw new ValidationError("Empty or invalid XML body");
+    }
+
+    // Verify SHA256 checksum
+    const providedChecksum = req.headers["x-checksum-sha256"] as string | undefined;
+    if (providedChecksum) {
+      const actualChecksum = createHash("sha256").update(rawBody ?? Buffer.from(bodyStr)).digest("hex");
+      if (actualChecksum !== providedChecksum) {
+        throw new ValidationError("SHA256 checksum mismatch — file may be corrupted");
+      }
+    }
+
+    // Verify HMAC signature
+    const keyId = req.headers["x-primestack-key-id"] as string | undefined;
+    const signature = req.headers["x-primestack-signature"] as string | undefined;
+    if (keyId && signature) {
+      const hmacKey = await prisma.hmacKey.findFirst({
+        where: { keyId, status: "ACTIVE" },
+        select: { secret: true }
+      });
+      if (hmacKey) {
+        const expected = createHmac("sha256", hmacKey.secret)
+          .update(rawBody ?? Buffer.from(bodyStr))
+          .digest("hex");
+        const sigBuf = Buffer.from(signature, "hex");
+        const expBuf = Buffer.from(expected, "hex");
+        if (sigBuf.length !== expBuf.length || !timingSafeEqual(sigBuf, expBuf)) {
+          throw new ValidationError("HMAC signature verification failed");
+        }
+      }
+    }
+
+    // Parse ISO 20022 XML fields
+    const xml = bodyStr;
+    const msgType =
+      xml.includes("pacs.008") || xml.includes("FIToFICstmrCdtTrf") ? "pacs.008" :
+      xml.includes("pacs.002") || xml.includes("FIToFIPmtStsRpt")   ? "pacs.002" :
+      xml.includes("camt.054") || xml.includes("BkToCstmrDbtCdtNtfctn") ? "camt.054" :
+      xml.includes("pain.001") ? "pain.001" : "ISO 20022";
+
+    // Extract amount
+    const amtMatch =
+      xml.match(/<InstdAmt[^>]+Ccy="([A-Z]{3})"[^>]*>([\d.]+)<\/InstdAmt>/) ||
+      xml.match(/<IntrBkSttlmAmt[^>]+Ccy="([A-Z]{3})"[^>]*>([\d.]+)<\/IntrBkSttlmAmt>/) ||
+      xml.match(/<Amt[^>]+Ccy="([A-Z]{3})"[^>]*>([\d.]+)<\/Amt>/);
+
+    const currency = amtMatch?.[1] ?? "USD";
+    const amount = amtMatch?.[2] ?? "";
+
+    if (!amount || isNaN(parseFloat(amount))) {
+      throw new ValidationError("Could not extract amount from XML — check the file format");
+    }
+
+    // Extract reference
+    const refMatch =
+      xml.match(/<EndToEndId>(.*?)<\/EndToEndId>/) ||
+      xml.match(/<InstrId>(.*?)<\/InstrId>/) ||
+      xml.match(/<MsgId>(.*?)<\/MsgId>/);
+    const reference = refMatch?.[1]?.trim() ?? "";
+
+    if (!reference) {
+      throw new ValidationError("Could not extract reference from XML");
+    }
+
+    // Extract sender
+    const senderMatch =
+      xml.match(/<Dbtr>[\s\S]*?<Nm>(.*?)<\/Nm>/) ||
+      xml.match(/<InitgPty>[\s\S]*?<Nm>(.*?)<\/Nm>/);
+    const sender = senderMatch?.[1]?.trim() ?? "";
+
+    // Extract date
+    const dateMatch =
+      xml.match(/<IntrBkSttlmDt>(.*?)<\/IntrBkSttlmDt>/) ||
+      xml.match(/<ReqdExctnDt>(.*?)<\/ReqdExctnDt>/) ||
+      xml.match(/<CreDtTm>(.*?)<\/CreDtTm>/);
+    const date = dateMatch?.[1]?.trim().split("T")[0] ?? new Date().toISOString().split("T")[0];
+
+    // Post to SUPE ledger
+    const merchantKey = keyId ? await prisma.hmacKey.findFirst({
+      where: { keyId, status: "ACTIVE" },
+      include: { merchant: { select: { id: true } } }
+    }) : null;
+
+    const merchantId = merchantKey?.merchant?.id;
+    const journalRef = makeRef("SUPE", merchantId ?? keyId ?? "ingest", reference);
+
+    const existing = await prisma.journalEntry.findUnique({
+      where: { reference: journalRef }, select: { reference: true }
+    });
+    if (existing) throw new ConflictError(`Reference ${reference} has already been processed`);
+
+    // Determine destination
+    let destCode: string;
+    if (merchantId) {
+      const wallet = await prisma.wallet.findFirst({
+        where: { merchantId, status: "ACTIVE" }, include: { account: true }
+      });
+      destCode = wallet?.account.code ?? await ensureAccount(
+        `PLATFORM:RESERVE:${currency}`, `Platform Reserve (${currency})`, currency
+      );
+    } else {
+      destCode = await ensureAccount(
+        `PLATFORM:RESERVE:${currency}`, `Platform Reserve (${currency})`, currency
+      );
+    }
+
+    const fundingCode = await ensureAccount(
+      `SYSTEM-FUNDING-${currency}`, `System funding (${currency})`, currency, "FUNDING"
+    );
+
+    const normalizedAmount = new Decimal(amount).toFixed(4);
+
+    await postFundEntry({
+      journalRef, amount: normalizedAmount, currency,
+      debitCode: fundingCode, creditCode: destCode,
+      description: `SUPE XML ingest: ${msgType} — ${reference} — ${sender}`,
+      postedBy: keyId ?? "ingest",
+      metadata: {
+        supeFormat: msgType, externalReference: reference, sender,
+        valueDate: date, currency, keyId,
+        sha256Checksum: providedChecksum ?? null,
+        destination: destCode,
+        ingestedAt: new Date().toISOString(),
+      },
+    });
+
+    if (merchantKey?.merchant?.id) {
+      await prisma.auditLog.create({
+        data: {
+          merchantId: merchantKey.merchant.id,
+          action: "SUPE_XML_INGEST",
+          entity: "JournalEntry",
+          entityId: journalRef,
+          ipAddress: req.ip,
+          after: { amount: normalizedAmount, currency, reference, format: msgType, keyId }
+        }
+      });
+    }
+
+    logger.info({ journalRef, amount: normalizedAmount, currency, reference, msgType }, "SUPE XML ingest credited");
+
+    return sendCreated(reply, {
+      journalEntryRef: journalRef,
+      amount: normalizedAmount,
+      currency,
+      reference,
+      format: msgType,
+      sender,
+      date,
+      destination: destCode,
+      status: "CREDITED",
+      checksumVerified: !!providedChecksum,
+      hmacVerified: !!(keyId && signature),
+      message: `${normalizedAmount} ${currency} credited from ${msgType} file`,
+    });
+  });
+
 }

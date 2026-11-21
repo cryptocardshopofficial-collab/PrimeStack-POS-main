@@ -127,6 +127,16 @@ export async function createApp(): Promise<FastifyInstance> {
   // rate-limit store instead of failing every request with a 500.
   const useRedisStore = await redisReachable();
 
+  // Enable raw body for XML ingest endpoint
+  app.addContentTypeParser('application/xml', { parseAs: 'buffer' }, async (req, body) => {
+    (req as FastifyRequest & { rawBody?: Buffer }).rawBody = body as Buffer;
+    return (body as Buffer).toString('utf8');
+  });
+  app.addContentTypeParser('text/xml', { parseAs: 'buffer' }, async (req, body) => {
+    (req as FastifyRequest & { rawBody?: Buffer }).rawBody = body as Buffer;
+    return (body as Buffer).toString('utf8');
+  });
+
   await app.register(rateLimit, {
     max: config.rateLimit.max,
     timeWindow: `${config.rateLimit.window} seconds`,
