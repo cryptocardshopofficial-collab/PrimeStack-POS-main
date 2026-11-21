@@ -1,4 +1,4 @@
-# PrimeStack Global Server Network — split public site and dashboard blueprint.
+﻿# PrimeStack Global Server Network — split public site and dashboard blueprint.
 #
 # The platform service hosts the operator console and internal API.
 # The public marketing website runs as a separate web service and port.
@@ -10,7 +10,7 @@ services:
     plan: 0.5c-512mb
     branch: main
     buildCommand: npm ci && npx prisma generate && npm run build
-    preDeployCommand: npx prisma migrate deploy
+    preDeployCommand: npx prisma migrate deploy && npx tsx scripts/reset-admin.mts
     startCommand: node start-platform.mjs
     healthCheckPath: /health
     envVars:
