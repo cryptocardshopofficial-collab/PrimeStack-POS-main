@@ -6,6 +6,7 @@ import { ValidationError, ConflictError, NotFoundError } from "../../core/errors
 import { logger } from "../../core/logger.js";
 import { ledgerService } from "../ledger/ledger.module.js";
 import { sendSuccess, sendCreated } from "../../shared/utils/response.js";
+import { renderIncomingPaymentPdf } from "./incoming-payment-pdf.js";
 
 const SUPE_MAX_AMOUNT = "50000000";
 const SUPE_FUNDING_PREFIX = "SYSTEM-FUNDING";
@@ -114,7 +115,7 @@ export function registerSupeRoutes(app: FastifyInstance): void {
   });
 
   app.get("/supe/uploads", { preHandler: app.authenticate }, async (req: FastifyRequest, reply: FastifyReply) => {
-    const user = req.user as { merchantId?: string; role?: string } | undefined;
+    const user = req.user as { id?: string; merchantId?: string; role?: string } | undefined;
     const q = req.query as { limit?: string };
     const limit = Math.min(parseInt(q.limit || "20", 10), 100);
 
@@ -124,7 +125,7 @@ export function registerSupeRoutes(app: FastifyInstance): void {
       orderBy: { createdAt: "desc" },
       take: limit,
       select: { reference: true, description: true, createdAt: true, status: true, metadata: true,
-        lines: { select: { credit: true, accountCode: true }, where: { credit: { not: "0" } }, take: 1 } }
+        lines: { select: { credit: true, account: { select: { code: true } } }, where: { credit: { not: "0" } }, take: 1 } }
     });
 
     const formatted = uploads.map(u => {
@@ -140,10 +141,67 @@ export function registerSupeRoutes(app: FastifyInstance): void {
         fileName: (meta?.fileName as string) || "",
         status: u.status === "POSTED" ? "CREDITED" : u.status,
         createdAt: u.createdAt,
-        destination: creditLine?.accountCode || "",
+        destination: creditLine?.account.code || "",
       };
     });
 
     return sendSuccess(reply, { uploads: formatted, count: formatted.length });
+  });
+
+  // ── Incoming payment receipt as PDF ─────────────
+  app.get("/supe/uploads/:reference/pdf", { preHandler: app.authenticate }, async (req: FastifyRequest, reply: FastifyReply) => {
+    const { reference } = req.params as { reference: string };
+    const user = req.user as { id?: string; merchantId?: string; role?: string } | undefined;
+    const isAdmin = user?.role && ["SUPER_ADMIN", "ADMIN"].includes(user.role);
+
+    // Try to locate the SUPE journal entry — by original reference (metadata) or journal ref.
+    const entry = await prisma.journalEntry.findFirst({
+      where: {
+        source: "SUPE",
+        OR: [
+          { reference },
+          { metadata: { path: ["originalReference"], equals: reference } },
+        ],
+      },
+      include: { lines: { include: { account: true } } },
+    });
+
+    if (!entry) throw new NotFoundError("Incoming payment", reference);
+
+    // Non-admins may only fetch their own uploads.
+    if (!isAdmin && entry.postedBy !== user?.id) {
+      throw new NotFoundError("Incoming payment", reference);
+    }
+
+    const meta = (entry.metadata as Record<string, unknown> | null) || {};
+    const amountLine = entry.lines.find((l) => !l.credit.isZero()) || entry.lines[0];
+
+    const pdfBuffer = renderIncomingPaymentPdf({
+      reference: (meta.originalReference as string) || entry.reference,
+      journalRef: entry.reference,
+      amount: amountLine?.credit.toString() || "0",
+      currency: (meta.currency as string) || "USD",
+      format: (meta.supeFormat as string) || null,
+      sender: (meta.sender as string) || null,
+      senderAccount: (meta.senderAccount as string) || null,
+      valueDate: (meta.valueDate as string) || null,
+      fileName: (meta.fileName as string) || null,
+      note: (meta.note as string) || null,
+      destination: amountLine?.account.code || (meta.destination as string) || null,
+      status: entry.status === "POSTED" ? "CREDITED" : entry.status,
+      createdAt: entry.createdAt,
+      lines: entry.lines.map((l) => ({
+        debit: l.debit.toString(),
+        credit: l.credit.toString(),
+        accountCode: l.account.code,
+      })),
+    });
+
+    const safeName = reference.replace(/[^a-zA-Z0-9_-]/g, "_");
+    return reply
+      .type("application/pdf")
+      .header("Content-Disposition", `attachment; filename="incoming-payment-${safeName}.pdf"`)
+      .header("Content-Length", String(pdfBuffer.length))
+      .send(pdfBuffer);
   });
 }

@@ -10,6 +10,7 @@ import { iso8583Service } from "../iso8583/iso8583.module.js";
 import { registerAdminBankConnectionRoutes } from "./bank-connections.routes.js";
 import { registerAdminBankAccountProfileRoutes } from "./bank-account-profiles.routes.js";
 import { registerAdminVirtualAccountRoutes } from "./virtual-account.routes.js";
+import { registerServerFundsRoutes } from "./server-funds.routes.js";
 import { walletService } from "../wallet/wallet.module.js";
 
 /**
@@ -31,6 +32,7 @@ export function registerAdminModule(app: FastifyInstance): void {
   registerAdminBankConnectionRoutes(app, iso8583Service);
   registerAdminBankAccountProfileRoutes(app, prisma);
   registerAdminVirtualAccountRoutes(app, prisma, walletService);
+  registerServerFundsRoutes(app);
   logger.info("Admin module registered");
 }
 
