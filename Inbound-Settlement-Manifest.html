@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>PrimeStack — Inbound Settlement Manifest</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Inter',Arial,sans-serif;color:#1a2332;background:#fff;font-size:13px}
+.page{width:794px;margin:0 auto;padding:60px 64px}
+.header{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #003B70;padding-bottom:24px;margin-bottom:32px}
+.logo{font-size:20px;font-weight:800;color:#003B70;letter-spacing:-.03em}
+.logo span{color:#E2B93B}
+.doc-meta{text-align:right;font-size:11px;color:#64748b;line-height:1.9}
+.doc-title{font-size:24px;font-weight:800;color:#003B70;margin-bottom:4px;letter-spacing:-.03em}
+.doc-sub{font-size:13px;color:#64748b;margin-bottom:28px}
+.section{margin-bottom:26px}
+.section-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#003B70;border-left:3px solid #E2B93B;padding-left:10px;margin-bottom:14px}
+table{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:14px}
+th{background:#003B70;color:#fff;padding:9px 14px;text-align:left;font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:.05em}
+td{padding:9px 14px;border-bottom:1px solid #E5E7EB;vertical-align:top;font-family:'JetBrains Mono',monospace;font-size:11px}
+td.label{font-family:'Inter',Arial,sans-serif;font-weight:600;color:#003B70;width:36%;font-size:12px}
+tr:nth-child(even) td{background:#F8FAFC}
+.code-block{background:#0f1f35;border-radius:8px;padding:16px 20px;margin-bottom:14px;color:#e2e8f0;font-family:'JetBrains Mono',monospace;font-size:11px;line-height:1.9;overflow-wrap:break-word;word-break:break-all}
+.code-block .key{color:#93c5fd}
+.code-block .val{color:#86efac}
+.code-block .cmt{color:#64748b;font-size:10px}
+.code-block .cmd{color:#fbbf24}
+.code-block .hdr{color:#c4b5fd}
+.divider{border:none;border-top:1px solid #E5E7EB;margin:22px 0}
+.footer{border-top:1px solid #D9E1E8;margin-top:40px;padding-top:14px;display:flex;justify-content:space-between;font-size:10px;color:#94A3B8}
+.alert{border-radius:7px;padding:11px 14px;font-size:12px;line-height:1.6;margin-bottom:14px;display:flex;gap:9px}
+.alert-info{background:#EFF6FF;border:1px solid #BFDBFE;color:#1e40af}
+.alert-warn{background:#FFFBEB;border:1px solid #FDE68A;color:#92400e}
+.alert-success{background:#F0FDF4;border:1px solid #BBF7D0;color:#166534}
+code{background:#F1F5F9;border:1px solid #E2E8F0;border-radius:4px;padding:1px 6px;font-family:'JetBrains Mono',monospace;font-size:10.5px;color:#003B70}
+.badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;text-transform:uppercase}
+.badge-green{background:#F0FDF4;color:#166534;border:1px solid #BBF7D0}
+.badge-blue{background:#EFF6FF;color:#1d4ed8;border:1px solid #BFDBFE}
+.badge-amber{background:#FFFBEB;color:#92400e;border:1px solid #FDE68A}
+.file-box{border:1px solid #D9E1E8;border-radius:8px;padding:16px;margin-bottom:12px;background:#F8FAFC}
+.file-box-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.file-name{font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;color:#003B70}
+.hash-row{display:flex;gap:8px;margin-top:6px;font-size:10px}
+.hash-label{color:#64748b;font-weight:600;min-width:80px}
+.hash-val{font-family:'JetBrains Mono',monospace;color:#1a2332;word-break:break-all;font-size:10px}
+.step{display:flex;gap:12px;margin-bottom:14px;align-items:flex-start}
+.step-num{flex-shrink:0;width:24px;height:24px;background:#003B70;color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700}
+.step-body{flex:1}
+.step-title{font-weight:700;font-size:12.5px;margin-bottom:2px}
+.step-desc{color:#64748b;font-size:11.5px;line-height:1.6}
+</style>
+</head>
+<body>
+<div class="page">
+
+<div class="header">
+  <div>
+    <div class="logo">Prime<span>Stack</span></div>
+    <div style="font-size:10px;color:#94a3b8;margin-top:3px">Global Server Network · Secure Upload Processing Engine</div>
+  </div>
+  <div class="doc-meta">
+    Document: Inbound Settlement Manifest<br>
+    Prepared for: Liberties Reserves<br>
+    Date: November 2026<br>
+    Classification: Confidential
+  </div>
+</div>
+
+<div class="doc-title">Inbound Settlement Manifest</div>
+<div class="doc-sub">Instructions for submitting ISO 20022 settlement files to PrimeStack SUPE via authenticated HTTP ingest</div>
+
+<div class="alert alert-success">
+  <span>✅</span>
+  <div><strong>Ready to receive.</strong> The PrimeStack SUPE XML ingest endpoint is live. Send each file using the curl commands below. Each submission is verified by HMAC-SHA256 and SHA256 checksum before crediting.</div>
+</div>
+
+<!-- Beneficiary Details -->
+<div class="section">
+  <div class="section-title">01 — Beneficiary Details</div>
+  <table>
+    <tr><td class="label">Beneficiary Name</td><td>PRIMESTACK TECHNOLOGIES LLC</td></tr>
+    <tr><td class="label">Wise Account Number</td><td>343612919064346</td></tr>
+    <tr><td class="label">ABA Routing Number</td><td>084009519</td></tr>
+    <tr><td class="label">SWIFT/BIC</td><td>TRWIUS35XXX</td></tr>
+    <tr><td class="label">Bank Name</td><td>Column National Association (via Wise)</td></tr>
+    <tr><td class="label">Ingest Endpoint</td><td>https://primestack-switch.onrender.com/supe/ingest/xml</td></tr>
+    <tr><td class="label">HMAC Key ID</td><td>psk_31829f5bb338a702</td></tr>
+    <tr><td class="label">UETR</td><td>8a562c67-ca16-48ba-b074-65581be6f001</td></tr>
+  </table>
+</div>
+
+<hr class="divider">
+
+<!-- Settlement Files -->
+<div class="section">
+  <div class="section-title">02 — Settlement Documents</div>
+  <div class="alert alert-info">
+    <span>ℹ</span>
+    <div>Three ISO 20022 XML files have been prepared and verified. Each file must be submitted separately using the commands in Section 03. Total settlement amount: <strong>$50,000.00 USD</strong>.</div>
+  </div>
+
+  <!-- File 1 -->
+  <div class="file-box">
+    <div class="file-box-header">
+      <div class="file-name">📄 pacs008_primestack_50000.xml</div>
+      <span class="badge badge-blue">pacs.008 · FI Credit Transfer</span>
+    </div>
+    <div style="font-size:11px;color:#64748b;margin-bottom:8px">Financial Institution to Financial Institution Customer Credit Transfer — primary settlement instruction</div>
+    <div class="hash-row"><span class="hash-label">Size:</span><span class="hash-val">1,871 bytes</span></div>
+    <div class="hash-row"><span class="hash-label">SHA-256:</span><span class="hash-val">c46f43fd55c97dca9613670a34b75242d3847b15134e04fb46b2b23ed1ef16e3</span></div>
+    <div class="hash-row"><span class="hash-label">HMAC-SHA256:</span><span class="hash-val">2cd82cbf2b4f5439d6881d7fee610549521b6ef2218aef3d08ba992874545514</span></div>
+  </div>
+
+  <!-- File 2 -->
+  <div class="file-box">
+    <div class="file-box-header">
+      <div class="file-name">📄 pacs002_primestack_50000.xml</div>
+      <span class="badge badge-amber">pacs.002 · Payment Status</span>
+    </div>
+    <div style="font-size:11px;color:#64748b;margin-bottom:8px">FI to FI Payment Status Report — confirms ACSC/BOOK settlement status</div>
+    <div class="hash-row"><span class="hash-label">Size:</span><span class="hash-val">1,504 bytes</span></div>
+    <div class="hash-row"><span class="hash-label">SHA-256:</span><span class="hash-val">15d373350fda267d5e9834c08d7bc5bd3242067d9321f8cb43a9de0c9f3f1143</span></div>
+    <div class="hash-row"><span class="hash-label">HMAC-SHA256:</span><span class="hash-val">a96408a6763b9d35a8ded7b25d203093a95200c06f70e82d11a66f40d91ecff7</span></div>
+  </div>
+
+  <!-- File 3 -->
+  <div class="file-box">
+    <div class="file-box-header">
+      <div class="file-name">📄 camt054_primestack_50000.xml</div>
+      <span class="badge badge-green">camt.054 · Credit Notification</span>
+    </div>
+    <div style="font-size:11px;color:#64748b;margin-bottom:8px">Bank to Customer Debit/Credit Notification — confirms funds credited to beneficiary account</div>
+    <div class="hash-row"><span class="hash-label">Size:</span><span class="hash-val">1,523 bytes</span></div>
+    <div class="hash-row"><span class="hash-label">SHA-256:</span><span class="hash-val">ba3b0a69ebf3d5b1dedb479f578f41b6f896ebd3fcecc0a96a2a9c869cf4821b</span></div>
+    <div class="hash-row"><span class="hash-label">HMAC-SHA256:</span><span class="hash-val">bf300e5dafd2fbfa9cc498200e6fba4973c2b2eaf26ce7f41c46dd680be470bf</span></div>
+  </div>
+</div>
+
+<hr class="divider">
+
+<!-- Submission Commands -->
+<div class="section">
+  <div class="section-title">03 — Submission Commands (Run on Liberties Reserves Server)</div>
+  <div class="alert alert-warn">
+    <span>⚠</span>
+    <div>Run each command separately from the <code>/home/brato/primestack-gateway/</code> directory. Wait for HTTP 201 response before sending the next file.</div>
+  </div>
+
+  <div style="font-size:11px;font-weight:700;color:#003B70;margin-bottom:6px">File 1 — pacs.008 Credit Transfer</div>
+  <div class="code-block">
+<span class="cmd">curl</span> -i -X POST <span class="val">"https://primestack-switch.onrender.com/supe/ingest/xml"</span> \
+  -H <span class="hdr">"Content-Type: application/xml"</span> \
+  -H <span class="hdr">"X-PrimeStack-Key-Id: psk_31829f5bb338a702"</span> \
+  -H <span class="hdr">"X-PrimeStack-Signature: 2cd82cbf2b4f5439d6881d7fee610549521b6ef2218aef3d08ba992874545514"</span> \
+  -H <span class="hdr">"X-Checksum-SHA256: c46f43fd55c97dca9613670a34b75242d3847b15134e04fb46b2b23ed1ef16e3"</span> \
+  --data-binary <span class="val">"@pacs008_primestack_50000.xml"</span>
+  </div>
+
+  <div style="font-size:11px;font-weight:700;color:#003B70;margin-bottom:6px;margin-top:16px">File 2 — pacs.002 Status Report</div>
+  <div class="code-block">
+<span class="cmd">curl</span> -i -X POST <span class="val">"https://primestack-switch.onrender.com/supe/ingest/xml"</span> \
+  -H <span class="hdr">"Content-Type: application/xml"</span> \
+  -H <span class="hdr">"X-PrimeStack-Key-Id: psk_31829f5bb338a702"</span> \
+  -H <span class="hdr">"X-PrimeStack-Signature: a96408a6763b9d35a8ded7b25d203093a95200c06f70e82d11a66f40d91ecff7"</span> \
+  -H <span class="hdr">"X-Checksum-SHA256: 15d373350fda267d5e9834c08d7bc5bd3242067d9321f8cb43a9de0c9f3f1143"</span> \
+  --data-binary <span class="val">"@pacs002_primestack_50000.xml"</span>
+  </div>
+
+  <div style="font-size:11px;font-weight:700;color:#003B70;margin-bottom:6px;margin-top:16px">File 3 — camt.054 Credit Notification</div>
+  <div class="code-block">
+<span class="cmd">curl</span> -i -X POST <span class="val">"https://primestack-switch.onrender.com/supe/ingest/xml"</span> \
+  -H <span class="hdr">"Content-Type: application/xml"</span> \
+  -H <span class="hdr">"X-PrimeStack-Key-Id: psk_31829f5bb338a702"</span> \
+  -H <span class="hdr">"X-PrimeStack-Signature: bf300e5dafd2fbfa9cc498200e6fba4973c2b2eaf26ce7f41c46dd680be470bf"</span> \
+  -H <span class="hdr">"X-Checksum-SHA256: ba3b0a69ebf3d5b1dedb479f578f41b6f896ebd3fcecc0a96a2a9c869cf4821b"</span> \
+  --data-binary <span class="val">"@camt054_primestack_50000.xml"</span>
+  </div>
+</div>
+
+<hr class="divider">
+
+<!-- Expected Response -->
+<div class="section">
+  <div class="section-title">04 — Expected Response on Success</div>
+  <div class="code-block">
+<span class="cmt">// HTTP 201 Created</span>
+{
+  <span class="key">"success"</span>:          <span class="val">true</span>,
+  <span class="key">"data"</span>: {
+    <span class="key">"journalEntryRef"</span>: <span class="val">"SUPE-A3F2D1E8B9C..."</span>,
+    <span class="key">"amount"</span>:          <span class="val">"50000.0000"</span>,
+    <span class="key">"currency"</span>:        <span class="val">"USD"</span>,
+    <span class="key">"reference"</span>:       <span class="val">"&lt;EndToEndId from XML&gt;"</span>,
+    <span class="key">"format"</span>:          <span class="val">"pacs.008"</span>,
+    <span class="key">"status"</span>:          <span class="val">"CREDITED"</span>,
+    <span class="key">"checksumVerified"</span>: <span class="val">true</span>,
+    <span class="key">"hmacVerified"</span>:    <span class="val">true</span>,
+    <span class="key">"message"</span>:        <span class="val">"50000.0000 USD credited from pacs.008 file"</span>
+  }
+}
+  </div>
+</div>
+
+<hr class="divider">
+
+<!-- Step by Step -->
+<div class="section">
+  <div class="section-title">05 — Submission Steps</div>
+  <div class="step">
+    <div class="step-num">1</div>
+    <div class="step-body">
+      <div class="step-title">Confirm files are present</div>
+      <div class="step-desc">Verify all 3 XML files exist in <code>/home/brato/primestack-gateway/</code> using <code>ls -la *.xml</code></div>
+    </div>
+  </div>
+  <div class="step">
+    <div class="step-num">2</div>
+    <div class="step-body">
+      <div class="step-title">Confirm server is reachable</div>
+      <div class="step-desc"><code>curl -s https://primestack-switch.onrender.com/health</code> — must return <code>{"ok":true}</code></div>
+    </div>
+  </div>
+  <div class="step">
+    <div class="step-num">3</div>
+    <div class="step-body">
+      <div class="step-title">Send File 1 (pacs.008)</div>
+      <div class="step-desc">Run the File 1 curl command. Confirm <code>HTTP/1.1 201</code> and <code>"status":"CREDITED"</code> in response.</div>
+    </div>
+  </div>
+  <div class="step">
+    <div class="step-num">4</div>
+    <div class="step-body">
+      <div class="step-title">Send File 2 (pacs.002)</div>
+      <div class="step-desc">Run the File 2 curl command. Confirm 201 response.</div>
+    </div>
+  </div>
+  <div class="step">
+    <div class="step-num">5</div>
+    <div class="step-body">
+      <div class="step-title">Send File 3 (camt.054)</div>
+      <div class="step-desc">Run the File 3 curl command. Confirm 201 response.</div>
+    </div>
+  </div>
+  <div class="step">
+    <div class="step-num">6</div>
+    <div class="step-body">
+      <div class="step-title">Confirm in SUPE History</div>
+      <div class="step-desc">PrimeStack will verify receipt at <strong>Merchant Portal → SUPE → Upload History</strong>. All 3 files should show status <strong>CREDITED</strong>.</div>
+    </div>
+  </div>
+</div>
+
+<hr class="divider">
+
+<!-- Security Notes -->
+<div class="section">
+  <div class="section-title">06 — Security Verification</div>
+  <table>
+    <tr><th>Check</th><th>Method</th><th>Header</th></tr>
+    <tr><td class="label">File integrity</td><td>SHA-256 hash of raw file bytes</td><td><code>X-Checksum-SHA256</code></td></tr>
+    <tr><td class="label">Sender authentication</td><td>HMAC-SHA256 of raw file body using shared secret</td><td><code>X-PrimeStack-Signature</code></td></tr>
+    <tr><td class="label">Key identification</td><td>HMAC key ID registered on PrimeStack</td><td><code>X-PrimeStack-Key-Id</code></td></tr>
+    <tr><td class="label">Duplicate prevention</td><td>SHA-256 of key ID + XML EndToEndId — rejects replays</td><td>Automatic</td></tr>
+  </table>
+</div>
+
+<div class="alert alert-warn" style="margin-top:4px">
+  <span>⚠</span>
+  <div><strong>Do not reuse the same EndToEndId</strong> across files — each file must have a unique reference. Duplicate references are permanently rejected with HTTP 409.</div>
+</div>
+
+<div class="footer">
+  <div>PrimeStack Global Server Network — Confidential</div>
+  <div>Inbound Settlement Manifest — November 2026</div>
+  <div>ops@primestack.io</div>
+</div>
+
+</div>
+</body>
+</html>

@@ -1,4 +1,4 @@
-﻿import Fastify, { FastifyBaseLogger, FastifyInstance } from "fastify";
+﻿import Fastify, { FastifyBaseLogger, FastifyInstance, FastifyRequest } from "fastify";
 import cors from "@fastify/cors";
 import helmet from "@fastify/helmet";
 import rateLimit from "@fastify/rate-limit";
@@ -45,7 +45,6 @@ import { registerIntelligenceModule } from "./modules/intelligence/intelligence.
 import { registerS2sEngineModule } from "./modules/s2s-engine/s2s-engine.module.js";
 import { registerT2tRoutes } from "./modules/t2t/t2t.routes.js";
 import { registerSupeRoutes } from "./modules/supe/supe.routes.js";
-import { registerServerFundRoutes } from "./modules/server-funds/server-funds.routes.js";
 
 /**
  * Probe Redis once at boot. Redis only backs optional caching and distributed
@@ -128,13 +127,13 @@ export async function createApp(): Promise<FastifyInstance> {
   const useRedisStore = await redisReachable();
 
   // Enable raw body for XML ingest endpoint
-  app.addContentTypeParser('application/xml', { parseAs: 'buffer' }, async (req, body) => {
-    (req as FastifyRequest & { rawBody?: Buffer }).rawBody = body as Buffer;
-    return (body as Buffer).toString('utf8');
+  app.addContentTypeParser('application/xml', { parseAs: 'buffer' }, async (req: FastifyRequest, body: Buffer) => {
+    (req as FastifyRequest & { rawBody?: Buffer }).rawBody = body;
+    return body.toString('utf8');
   });
-  app.addContentTypeParser('text/xml', { parseAs: 'buffer' }, async (req, body) => {
-    (req as FastifyRequest & { rawBody?: Buffer }).rawBody = body as Buffer;
-    return (body as Buffer).toString('utf8');
+  app.addContentTypeParser('text/xml', { parseAs: 'buffer' }, async (req: FastifyRequest, body: Buffer) => {
+    (req as FastifyRequest & { rawBody?: Buffer }).rawBody = body;
+    return body.toString('utf8');
   });
 
   await app.register(rateLimit, {
@@ -213,7 +212,6 @@ export async function createApp(): Promise<FastifyInstance> {
   registerS2sEngineModule(app);
   registerT2tRoutes(app);
   registerSupeRoutes(app);
-  registerServerFundRoutes(app);
 
   // ── Health Check ────────────────────────────────
   app.get("/health", async () => ({
