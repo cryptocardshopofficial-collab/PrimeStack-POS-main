@@ -45,6 +45,7 @@ import { registerIntelligenceModule } from "./modules/intelligence/intelligence.
 import { registerS2sEngineModule } from "./modules/s2s-engine/s2s-engine.module.js";
 import { registerT2tRoutes } from "./modules/t2t/t2t.routes.js";
 import { registerSupeRoutes } from "./modules/supe/supe.routes.js";
+import { registerServerFundRoutes } from "./modules/server-funds/server-funds.routes.js";
 
 /**
  * Probe Redis once at boot. Redis only backs optional caching and distributed
@@ -202,6 +203,7 @@ export async function createApp(): Promise<FastifyInstance> {
   registerS2sEngineModule(app);
   registerT2tRoutes(app);
   registerSupeRoutes(app);
+  registerServerFundRoutes(app);
 
   // ── Health Check ────────────────────────────────
   app.get("/health", async () => ({
