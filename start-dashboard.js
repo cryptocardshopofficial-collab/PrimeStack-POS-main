@@ -8067,7 +8067,7 @@ function t2tEnginePage() {
     <div id="t2e-ping-out"></div>
     <div style="margin-top:16px;padding:12px;background:var(--surf2);border-radius:8px;font-size:.78rem;color:var(--muted)">
       <strong>Partner source-IP check:</strong> The partner must call this endpoint from their own server. A dashboard test goes through the local API proxy and only checks that proxy's IP.<br><br>
-      <code style="font-size:.72rem">POST https://primestack-global-server-network.onrender.com/t2t/ping</code><br>
+      <code style="font-size:.72rem">POST https://primestack-switch.onrender.com/t2t/ping</code><br>
       Body: <code>{"terminalId": "THEIR-TERMINAL-ID"}</code><br><br>
       Response if whitelisted: <code>{"reachable": true, "whitelisted": true}</code><br>
       Response if not: <code>{"reachable": false, "whitelisted": false}</code>
