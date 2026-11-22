@@ -78,10 +78,10 @@ export async function hmacAuthPlugin(app: FastifyInstance): Promise<void> {
         path === "/webhooks/inbound" ||
         // Wise signs its webhook body with RSA (X-Signature-SHA256), verified
         // inside the route.
-        path === "/wise/webhook" ||
+        path.startsWith("/wise/webhook") ||
         // The SUPE settlement ingest verifies its own raw-byte HMAC
         // (X-PrimeStack-Signature) plus a SHA256 checksum, matching the
-        // partner manifest letter — it does not use the 4-header scheme.
+        // partner manifest letter ΓÇö it does not use the 4-header scheme.
         path === "/supe/ingest/xml"
       ) {
         return;
@@ -132,7 +132,7 @@ export async function hmacAuthPlugin(app: FastifyInstance): Promise<void> {
         throw new HmacSignatureError("Timestamp expired or invalid");
       }
 
-      // Look up the HMAC key — try cache first, fall back to DB
+      // Look up the HMAC key ΓÇö try cache first, fall back to DB
       const hmacKey = await prisma.hmacKey.findFirst({
         where: { keyId, status: "ACTIVE" },
         include: {
@@ -214,7 +214,7 @@ export async function hmacAuthPlugin(app: FastifyInstance): Promise<void> {
 
 /**
  * JWT Authentication decorator for admin routes.
- * Used with @fastify/jwt — verify the token and attach user.
+ * Used with @fastify/jwt ΓÇö verify the token and attach user.
  */
 export async function jwtAuthHook(app: FastifyInstance): Promise<void> {
   app.decorate(
