@@ -1,16 +1,16 @@
 ﻿import { z } from "zod";
 import type { PrismaClient } from "@prisma/client";
-import type { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
+import type { FastifyRequest, FastifyReply } from "fastify";
 import { config } from "../../config/index.js";
-import { ForbiddenError, ValidationError } from "../../core/errors.js";
+import { ForbiddenError } from "../../core/errors.js";
 import { sendCreated, sendSuccess } from "../../shared/utils/response.js";
-import { logger } from "../../core/logger.js";
+
 import {
   ensureWiseWebhookSubscription,
   listWiseWebhookSubscriptions,
   wiseWebhookPublicKey,
 } from "../wallet/wise-virtual-account.js";
-import { handleWiseBalanceWebhook } from "../wallet/wise-webhook.handler.js";
+
 import type { WalletService } from "../wallet/wallet.service.js";
 
 const VIRTUAL_ACCOUNT_ROLES = new Set(["SUPER_ADMIN", "ADMIN"]);
@@ -143,46 +143,6 @@ export function registerAdminVirtualAccountRoutes(
       : sendSuccess(reply, result);
   });
 
-  // ΓöÇΓöÇ Wise inbound balance webhook (public ΓÇö Wise signs with RSA-SHA256) ΓöÇΓöÇ
-  // This is the URL you register at Wise. It receives every balances#update
-  // event, verifies the RSA-SHA256 signature, and credits the matching
-  // merchant wallet (or platform reserve) via the SUPE ledger flow.
-  //
-  // Registration URL: POST /admin/wise/webhook-subscriptions
-  // The URL itself:   POST /wise/webhook   (must be in WISE_WEBHOOK_URL env)
-  // Scoped plugin: registers its own raw-body JSON parser so the exact bytes
-  // are available for Wise RSA-SHA256 signature verification without conflicting
-  // with Fastify's default parser registered elsewhere.
-  app.register(async (wiseScope: FastifyInstance) => {
-    wiseScope.addContentTypeParser(
-      "application/json",
-      { parseAs: "buffer" },
-      (_req: FastifyRequest, body: Buffer, done: (err: Error | null, body?: unknown) => void) => {
-        (_req as FastifyRequest & { rawBody?: Buffer }).rawBody = body;
-        try { done(null, JSON.parse(body.toString("utf8"))); }
-        catch (e) { done(e as Error); }
-      },
-    );
-    wiseScope.post("/wise/webhook", async (request: FastifyRequest, reply: FastifyReply) => {
-      const rawBody = (request as FastifyRequest & { rawBody?: Buffer }).rawBody
-        ?? Buffer.from(typeof request.body === "string" ? request.body : JSON.stringify(request.body ?? {}));
-      const signature = request.headers["x-signature-sha256"] as string | undefined;
-      try {
-        const result = await handleWiseBalanceWebhook(prisma, rawBody, signature, request.ip);
-        reply.status(200);
-        return sendSuccess(reply, result);
-      } catch (err) {
-        logger.warn({ err: err instanceof Error ? err.message : String(err), ip: request.ip }, "Wise webhook rejected");
-        return reply.status(400).send({
-          success: false,
-          error: {
-            code: err instanceof ValidationError ? "VALIDATION_ERROR" : "WEBHOOK_ERROR",
-            message: err instanceof Error ? err.message : "Webhook processing failed",
-          },
-        });
-      }
-    });
-  });
 
   // ΓöÇΓöÇ Wise webhook status (admin) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
   // Shows the endpoint URL, subscription state, and env configuration so
