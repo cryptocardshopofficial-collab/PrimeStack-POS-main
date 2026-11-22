@@ -79,7 +79,7 @@ export async function createApp(): Promise<FastifyInstance> {
 
   const app = Fastify({
     logger: logger as FastifyBaseLogger,
-    trustProxy: config.app.trustedProxies.length > 0 ? config.app.trustedProxies : false,
+    trustProxy: config.app.trustedProxies.length > 0 ? (config.app.trustedProxies.includes('0.0.0.0/0') ? true : config.app.trustedProxies) : false,
     bodyLimit: 1048576, // 1MB
     ajv: {
       customOptions: {
@@ -138,14 +138,6 @@ export async function createApp(): Promise<FastifyInstance> {
   app.addContentTypeParser('text/xml', { parseAs: 'buffer' }, async (req: FastifyRequest, body: Buffer) => {
     (req as FastifyRequest & { rawBody?: Buffer }).rawBody = body;
     return body.toString('utf8');
-  });
-  // Capture raw body for webhook endpoints that need signature verification
-  // over the exact bytes (Wise RSA-SHA256, inbound HMAC).
-  app.addContentTypeParser('application/json', { parseAs: 'buffer' }, async (req: FastifyRequest, body: Buffer) => {
-    (req as FastifyRequest & { rawBody?: Buffer }).rawBody = body;
-    if (!body || body.length === 0) return {};
-    try { return JSON.parse(body.toString('utf8')); }
-    catch { return {}; }
   });
 
   await app.register(rateLimit, {
@@ -239,3 +231,4 @@ export async function createApp(): Promise<FastifyInstance> {
   logger.info("Fastify application configured");
   return app;
 }
+
