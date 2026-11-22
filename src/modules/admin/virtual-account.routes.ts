@@ -1,8 +1,8 @@
 ﻿import { z } from "zod";
 import type { PrismaClient } from "@prisma/client";
-import type { FastifyRequest, FastifyReply } from "fastify";
+import type { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 import { config } from "../../config/index.js";
-import { ForbiddenError } from "../../core/errors.js";
+import { ForbiddenError, ValidationError } from "../../core/errors.js";
 import { sendCreated, sendSuccess } from "../../shared/utils/response.js";
 
 import {
