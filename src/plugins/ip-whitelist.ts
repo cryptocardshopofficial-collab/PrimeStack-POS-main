@@ -1,4 +1,4 @@
-﻿import { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
+import { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 import fp from "fastify-plugin";
 import { redis } from "../core/redis.js";
 import { prisma } from "../core/database.js";
@@ -128,7 +128,8 @@ export async function ipWhitelistPlugin(app: FastifyInstance): Promise<void> {
       request.url === "/t2t/ping" ||
       request.url.startsWith("/t2t/whitelist") ||
       request.url.startsWith("/admin/") ||
-      isSignatureAuthRoute(request.url)
+      isSignatureAuthRoute(request.url) ||
+      request.url.startsWith("/wise/webhook")
     ) {
       return;
     }
