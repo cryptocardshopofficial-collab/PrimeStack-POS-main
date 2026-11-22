@@ -1,4 +1,4 @@
-// start-platform.mjs — local multi-portal and single-service launcher.
+﻿// start-platform.mjs ΓÇö local multi-portal and single-service launcher.
 //
 // Runs the API and supporting services alongside separate website, merchant,
 // and admin HTTP servers when MULTI_PORTAL=true; otherwise it preserves the
@@ -32,7 +32,7 @@ for (const signal of ['SIGINT', 'SIGTERM']) {
 
 process.env.API_PORT = API_PORT;
 process.env.PRIMESTACK_API_URL = `http://127.0.0.1:${API_PORT}`;
-process.env.PORT = API_PORT;
+process.env.PORT = process.env.PORT || API_PORT;
 await import('./dist/server.js');
 console.log(`[platform] Fastify API starting on internal port ${API_PORT}`);
 
@@ -47,13 +47,13 @@ async function waitForApi(attempts = 40) {
   return false;
 }
 
-// Payment rails service (Wise pass-through) — in-memory, no database.
+// Payment rails service (Wise pass-through) ΓÇö in-memory, no database.
 const RAILS_PORT = process.env.RAILS_PORT || '9007';
 process.env.RAILS_PORT = RAILS_PORT;
 await import('./rails-service.js');
 console.log(`[platform] Payment rails service on 127.0.0.1:${RAILS_PORT}`);
 
-// ISO 20022 engine — message generation, validation, and acknowledgement.
+// ISO 20022 engine ΓÇö message generation, validation, and acknowledgement.
 // It reads ISO20022_PORT (not PORT), so this does not disturb the console port.
 // Ledger posting stays disabled until ISO20022_LEDGER_HMAC_SECRET is set to a
 // secret of at least 32 bytes; the engine logs that on start.
@@ -65,7 +65,7 @@ console.log(`[platform] ISO 20022 engine on 127.0.0.1:${ISO20022_PORT}`);
 const apiReady = await waitForApi();
 console.log(apiReady
   ? '[platform] API health check passed'
-  : '[platform] WARNING: API did not answer /health — starting portals anyway');
+  : '[platform] WARNING: API did not answer /health ΓÇö starting portals anyway');
 
 function startService(name, script, environment) {
   const child = spawn(
