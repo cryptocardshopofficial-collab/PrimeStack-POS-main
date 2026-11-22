@@ -67,6 +67,23 @@ export const config = {
     db: int("REDIS_DB", 0),
   },
 
+  kafka: {
+    /**
+     * Event streaming backbone. Disabled by default: with no brokers configured
+     * the publisher buffers events in-process so the API keeps working in dev.
+     */
+    enabled: required("KAFKA_ENABLED", "false").toLowerCase() === "true",
+    brokers: list("KAFKA_BROKERS", []),
+    clientId: required("KAFKA_CLIENT_ID", "primestack-switch"),
+    groupId: required("KAFKA_GROUP_ID", "primestack-switch"),
+    ssl: required("KAFKA_SSL", "false").toLowerCase() === "true",
+    saslMechanism: process.env.KAFKA_SASL_MECHANISM?.trim() || undefined,
+    saslUsername: process.env.KAFKA_SASL_USERNAME?.trim() || undefined,
+    saslPassword: process.env.KAFKA_SASL_PASSWORD?.trim() || undefined,
+    /** How many undelivered events to retain in-process when Kafka is off. */
+    bufferLimit: int("KAFKA_BUFFER_LIMIT", 500),
+  },
+
   jwt: {
     secret: process.env.NODE_ENV === "production"
       ? productionSecret("JWT_SECRET")

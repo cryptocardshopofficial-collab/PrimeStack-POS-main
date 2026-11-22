@@ -23,10 +23,18 @@ export type IncomingPaymentReceipt = {
   lines: { debit: string; credit: string; accountCode: string }[];
 };
 
-export function renderIncomingPaymentPdf(payment: IncomingPaymentReceipt): Buffer {
+export async function renderIncomingPaymentPdf(payment: IncomingPaymentReceipt): Promise<Buffer> {
   const doc = new PDFDocument({ size: "A4", margin: 48, bufferPages: true });
   const chunks: Buffer[] = [];
   doc.on("data", (chunk) => chunks.push(chunk));
+
+  // pdfkit emits its output asynchronously, so the buffer must be assembled
+  // only after the stream has fully flushed. Returning Buffer.concat(chunks)
+  // synchronously (before 'end') produced a 0-byte file.
+  const finished = new Promise<Buffer>((resolve, reject) => {
+    doc.on("end", () => resolve(Buffer.concat(chunks)));
+    doc.on("error", reject);
+  });
 
   const pageWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right;
   const brandColor = "#003B70";
@@ -178,5 +186,5 @@ export function renderIncomingPaymentPdf(payment: IncomingPaymentReceipt): Buffe
 
   doc.end();
 
-  return Buffer.concat(chunks);
+  return finished;
 }

@@ -196,6 +196,29 @@ async function main() {
     console.log("    Set CONSOLE_HMAC_SECRET to this value so the console can sign requests.");
   }
 
+  // ── 4c. Settlement Partner HMAC Key ─────────────
+  // External settlement partners sign their ISO 20022 ingest documents with a
+  // fixed keyId + secret they hold on their side, so the exact pair must be
+  // registered here — the admin "create HMAC key" API only generates new ones.
+  // The key has no merchant (funds settle into PLATFORM:RESERVE). This block is
+  // a no-op unless both env vars are set.
+  const settlementKeyId = process.env.SETTLEMENT_HMAC_KEY_ID;
+  const settlementSecret = process.env.SETTLEMENT_HMAC_SECRET;
+  if (settlementKeyId && settlementSecret) {
+    console.log("\nCreating settlement partner HMAC key...");
+    await prisma.hmacKey.upsert({
+      where: { keyId: settlementKeyId },
+      update: { secret: settlementSecret, status: "ACTIVE" },
+      create: {
+        keyId: settlementKeyId,
+        secret: settlementSecret,
+        algorithm: "sha256",
+        status: "ACTIVE",
+      },
+    });
+    console.log(`  ✓ Settlement key ID: ${settlementKeyId}`);
+  }
+
   // ── 5. IP Whitelist ─────────────────────────────
   console.log("\nCreating IP whitelist entries...");
 

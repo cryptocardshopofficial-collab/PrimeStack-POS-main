@@ -28,5 +28,7 @@
   "REPLAY_DETECTED": "Duplicate S2S request — this nonce has already been used",
   "S2S_NO_JOURNAL": "S2S payment has no linked journal entry and cannot be reversed",
   "S2S_KEY_MISCONFIGURED": "S2S encryption key is misconfigured — contact the platform operator",
-  "S2S_DECRYPT_FAILED": "S2S secret decryption failed — the credential may be corrupted"
+  "S2S_DECRYPT_FAILED": "S2S secret decryption failed — the credential may be corrupted",
+  "STREAM_PUBLISH_FAILED": "Failed to publish event stream: {{message}}",
+  "FETCH_UNAVAILABLE": "Outbound HTTP client is unavailable in this runtime"
 }

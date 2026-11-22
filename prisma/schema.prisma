@@ -394,6 +394,8 @@ model Merchant {
   portalUser      User?
   bankAccounts     MerchantBankAccount[]
   transactionControlRequests MerchantTransactionControlRequest[]
+  webhookSubscriptions WebhookSubscription[]
+  incomingPayments    IncomingPayment[]
 
   @@index([status])
   @@index([country])
@@ -711,6 +713,7 @@ model Wallet {
   buyerEscrows    EscrowAccount[] @relation("EscrowBuyer")
   sellerEscrows   EscrowAccount[] @relation("EscrowSeller")
   escrowAccount   EscrowAccount? @relation("EscrowBalance")
+  incomingPayments IncomingPayment[]
 
   @@index([type])
   @@index([status])
@@ -2209,4 +2212,299 @@ model RailsTransaction {
   @@index([transferId])
   @@index([customerId])
   @@index([receivedAt])
+}
+
+// ──────────────────────────────────────────────
+// SANCTIONS SCREENING
+// ──────────────────────────────────────────────
+
+enum SanctionsListSource {
+  OFAC
+  UN
+  EU
+  UK_HMT
+  UAE_LOCAL
+  INTERNAL
+}
+
+enum SanctionsEntityType {
+  PERSON
+  COMPANY
+  BANK
+  COUNTRY
+}
+
+enum SanctionsScreeningStatus {
+  CLEAR
+  POTENTIAL_MATCH
+  CONFIRMED_MATCH
+  FALSE_POSITIVE
+}
+
+/// One name on a watchlist (OFAC SDN, UN Consolidated, EU, UK HMT, UAE local).
+/// Lists are imported by an operator; nothing is bundled so a deployment can
+/// never screen against stale or invented data.
+model SanctionsListEntry {
+  id          String              @id @default(uuid())
+  listSource  SanctionsListSource
+  entityType  SanctionsEntityType
+  primaryName String
+  aliases     String[]            @default([])
+  country     String?
+  /// For BANK entries: the institution's registered trading name, if it differs.
+  bankName    String?
+  program     String?
+  /// The list's own identifier (OFAC ent_num, UN dataid, etc.) — makes re-import idempotent.
+  listRef     String?
+  remarks     String?
+  active      Boolean             @default(true)
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+
+  screenings  SanctionsScreening[]
+
+  @@unique([listSource, listRef])
+  @@index([listSource, active])
+  @@index([entityType])
+  @@index([country])
+  @@index([primaryName])
+}
+
+/// The result of screening one party. `reference` is caller-supplied and
+/// unique, so a retried screen updates the same row instead of duplicating it.
+model SanctionsScreening {
+  id             String                   @id @default(uuid())
+  reference      String                   @unique
+  entityType     SanctionsEntityType
+  inputName      String
+  inputCountry   String?
+  bankName       String?
+  status         SanctionsScreeningStatus @default(CLEAR)
+  score          Int                      @default(0)
+  matchedEntryId String?
+  matchedEntry   SanctionsListEntry?      @relation(fields: [matchedEntryId], references: [id], onDelete: SetNull)
+  matchedName    String?
+  matchedList    SanctionsListSource?
+  matchDetail    Json?
+  reviewedBy     String?
+  reviewedAt     DateTime?
+  reviewNotes    String?
+  metadata       Json?
+  createdAt      DateTime                 @default(now())
+  updatedAt      DateTime                 @updatedAt
+
+  @@index([status, createdAt])
+  @@index([inputName])
+  @@index([matchedEntryId])
+}
+
+// ──────────────────────────────────────────────
+// WEBHOOK ORCHESTRATION
+// ──────────────────────────────────────────────
+
+enum WebhookDeliveryStatus {
+  PENDING
+  DELIVERED
+  FAILED
+  EXHAUSTED
+}
+
+/// A merchant's subscription to platform events. The signing secret is stored
+/// AES-256-GCM encrypted; only the last four characters are ever returned.
+model WebhookSubscription {
+  id             String          @id @default(uuid())
+  ownerType      String          @default("MERCHANT") // MERCHANT, AGENT, SYSTEM
+  merchantId     String?
+  merchant       Merchant?       @relation(fields: [merchantId], references: [id], onDelete: SetNull)
+  eventNames     String[]        @default([])
+  callbackUrl    String
+  description    String?
+  secretCipher   String
+  secretLast4    String
+  active         Boolean         @default(true)
+  maxAttempts    Int             @default(5)
+  lastDeliveryAt DateTime?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  deliveries     WebhookDelivery[]
+
+  @@index([active, eventNames])
+  @@index([merchantId])
+}
+
+/// One attempt-history record per (subscription, event). Retries update the
+/// same row, so a delivery can be replayed without creating duplicates.
+model WebhookDelivery {
+  id             String                @id @default(uuid())
+  subscriptionId String
+  subscription   WebhookSubscription   @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  eventId        String
+  eventName      String
+  reference      String?
+  payload        Json
+  status         WebhookDeliveryStatus @default(PENDING)
+  attempts       Int                   @default(0)
+  responseCode   Int?
+  responseBody   String?
+  lastError      String?
+  nextAttemptAt  DateTime?
+  deliveredAt    DateTime?
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
+
+  @@unique([subscriptionId, eventId])
+  @@index([status, nextAttemptAt])
+  @@index([eventName, createdAt])
+  @@index([subscriptionId, createdAt])
+}
+
+// ──────────────────────────────────────────────
+// PAYMENT INGESTION ORCHESTRATION
+// ──────────────────────────────────────────────
+
+/// The rail an incoming payment arrived on.
+enum PaymentRail {
+  SWIFT_MT103
+  SWIFT_MT202
+  ISO20022
+  ACH
+  SEPA
+  FEDWIRE
+}
+
+/// Lifecycle of an incoming payment through the ingestion pipeline.
+enum PaymentStatus {
+  RECEIVED
+  SCREENING
+  SCREENED
+  FRAUD_CHECK
+  UNDER_REVIEW
+  PENDING_ASSIGNMENT
+  POSTING
+  POSTED
+  REJECTED
+  FAILED
+}
+
+/// A single incoming payment driven through parse → sanctions → fraud →
+/// resolve → ledger post → notify. `reference` is unique per rail so a
+/// replayed message can never double-post.
+model IncomingPayment {
+  id                   String        @id @default(uuid())
+  reference            String        // SWIFT :20: or caller-supplied idempotency key
+  rail                 PaymentRail
+  status               PaymentStatus @default(RECEIVED)
+
+  amount               Decimal       @db.Decimal(20, 4)
+  currency             String        @default("USD")
+  valueDate            String?
+  operationCode        String?
+  charges              String?
+
+  debtorName           String?
+  debtorAccount        String?
+  debtorBic            String?
+  debtorCountry        String?
+
+  creditorName         String?
+  creditorAccount      String?
+  creditorBic          String?
+  creditorCountry      String?
+
+  merchantId           String?
+  merchant             Merchant?     @relation(fields: [merchantId], references: [id], onDelete: SetNull)
+  walletId             String?
+  wallet               Wallet?       @relation(fields: [walletId], references: [id], onDelete: SetNull)
+  journalEntryRef      String?
+
+  sanctionsScreeningIds String[]      @default([])
+  fraudVerdict         String?
+  fraudRiskScore       Int?
+
+  failureReason        String?
+  reviewedBy           String?
+  reviewNotes          String?
+
+  metadata             Json?
+  postedAt             DateTime?
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
+
+  @@unique([rail, reference])
+  @@index([status])
+  @@index([merchantId])
+  @@index([createdAt])
+  @@index([creditorAccount])
+}
+
+// ──────────────────────────────────────────────
+// SUPE — bank-grade outbound settlement instruction.
+// Exports ledger data to a bank in a format the bank accepts (ISO 20022
+// pain.001, CSV, JSON) and tracks the bank validation/execution lifecycle:
+// DRAFT → SUBMITTED → ACCEPTED → EXECUTED (or REJECTED / CANCELLED).
+// Status / format / channel are stored as validated strings (Zod-enforced at
+// the boundary) so the model can evolve without enum-migration churn.
+// ──────────────────────────────────────────────
+model SettlementInstruction {
+  id                 String   @id @default(uuid())
+  reference          String   @unique // SUPE-SI-<short hash>
+  status             String   @default("DRAFT") // DRAFT|SUBMITTED|ACCEPTED|EXECUTED|REJECTED|CANCELLED
+  format             String   // ISO_20022|CSV|JSON
+  channel            String   // BANK_API|SFTP|FILE_UPLOAD|MANUAL
+  amount             Decimal  @db.Decimal(20, 4)
+  currency           String   @db.VarChar(3)
+  valueDate          String? // YYYY-MM-DD settlement / value date
+  messageId          String? // ISO 20022 MsgId
+  endToEndId         String?
+  uetr               String? // end-to-end unique transaction reference
+  debtor             Json?   // { name, iban, agentBic, ... }
+  creditor           Json?   // { name, iban, agentBic, ... }
+  remittanceInfo     String? @db.Text
+  sourceJournalRefs  String[] // ledger entries this instruction settles (provenance)
+  payload            String? @db.Text // generated file (XML/CSV/JSON)
+  bankResponse       Json?
+  bankTransactionRef String? // bank-side execution reference
+  rejectionReason    String? @db.Text
+  submittedAt        DateTime?
+  acceptedAt         DateTime?
+  executedAt         DateTime?
+  merchantId         String?
+  createdByUserId    String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@index([status])
+  @@index([merchantId])
+  @@index([createdAt])
+}
+
+// SUPE inbound bank-feed confirmation tracking. An initiation message
+// (pacs.008 / pain.001) creates a PENDING record; a bank confirmation
+// (camt.054 credit notification or pacs.002 ACSC) finalises the ledger
+// credit. Status / sourceFormat stored as validated strings.
+model InboundPayment {
+  id              String   @id @default(uuid())
+  endToEndId      String   @unique // the bank payment reference to match on
+  status          String   @default("PENDING") // PENDING|CONFIRMED|CREDITED|REJECTED
+  amount          Decimal? @db.Decimal(20, 4)
+  currency        String?  @db.VarChar(3)
+  sender          String?
+  senderAccount   String?
+  sourceFormat    String   // pacs.008|pain.001|camt.054|pacs.002|ISO_20022
+  source          String   @default("BANK_FEED") // BANK_FEED|MANUAL
+  valueDate       String?
+  journalEntryRef String?
+  rejectionReason String?
+  merchantId      String?
+  keyId           String?
+  receivedAt      DateTime @default(now())
+  confirmedAt     DateTime?
+  creditedAt      DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([status])
+  @@index([merchantId])
+  @@index([createdAt])
 }

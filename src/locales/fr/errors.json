@@ -28,5 +28,7 @@
   "REPLAY_DETECTED": "Requête S2S dupliquée — ce nonce a déjà été utilisé",
   "S2S_NO_JOURNAL": "Le paiement S2S n'a pas d'écriture comptable liée et ne peut pas être annulé",
   "S2S_KEY_MISCONFIGURED": "La clé de chiffrement S2S est mal configurée — contactez l'opérateur",
-  "S2S_DECRYPT_FAILED": "Échec du déchiffrement du secret S2S — les informations d'identification peuvent être corrompues"
+  "S2S_DECRYPT_FAILED": "Échec du déchiffrement du secret S2S — les informations d'identification peuvent être corrompues",
+  "STREAM_PUBLISH_FAILED": "Échec de la publication du flux d'événements : {{message}}",
+  "FETCH_UNAVAILABLE": "Le client HTTP sortant n'est pas disponible dans cet environnement"
 }

@@ -44,7 +44,11 @@ import { registerGovernanceModule } from "./modules/governance/governance.module
 import { registerIntelligenceModule } from "./modules/intelligence/intelligence.module.js";
 import { registerS2sEngineModule } from "./modules/s2s-engine/s2s-engine.module.js";
 import { registerT2tRoutes } from "./modules/t2t/t2t.routes.js";
-import { registerSupeRoutes } from "./modules/supe/supe.routes.js";
+import { registerSupeModule } from "./modules/supe/supe.module.js";
+import { registerSwiftMtModule } from "./modules/swift-mt/swift-mt.module.js";
+import { registerSanctionsModule } from "./modules/sanctions/sanctions.module.js";
+import { registerStreamingModule } from "./modules/streaming/streaming.module.js";
+import { registerWebhookModule } from "./modules/webhooks/webhooks.module.js";
 
 /**
  * Probe Redis once at boot. Redis only backs optional caching and distributed
@@ -135,6 +139,14 @@ export async function createApp(): Promise<FastifyInstance> {
     (req as FastifyRequest & { rawBody?: Buffer }).rawBody = body;
     return body.toString('utf8');
   });
+  // Capture raw body for webhook endpoints that need signature verification
+  // over the exact bytes (Wise RSA-SHA256, inbound HMAC).
+  app.addContentTypeParser('application/json', { parseAs: 'buffer' }, async (req: FastifyRequest, body: Buffer) => {
+    (req as FastifyRequest & { rawBody?: Buffer }).rawBody = body;
+    if (!body || body.length === 0) return {};
+    try { return JSON.parse(body.toString('utf8')); }
+    catch { return {}; }
+  });
 
   await app.register(rateLimit, {
     max: config.rateLimit.max,
@@ -211,7 +223,11 @@ export async function createApp(): Promise<FastifyInstance> {
   registerIntelligenceModule(app);
   registerS2sEngineModule(app);
   registerT2tRoutes(app);
-  registerSupeRoutes(app);
+  registerSupeModule(app);
+  registerSwiftMtModule(app);
+  registerSanctionsModule(app);
+  registerStreamingModule(app);
+  registerWebhookModule(app);
 
   // ── Health Check ────────────────────────────────
   app.get("/health", async () => ({

@@ -3,6 +3,18 @@ setlocal
 title PrimeStack Switch - Shutdown
 color 0C
 
+REM ============================================================
+REM  PrimeStack Switch - shutdown
+REM
+REM  Stops the local platform, the microservices stack and the
+REM  host infrastructure. Docker volumes (your data) are always
+REM  preserved. The build cache is also kept so the next start is
+REM  fast - pass "prune" to also reclaim image/network space.
+REM
+REM  Usage:  stop-primestack.bat           (keep cache - fast restart)
+REM          stop-primestack.bat prune     (also prune Docker cache)
+REM ============================================================
+
 echo.
 echo  ================================================================
 echo  Stopping PrimeStack Switch...
@@ -25,12 +37,17 @@ docker compose down 2>nul
 echo  OK: Infrastructure stopped
 
 echo.
-echo  Cleaning up unused Docker resources...
-docker system prune -f 2>nul
+if /i "%~1"=="prune" (
+    echo  Reclaiming unused Docker resources ^(build cache, networks^)...
+    docker system prune -f 2>nul
+) else (
+    echo  Keeping the Docker build cache so the next start is fast.
+    echo  ^(run "stop-primestack.bat prune" to reclaim that space^)
+)
 
 echo.
 echo  ================================================================
-echo  All PrimeStack services stopped.
+echo  All PrimeStack services stopped. Your data volumes are intact.
 echo  ================================================================
 echo.
 pause

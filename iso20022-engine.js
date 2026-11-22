@@ -925,8 +925,8 @@ const server = createServer(async (req, res) => {
     }
 
     const ledgerResult = await postToLedger(container);
-    return json(res, ledgerResult.success !== false ? 201 : 502, {
-      success:    ledgerResult.success !== false,
+    return json(res, ledgerResult.success === true ? 201 : 502, {
+      success:    ledgerResult.success === true,
       validation,
       ledger:     ledgerResult,
     });

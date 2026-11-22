@@ -6421,7 +6421,8 @@ function loginPath() {
 
 function canAccessDashboard(role, path) {
   if (PORTAL_MODE === 'merchant') {
-    return role === 'MERCHANT' && path === '/merchant-dashboard';
+    return role === 'MERCHANT' &&
+      (path === '/merchant-dashboard' || path === '/merchant' || path.startsWith('/merchant/'));
   }
   if (PORTAL_MODE === 'admin' && (role === 'MERCHANT' || path === '/merchant-dashboard')) {
     return false;
@@ -6446,7 +6447,9 @@ function canProxyDashboardApi(role, method, targetPath) {
   if (role === 'MERCHANT') {
     // Merchant fund-movement surfaces: T2T engine + payouts (which are held for
     // administrator approval), saved commission bank accounts, transaction
-    // pause/report/resume requests and the JWT merchant-portal endpoints.
+    // pause/report/resume requests, the Single Upload / Payment Engine (SUPE)
+    // intake + receipt endpoints and the JWT merchant-portal endpoints.
+    if (path.startsWith('/supe/')) return true;
     if (path.startsWith('/t2t/')) return true;
     if (path === '/merchant-portal/payouts') return verb === 'GET' || verb === 'POST';
     if (verb === 'POST') {
@@ -8198,20 +8201,32 @@ function supePage() {
 <style>
 .supe-drop{border:2px dashed var(--border);border-radius:12px;padding:48px 24px;text-align:center;cursor:pointer;transition:.2s;background:var(--surf2)}
 .supe-drop:hover,.supe-drop.drag{border-color:var(--accent);background:var(--accent-bg)}
+.supe-drop.busy{opacity:.65;cursor:progress}
+.supe-drop.has-file{border-style:solid;border-color:var(--accent);background:var(--accent-bg)}
 .supe-drop input{display:none}
 .supe-drop-icon{font-size:2.5rem;margin-bottom:12px}
-.supe-drop-text{font-size:.9rem;font-weight:600;color:var(--text)}
+.supe-drop-text{font-size:.9rem;font-weight:600;color:var(--text);word-break:break-all}
 .supe-drop-sub{font-size:.75rem;color:var(--muted);margin-top:4px}
 .supe-parsed{background:var(--surf2);border:1px solid var(--border);border-radius:8px;padding:16px;margin-top:14px;font-size:.82rem}
 .supe-parsed table{width:100%;border-collapse:collapse}
 .supe-parsed td{padding:6px 0;border-bottom:1px solid var(--border)}
 .supe-parsed td:first-child{color:var(--muted);width:40%;font-size:.75rem;text-transform:uppercase;letter-spacing:.05em}
 .supe-parsed td:last-child{font-weight:600}
+.supe-parsed input{width:100%;font-family:'Consolas','Menlo',monospace;font-size:.8rem;padding:6px 8px}
 .supe-status{display:flex;align-items:center;gap:8px;padding:12px 14px;border-radius:8px;font-size:.82rem;font-weight:600;margin-top:12px}
 .supe-status.ok{background:var(--success-bg);border:1px solid var(--success-border);color:var(--success)}
 .supe-status.err{background:var(--danger-bg);border:1px solid var(--danger-border);color:var(--danger)}
 .supe-status.warn{background:var(--warn-bg);border:1px solid var(--warn-border);color:var(--warn)}
+.supe-status.info{background:var(--surf2);border:1px solid var(--border);color:var(--muted)}
 .supe-history{max-height:320px;overflow-y:auto}
+.supe-modal{position:fixed;inset:0;background:rgba(15,23,42,.55);display:none;align-items:center;justify-content:center;z-index:10000;padding:20px}
+.supe-modal.show{display:flex}
+.supe-modal-box{background:var(--surf);border:1px solid var(--border);border-radius:14px;padding:26px;max-width:440px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.35);text-align:center}
+.supe-modal-icon{font-size:2.6rem;line-height:1;margin-bottom:10px}
+.supe-modal-title{font-size:1.05rem;font-weight:700;margin-bottom:10px}
+.supe-modal-body{font-size:.84rem;color:var(--muted);line-height:1.6;text-align:left}
+.supe-modal-body code{font-family:'Consolas','Menlo',monospace}
+.supe-modal-actions{display:flex;gap:10px;justify-content:center;margin-top:18px;flex-wrap:wrap}
 </style>
 <div class="page-header">
   <div class="breadcrumb"><a href="/merchant">Merchant</a><span>/</span>SUPE</div>
@@ -8228,14 +8243,16 @@ function supePage() {
 
         <div class="supe-drop" id="supeDrop" onclick="document.getElementById('supeFile').click()">
           <input type="file" id="supeFile" accept=".txt,.fin,.mt103,.xml,.json,.pdf" onchange="supeHandleFile(this.files[0])">
-          <div class="supe-drop-icon">📂</div>
-          <div class="supe-drop-text">Drop file here or click to browse</div>
-          <div class="supe-drop-sub">SWIFT MT103 · ISO 20022 XML · JSON · PDF — max 5MB</div>
+          <div class="supe-drop-icon" id="supeDropIcon">📂</div>
+          <div class="supe-drop-text" id="supeDropText">Drop file here or click to browse</div>
+          <div class="supe-drop-sub" id="supeDropSub">SWIFT MT103 · ISO 20022 XML · JSON · PDF — max 5MB</div>
         </div>
+
+        <div id="supeResult"></div>
 
         <div id="supeParseResult" style="display:none">
           <div class="supe-parsed">
-            <div style="font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:10px">Extracted Fields</div>
+            <div style="font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:10px">Extracted Fields — edit before crediting</div>
             <table id="supeFieldsTable"></table>
           </div>
 
@@ -8256,12 +8273,10 @@ function supePage() {
             ⚠ Verify the extracted amounts and references match the original document before crediting.
           </div>
 
-          <button class="btn btn-success" style="width:100%;margin-top:12px;justify-content:center" onclick="supeCredit()">
-            ✅ Confirm & Auto-Credit Ledger
+          <button class="btn btn-success supe-credit-btn" style="width:100%;margin-top:12px;justify-content:center" id="supeCreditBtn" onclick="supeCredit()">
+            ✅ Confirm &amp; Auto-Credit Ledger
           </button>
         </div>
-
-        <div id="supeResult"></div>
       </div>
     </div>
 
@@ -8290,9 +8305,68 @@ function supePage() {
   </div>
 </div>
 
+<div class="supe-modal" id="supeModal">
+  <div class="supe-modal-box">
+    <div class="supe-modal-icon" id="supeModalIcon">✅</div>
+    <div class="supe-modal-title" id="supeModalTitle"></div>
+    <div class="supe-modal-body" id="supeModalBody"></div>
+    <div class="supe-modal-actions" id="supeModalActions"></div>
+  </div>
+</div>
+
 <script>
 (function(){
   var _parsed = null;
+
+  // ── Popup (modal) ──────────────────────────────
+  function supePopup(kind, title, html, actions) {
+    var map = { ok: '✅', err: '❌', warn: '⚠', info: 'ℹ' };
+    document.getElementById('supeModalIcon').textContent = map[kind] || 'ℹ';
+    document.getElementById('supeModalTitle').textContent = title;
+    document.getElementById('supeModalBody').innerHTML = html || '';
+    var box = document.getElementById('supeModalActions');
+    box.innerHTML = '';
+    (actions || [{ label: 'Close' }]).forEach(function(a) {
+      var b = document.createElement('button');
+      b.className = 'btn ' + (a.cls || 'btn-ghost');
+      b.textContent = a.label;
+      b.onclick = function() { supeClosePopup(); if (typeof a.onClick === 'function') a.onClick(); };
+      box.appendChild(b);
+    });
+    document.getElementById('supeModal').classList.add('show');
+  }
+  window.supeClosePopup = function() {
+    document.getElementById('supeModal').classList.remove('show');
+  };
+  document.getElementById('supeModal').addEventListener('click', function(e) {
+    if (e.target === this) supeClosePopup();
+  });
+  document.addEventListener('keydown', function(e) { if (e.key === 'Escape') supeClosePopup(); });
+
+  // ── Status banner + drop-zone label helpers ────
+  function supeStatus(kind, msg) {
+    document.getElementById('supeResult').innerHTML =
+      '<div class="supe-status ' + kind + '">' + msg + '</div>';
+  }
+  function supeSetDropState(state, name, detail) {
+    var drop = document.getElementById('supeDrop');
+    drop.classList.toggle('busy', state === 'busy');
+    drop.classList.toggle('has-file', state === 'file');
+    document.getElementById('supeDropIcon').textContent =
+      state === 'busy' ? '⏳' : state === 'file' ? '📄' : '📂';
+    document.getElementById('supeDropText').textContent =
+      name || 'Drop file here or click to browse';
+    document.getElementById('supeDropSub').textContent =
+      detail || 'SWIFT MT103 · ISO 20022 XML · JSON · PDF — max 5MB';
+  }
+  function supeResetForm() {
+    var input = document.getElementById('supeFile');
+    if (input) input.value = '';
+    document.getElementById('supeParseResult').style.display = 'none';
+    document.getElementById('supeResult').innerHTML = '';
+    document.getElementById('supeNote').value = '';
+    supeSetDropState('idle');
+  }
 
   // ── Drag & drop ────────────────────────────────
   var drop = document.getElementById('supeDrop');
@@ -8307,13 +8381,30 @@ function supePage() {
   // ── File handler ───────────────────────────────
   window.supeHandleFile = function(file) {
     if (!file) return;
-    if (file.size > 5 * 1024 * 1024) { toast('File too large (max 5MB)', 'err'); return; }
+    var name = file.name || 'upload';
+    if (file.size > 5 * 1024 * 1024) {
+      supeSetDropState('idle');
+      toast('File too large (max 5MB)', 'err');
+      supeStatus('err', '❌ ' + escapeHtml(name) + ' is larger than the 5MB limit.');
+      supePopup('err', 'Upload failed',
+        '<b>' + escapeHtml(name) + '</b> is ' + (file.size / 1048576).toFixed(2) +
+        'MB, which exceeds the 5MB limit.', [{ label: 'OK', cls: 'btn-primary' }]);
+      return;
+    }
+    supeSetDropState('busy', name, 'Reading file…');
+    supeStatus('info', '⏳ Reading ' + escapeHtml(name) + '…');
     var reader = new FileReader();
+    reader.onerror = function() {
+      supeSetDropState('idle');
+      toast('Could not read file', 'err');
+      supeStatus('err', '❌ Could not read ' + escapeHtml(name) + '. The file may be locked or unreadable.');
+      supePopup('err', 'Upload failed', 'The file could not be read from disk.', [{ label: 'OK', cls: 'btn-primary' }]);
+    };
     reader.onload = function(e) {
-      var content = e.target.result;
-      var parsed = supeParseFile(file.name, content);
+      var content = String(e.target.result || '');
+      var parsed = supeParseFile(name, content);
       _parsed = parsed;
-      _parsed.fileName = file.name;
+      _parsed.fileName = name;
       _parsed.fileSize = file.size;
       supeShowParsed(parsed);
     };
@@ -8344,13 +8435,17 @@ function supePage() {
 
     // ISO 20022 XML
     if (ext === 'xml') {
-      var amt = (content.match(/<InstdAmt[^>]*Ccy="([A-Z]{3})"[^>]*>([\d.]+)<\/InstdAmt>/) ||
-                 content.match(/<Amt[^>]*Ccy="([A-Z]{3})"[^>]*>([\d.]+)<\/Amt>/) || []);
-      var ref = content.match(/<EndToEndId>(.*?)<\/EndToEndId>/) ||
-                content.match(/<InstrId>(.*?)<\/InstrId>/) || [];
-      var sender = content.match(/<Nm>(.*?)<\/Nm>/) || [];
-      var date = content.match(/<ReqdExctnDt>(.*?)<\/ReqdExctnDt>/) ||
-                 content.match(/<IntrBkSttlmDt>(.*?)<\/IntrBkSttlmDt>/) || [];
+      var amt = (content.match(/<IntrBkSttlmAmt[^>]*Ccy="([A-Z]{3})"[^>]*>([\\d.]+)<\\/IntrBkSttlmAmt>/) ||
+                 content.match(/<InstdAmt[^>]*Ccy="([A-Z]{3})"[^>]*>([\\d.]+)<\\/InstdAmt>/) ||
+                 content.match(/<Amt[^>]*Ccy="([A-Z]{3})"[^>]*>([\\d.]+)<\\/Amt>/) || []);
+      var ref = content.match(/<EndToEndId>(.*?)<\\/EndToEndId>/) ||
+                content.match(/<InstrId>(.*?)<\\/InstrId>/) ||
+                content.match(/<MsgId>(.*?)<\\/MsgId>/) || [];
+      var sender = content.match(/<Dbtr>[\\s\\S]*?<Nm>(.*?)<\\/Nm>/) ||
+                   content.match(/<InitgPty>[\\s\\S]*?<Nm>(.*?)<\\/Nm>/) ||
+                   content.match(/<Nm>(.*?)<\\/Nm>/) || [];
+      var date = content.match(/<ReqdExctnDt>(.*?)<\\/ReqdExctnDt>/) ||
+                 content.match(/<IntrBkSttlmDt>(.*?)<\\/IntrBkSttlmDt>/) || [];
       var msgType = content.includes('pain.001') ? 'pain.001' :
                     content.includes('pacs.008') ? 'pacs.008' :
                     content.includes('camt.054') ? 'camt.054' : 'ISO 20022';
@@ -8369,11 +8464,11 @@ function supePage() {
 
     // SWIFT MT103
     if (ext === 'txt' || ext === 'fin' || ext === 'mt103' || content.includes(':32A:') || content.includes('{1:')) {
-      var val = content.match(/:32A:(\d{6})([A-Z]{3})([\d,]+)/) || [];
-      var txRef = content.match(/:20:([^\r\n]+)/) || [];
-      var ord = content.match(/:50[AFK]?:[^\r\n]*[\r\n]+([^\r\n:]+)/) || [];
-      var ben = content.match(/:59[A]?:[^\r\n]*[\r\n]+([^\r\n:]+)/) || [];
-      var remit = content.match(/:70:([^\r\n]+)/) || [];
+      var val = content.match(/:32A:(\\d{6})([A-Z]{3})([\\d,]+)/) || [];
+      var txRef = content.match(/:20:([^\\r\\n]+)/) || [];
+      var ord = content.match(/:50[AFK]?:[^\\r\\n]*[\\r\\n]+([^\\r\\n:]+)/) || [];
+      var ben = content.match(/:59[A]?:[^\\r\\n]*[\\r\\n]+([^\\r\\n:]+)/) || [];
+      var remit = content.match(/:70:([^\\r\\n]+)/) || [];
       var amtStr = val[3] ? val[3].replace(',', '.') : '';
       return {
         format: 'SWIFT MT103',
@@ -8403,82 +8498,150 @@ function supePage() {
     };
   }
 
-  // ── Show parsed fields ─────────────────────────
+  // ── Show parsed fields (editable) ──────────────
+  function supeField(id, value, opts) {
+    var o = opts || {};
+    var val = value == null ? '' : String(value);
+    // <input type="date"> only accepts YYYY-MM-DD; drop any time component.
+    if (o.type === 'date') {
+      var m = val.match(/^(\\d{4}-\\d{2}-\\d{2})/);
+      val = m ? m[1] : '';
+    }
+    return '<input id="' + id + '" class="input-mono" ' +
+      (o.type === 'date' ? 'type="date" ' : 'type="text" ') +
+      (o.placeholder ? 'placeholder="' + escapeHtml(o.placeholder) + '" ' : '') +
+      (o.maxlength ? 'maxlength="' + o.maxlength + '" ' : '') +
+      'value="' + escapeHtml(val) + '">';
+  }
+
   function supeShowParsed(p) {
     var el = document.getElementById('supeParseResult');
     var tbl = document.getElementById('supeFieldsTable');
+    supeSetDropState('file', p.fileName || 'Selected file',
+      p.format ? (p.format + ' · ' + Math.max(1, Math.round((p.fileSize || 0) / 1024)) + ' KB') : 'File selected');
+
     if (p.error) {
       el.style.display = 'none';
-      document.getElementById('supeResult').innerHTML = '<div class="supe-status err">❌ Parse error: ' + p.error + '</div>';
+      supeStatus('err', '❌ Could not parse ' + escapeHtml(p.fileName || 'file') + ': ' + escapeHtml(p.error));
+      toast('Parse failed', 'err');
+      supePopup('err', 'Upload failed',
+        '<b>' + escapeHtml(p.fileName || 'file') + '</b> could not be parsed:<br>' + escapeHtml(p.error),
+        [{ label: 'Try another file', cls: 'btn-primary' }]);
       return;
     }
+
     var rows = [
-      ['Format', p.format],
-      ['Amount', p.amount || '—'],
-      ['Currency', p.currency],
-      ['Reference', p.reference || '—'],
-      ['Sender', p.sender || '—'],
-      ['Date', p.date || '—'],
-      ['Description', (p.description||'').substring(0,60)],
+      ['Format', '<span style="font-family:monospace">' + escapeHtml(p.format || '') + '</span>'],
+      ['Amount', supeField('supeAmount', p.amount, { placeholder: '0.00' })],
+      ['Currency', supeField('supeCurrency', p.currency || 'USD', { maxlength: 3 })],
+      ['Reference', supeField('supeReference', p.reference, { placeholder: 'Payment reference' })],
+      ['Sender', supeField('supeSender', p.sender)],
+      ['Value date', supeField('supeDate', p.date, { type: 'date' })],
+      ['Description', supeField('supeDescription', p.description)],
     ];
     tbl.innerHTML = rows.map(function(r){
-      return '<tr><td>'+r[0]+'</td><td style="font-family:monospace">'+(r[1]||'—')+'</td></tr>';
+      return '<tr><td>'+r[0]+'</td><td>'+r[1]+'</td></tr>';
     }).join('');
     el.style.display = 'block';
-    document.getElementById('supeResult').innerHTML = '';
 
-    if (p.requiresManual) {
-      document.getElementById('supeResult').innerHTML = '<div class="supe-status warn">⚠ PDF detected — please verify fields manually before crediting</div>';
+    var complete = p.amount && !isNaN(parseFloat(p.amount)) && p.reference;
+    if (!complete) {
+      supeStatus('warn', '⚠ ' + escapeHtml(p.fileName || 'File') + ' parsed, but the amount and/or reference are missing — fill them in below, then credit.');
+      toast('File parsed — review the fields', 'warning');
+    } else if (p.requiresManual) {
+      supeStatus('warn', '⚠ File parsed. Verify the extracted fields below before crediting.');
+      toast('File parsed — verify before crediting', 'warning');
+    } else {
+      supeStatus('ok', '✅ ' + escapeHtml(p.fileName || 'File') + ' parsed successfully. Review the fields, then confirm to credit.');
+      toast('File parsed successfully', 'ok');
     }
+    el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }
 
   // ── Auto-credit ────────────────────────────────
   window.supeCredit = async function() {
-    if (!_parsed) { toast('No file parsed', 'err'); return; }
-    if (!_parsed.amount || isNaN(parseFloat(_parsed.amount))) {
-      toast('Amount could not be parsed — enter manually', 'err');
-      return;
-    }
-    if (!_parsed.reference) { toast('Reference is required', 'err'); return; }
+    if (!_parsed) { toast('Upload a file first', 'err'); return; }
 
+    var amount = (document.getElementById('supeAmount').value || '').trim().replace(',', '.');
+    var currency = (document.getElementById('supeCurrency').value || '').trim().toUpperCase();
+    var reference = (document.getElementById('supeReference').value || '').trim();
+    var sender = (document.getElementById('supeSender').value || '').trim();
+    var date = (document.getElementById('supeDate').value || '').trim();
+    var description = (document.getElementById('supeDescription').value || '').trim();
     var dest = document.getElementById('supeDest').value;
     var note = document.getElementById('supeNote').value.trim();
-    var btn = document.querySelector('.supe-credit-btn') || document.querySelector('[onclick="supeCredit()"]');
-    if (btn) { btn.disabled = true; btn.textContent = 'Processing...'; }
+
+    if (!amount || isNaN(parseFloat(amount)) || parseFloat(amount) <= 0) {
+      toast('Enter a valid amount', 'err');
+      supeStatus('err', '❌ Amount must be a number greater than zero.');
+      document.getElementById('supeAmount').focus();
+      return;
+    }
+    if (!/^[A-Z]{3}$/.test(currency)) {
+      toast('Enter a 3-letter currency code', 'err');
+      supeStatus('err', '❌ Currency must be a three-letter code, e.g. USD.');
+      document.getElementById('supeCurrency').focus();
+      return;
+    }
+    if (!reference) {
+      toast('Reference is required', 'err');
+      supeStatus('err', '❌ A payment reference is required.');
+      document.getElementById('supeReference').focus();
+      return;
+    }
+
+    var btn = document.getElementById('supeCreditBtn');
+    if (btn) { btn.disabled = true; btn.textContent = 'Processing…'; }
+    supeStatus('info', '⏳ Crediting ' + amount + ' ' + currency + '…');
 
     try {
       var r = await api('POST', '/supe/process', {
         format: _parsed.format,
-        amount: _parsed.amount,
-        currency: _parsed.currency,
-        reference: _parsed.reference,
-        sender: _parsed.sender,
+        amount: amount,
+        currency: currency,
+        reference: reference,
+        sender: sender,
         senderAccount: _parsed.senderAccount,
-        date: _parsed.date,
-        description: _parsed.description,
+        date: date,
+        description: description,
         destination: dest,
         note: note,
         fileName: _parsed.fileName,
       });
 
-      var el = document.getElementById('supeResult');
-      if (r.ok && r.data) {
+      if (r.ok && r.data && r.data.journalEntryRef) {
         var d = r.data;
-        el.innerHTML = '<div class="supe-status ok">' +
-          '✅ Credited ' + (d.amount||_parsed.amount) + ' ' + (d.currency||_parsed.currency) +
-          ' — Journal: <code style="margin-left:6px">' + (d.journalEntryRef||'') + '</code>' +
-          '</div>';
-        toast('Funds credited successfully', 'ok');
-        document.getElementById('supeParseResult').style.display = 'none';
+        var ref = escapeHtml(d.reference || reference);
+        var journal = escapeHtml(d.journalEntryRef);
+        supeStatus('ok', '✅ Credited ' + escapeHtml(d.amount) + ' ' + escapeHtml(d.currency) +
+          ' to ' + escapeHtml(d.destinationLabel || d.destination) + ' — journal <code>' + journal + '</code>');
+        toast('File uploaded — funds credited', 'ok');
+        supePopup('ok', 'File uploaded successfully',
+          'Credited <b>' + escapeHtml(d.amount) + ' ' + escapeHtml(d.currency) + '</b> from <b>' +
+          escapeHtml(d.fileName || _parsed.fileName || 'uploaded file') + '</b>.<br><br>' +
+          'Destination: <b>' + escapeHtml(d.destinationLabel || d.destination) + '</b><br>' +
+          'Reference: <code>' + ref + '</code><br>' +
+          'Journal entry: <code>' + journal + '</code>',
+          [
+            { label: '⬇ Download receipt (PDF)', cls: 'btn-primary', onClick: function() {
+                window.open('/api/supe/uploads/' + encodeURIComponent(d.journalEntryRef) + '/pdf', '_blank');
+              } },
+            { label: 'Upload another', cls: 'btn-ghost', onClick: function() { supeResetForm(); _parsed = null; } },
+          ]);
         _parsed = null;
         supeLoadHistory();
       } else {
-        var msg = r.data?.error?.message || r.data?.message || 'Credit failed';
-        el.innerHTML = '<div class="supe-status err">❌ ' + msg + '</div>';
+        var msg = apiErrorMessage(r.data, 'The upload could not be credited.');
+        supeStatus('err', '❌ ' + escapeHtml(msg));
         toast(msg, 'err');
+        supePopup('err', 'Upload failed', escapeHtml(msg) +
+          '<br><br>Reference: <code>' + escapeHtml(reference) + '</code>',
+          [{ label: 'OK', cls: 'btn-primary' }]);
       }
-    } catch(e) {
-      document.getElementById('supeResult').innerHTML = '<div class="supe-status err">❌ ' + e.message + '</div>';
+    } catch (e) {
+      supeStatus('err', '❌ ' + escapeHtml(e.message));
+      toast(e.message, 'err');
+      supePopup('err', 'Upload failed', escapeHtml(e.message), [{ label: 'OK', cls: 'btn-primary' }]);
     } finally {
       if (btn) { btn.disabled = false; btn.textContent = '✅ Confirm & Auto-Credit Ledger'; }
     }
@@ -8494,30 +8657,37 @@ function supePage() {
       if (!uploads.length) { el.innerHTML = '<div style="color:var(--muted);font-size:.8rem;padding:8px 0">No uploads yet</div>'; return; }
       el.innerHTML = '<table style="width:100%;border-collapse:collapse;font-size:.75rem">' +
         '<thead><tr style="background:var(--surf2)">' +
+        '<th style="padding:6px 8px;text-align:left;border-bottom:1px solid var(--border)">File</th>' +
         '<th style="padding:6px 8px;text-align:left;border-bottom:1px solid var(--border)">Reference</th>' +
         '<th style="padding:6px 8px;text-align:left;border-bottom:1px solid var(--border)">Amount</th>' +
         '<th style="padding:6px 8px;text-align:left;border-bottom:1px solid var(--border)">Format</th>' +
         '<th style="padding:6px 8px;text-align:left;border-bottom:1px solid var(--border)">Status</th>' +
         '<th style="padding:6px 8px;text-align:left;border-bottom:1px solid var(--border)">Date</th>' +
+        '<th style="padding:6px 8px;text-align:left;border-bottom:1px solid var(--border)">Receipt</th>' +
         '</tr></thead><tbody>' +
         uploads.map(function(u){
           var statusCls = u.status==='CREDITED' ? 'badge-green' : u.status==='FAILED' ? 'badge-red' : 'badge-yellow';
+          var fname = u.fileName || '—';
           return '<tr>' +
-            '<td style="padding:6px 8px;font-family:monospace">' + (u.reference||'').substring(0,20) + '</td>' +
-            '<td style="padding:6px 8px;font-weight:600">' + u.amount + ' ' + u.currency + '</td>' +
-            '<td style="padding:6px 8px">' + (u.format||'') + '</td>' +
-            '<td style="padding:6px 8px"><span class="badge ' + statusCls + '">' + (u.status||'') + '</span></td>' +
+            '<td style="padding:6px 8px;font-weight:600" title="' + escapeHtml(fname) + '">' + escapeHtml(fname.length > 28 ? fname.substring(0, 25) + '…' : fname) + '</td>' +
+            '<td style="padding:6px 8px;font-family:monospace">' + escapeHtml((u.reference||'').substring(0,20)) + '</td>' +
+            '<td style="padding:6px 8px;font-weight:600">' + escapeHtml(u.amount) + ' ' + escapeHtml(u.currency) + '</td>' +
+            '<td style="padding:6px 8px">' + escapeHtml(u.format||'') + '</td>' +
+            '<td style="padding:6px 8px"><span class="badge ' + statusCls + '">' + escapeHtml(u.status||'') + '</span></td>' +
             '<td style="padding:6px 8px;color:var(--muted)">' + (u.createdAt ? new Date(u.createdAt).toLocaleDateString() : '') + '</td>' +
+            '<td style="padding:6px 8px"><a href="/api/supe/uploads/' + encodeURIComponent(u.journalRef || u.reference) + '/pdf" target="_blank" title="Download receipt">PDF ⬇</a></td>' +
             '</tr>';
         }).join('') +
         '</tbody></table>';
     } else {
-      el.innerHTML = '<div style="color:var(--muted);font-size:.8rem">Could not load history</div>';
+      var hmsg = apiErrorMessage(r.data, 'Could not load history');
+      el.innerHTML = '<div style="color:var(--danger);font-size:.8rem">' + escapeHtml(hmsg) + '</div>';
     }
   };
 
-  // Load history on page open
-  supeLoadHistory();
+  // Load history once the shared page script (toast/api helpers) is ready.
+  if (document.readyState === 'complete') supeLoadHistory();
+  else window.addEventListener('load', supeLoadHistory);
 })();
 <\/script>
 `);
@@ -9105,8 +9275,8 @@ function rlRegisterCustomer(){
   var bankDetails={type:bankType,accountHolder:holder,currency:currency};
   if(bankType==='ACH'){bankDetails.routingNumber=document.getElementById('rc-routing').value.trim();bankDetails.accountNumber=document.getElementById('rc-acct-num').value.trim();bankDetails.accountType=document.getElementById('rc-acct-type').value;bankDetails.bankName=document.getElementById('rc-bank-name').value.trim();if(!bankDetails.routingNumber||!bankDetails.accountNumber){toast('Routing and account number required','err');return;}}
   else if(bankType==='FASTER_PAYMENTS'){bankDetails.sortCode=document.getElementById('rc-sort').value.trim().replace(/-/g,'');bankDetails.accountNumber=document.getElementById('rc-fp-acct').value.trim();if(!bankDetails.sortCode||!bankDetails.accountNumber){toast('Sort code and account required','err');return;}}
-  else if(bankType==='SEPA'){bankDetails.iban=document.getElementById('rc-iban').value.trim().replace(/\s/g,'');if(!bankDetails.iban){toast('IBAN required','err');return;}}
-  else if(bankType==='BANK_ACCOUNT'){bankDetails.swiftCode=document.getElementById('rc-swift').value.trim();bankDetails.iban=document.getElementById('rc-swift-iban').value.trim().replace(/\s/g,'');bankDetails.bankName=document.getElementById('rc-swift-bank').value.trim();if(!bankDetails.swiftCode&&!bankDetails.iban){toast('SWIFT or IBAN required','err');return;}}
+  else if(bankType==='SEPA'){bankDetails.iban=document.getElementById('rc-iban').value.trim().replace(/\\s/g,'');if(!bankDetails.iban){toast('IBAN required','err');return;}}
+  else if(bankType==='BANK_ACCOUNT'){bankDetails.swiftCode=document.getElementById('rc-swift').value.trim();bankDetails.iban=document.getElementById('rc-swift-iban').value.trim().replace(/\\s/g,'');bankDetails.bankName=document.getElementById('rc-swift-bank').value.trim();if(!bankDetails.swiftCode&&!bankDetails.iban){toast('SWIFT or IBAN required','err');return;}}
   else if(bankType==='MOBILE_MONEY'){bankDetails.phone=document.getElementById('rc-mm-phone').value.trim();bankDetails.provider=document.getElementById('rc-mm-provider').value;if(!bankDetails.phone){toast('Phone required','err');return;}}
   var btn=document.querySelector('[onclick="rlRegisterCustomer()"]');if(btn){btn.disabled=true;btn.textContent='Registering…';}
   fetch(RAILS+'/rails/customers',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,email,phone:phone||undefined,country,wiseIBAN:wiseIBAN||undefined,wiseAccountNumber:wiseAcct||undefined,bankDetails})}).then(function(r){return r.json();}).then(function(d){
@@ -9624,6 +9794,17 @@ const server = createServer((req, res) => {
   // exact bytes. Do NOT point Wise at /webhooks/inbound (shared-secret HMAC).
   if (req.method === 'POST' && path === '/wise/webhook') {
     proxyRawRequest(req, res, API_ORIGIN, '/wise/webhook');
+    return;
+  }
+
+  // -- SUPE settlement ingest passthrough (public) --
+  // Settlement partners POST signed ISO 20022 documents (pacs.008/pacs.002/
+  // camt.054) here. The API route verifies the raw-byte HMAC
+  // (X-PrimeStack-Signature) and the SHA256 checksum itself, so this must
+  // bypass the console sign-in gate and forward the exact bytes — the same
+  // reason Wise cannot be pointed at the session-gated /api/* paths.
+  if (req.method === 'POST' && path === '/supe/ingest/xml') {
+    proxyRawRequest(req, res, API_ORIGIN, '/supe/ingest/xml');
     return;
   }
 

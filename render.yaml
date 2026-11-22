@@ -10,7 +10,7 @@ services:
     plan: 0.5c-512mb
     branch: main
     buildCommand: npm ci && npx prisma generate && npm run build
-    preDeployCommand: npx prisma migrate deploy && npx tsx scripts/reset-admin.mts
+    preDeployCommand: npx prisma migrate deploy
     startCommand: node start-platform.mjs
     healthCheckPath: /health
     envVars:
@@ -74,6 +74,16 @@ services:
         value: psk_console_001
       - key: CONSOLE_HMAC_SECRET
         generateValue: true
+      # Settlement partner HMAC key. A partner (e.g. Liberties Reserves) signs
+      # its ISO 20022 ingest documents with a fixed keyId + secret it holds on
+      # its side, so the exact pair must be registered — the admin "create HMAC
+      # key" API only generates new ones. `npx prisma db seed` registers these
+      # two values verbatim; leave them unset to skip. The key carries no
+      # merchant, so ingested funds settle into PLATFORM:RESERVE:{CUR}.
+      - key: SETTLEMENT_HMAC_KEY_ID
+        sync: false
+      - key: SETTLEMENT_HMAC_SECRET
+        sync: false
       # Shared secret for the signed inbound real-funds webhook
       # (POST /webhooks/inbound). When unset the webhook rejects every request.
       - key: INBOUND_WEBHOOK_SECRET

@@ -28,5 +28,7 @@
   "REPLAY_DETECTED": "Requisição S2S duplicada — este nonce já foi utilizado",
   "S2S_NO_JOURNAL": "O pagamento S2S não tem lançamento contábil vinculado e não pode ser revertido",
   "S2S_KEY_MISCONFIGURED": "A chave de criptografia S2S está mal configurada — contacte o operador",
-  "S2S_DECRYPT_FAILED": "Falha ao descriptografar o segredo S2S — as credenciais podem estar corrompidas"
+  "S2S_DECRYPT_FAILED": "Falha ao descriptografar o segredo S2S — as credenciais podem estar corrompidas",
+  "STREAM_PUBLISH_FAILED": "Falha ao publicar o fluxo de eventos: {{message}}",
+  "FETCH_UNAVAILABLE": "O cliente HTTP de saída não está disponível neste ambiente"
 }

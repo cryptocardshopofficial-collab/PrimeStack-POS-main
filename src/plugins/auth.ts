@@ -78,7 +78,11 @@ export async function hmacAuthPlugin(app: FastifyInstance): Promise<void> {
         path === "/webhooks/inbound" ||
         // Wise signs its webhook body with RSA (X-Signature-SHA256), verified
         // inside the route.
-        path === "/wise/webhook"
+        path === "/wise/webhook" ||
+        // The SUPE settlement ingest verifies its own raw-byte HMAC
+        // (X-PrimeStack-Signature) plus a SHA256 checksum, matching the
+        // partner manifest letter — it does not use the 4-header scheme.
+        path === "/supe/ingest/xml"
       ) {
         return;
       }

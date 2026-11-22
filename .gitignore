@@ -67,3 +67,30 @@ netlify-dist-corrupt/
 netlify-dist-corrupt-artifact/
 mobile-app/
 .trae-html-share-packages/
+
+# Agent workspaces & scratch
+.kilo/
+.screenshots/
+
+# Local work-in-progress dumps
+.t2t-page-new.txt
+_orbit-*
+Appaylod files/
+
+# Boot/run logs
+boot.out
+boot.err
+
+# Images
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.bmp
+
+# Archives
+*.zip
+*.7z
+*.rar
+*.tar
+*.gz

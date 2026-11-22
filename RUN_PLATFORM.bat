@@ -44,8 +44,22 @@ echo.
 echo Generating the Prisma client...
 call npm run prisma:generate
 if errorlevel 1 (
-  echo Prisma client generation failed.
-  pause
+  echo.
+  echo ERROR: Prisma client generation failed. See the output above.
+  echo This window will close in 15 seconds.
+  timeout /t 15 /nobreak >nul
+  exit /b 1
+)
+
+echo.
+echo Syncing the database schema (prisma db push)...
+call npm run prisma:push
+if errorlevel 1 (
+  echo.
+  echo ERROR: Database schema sync failed. Ensure PostgreSQL is running
+  echo        ^(start-primestack.bat starts it^) and run this again.
+  echo This window will close in 15 seconds.
+  timeout /t 15 /nobreak >nul
   exit /b 1
 )
 
@@ -53,8 +67,10 @@ echo.
 echo Building the latest API...
 call npm run build
 if errorlevel 1 (
-  echo API build failed.
-  pause
+  echo.
+  echo ERROR: API build failed. See the TypeScript errors above.
+  echo This window will close in 15 seconds.
+  timeout /t 15 /nobreak >nul
   exit /b 1
 )
 

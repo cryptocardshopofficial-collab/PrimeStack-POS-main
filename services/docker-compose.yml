@@ -14,10 +14,12 @@ services:
 
   postgres:
     image: postgres:16-alpine
-    container_name: primestack-postgres
+    # NOTE: The host-facing postgres/redis live in the root docker-compose.yml
+    # and hold the main application's data. The instances below belong to the
+    # microservices stack only and are reached inside this project's network,
+    # so they use distinct container names and publish no host ports.
+    container_name: primestack-svc-postgres
     restart: unless-stopped
-    ports:
-      - "5432:5432"
     environment:
       POSTGRES_USER:     primestack
       POSTGRES_PASSWORD: primestack
@@ -34,10 +36,11 @@ services:
 
   redis:
     image: redis:7-alpine
-    container_name: primestack-redis
+    # Same reasoning as postgres above: the host-facing Redis (6379) belongs to
+    # the root stack. This cache belongs to the microservices network only, so
+    # it uses a distinct container name and publishes no host port.
+    container_name: primestack-svc-redis
     restart: unless-stopped
-    ports:
-      - "6379:6379"
     command: >
       redis-server
       --requirepass changeme

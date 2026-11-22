@@ -4,11 +4,13 @@ import type { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 import { config } from "../../config/index.js";
 import { ForbiddenError, ValidationError } from "../../core/errors.js";
 import { sendCreated, sendSuccess } from "../../shared/utils/response.js";
+import { logger } from "../../core/logger.js";
 import {
   ensureWiseWebhookSubscription,
   listWiseWebhookSubscriptions,
   wiseWebhookPublicKey,
 } from "../wallet/wise-virtual-account.js";
+import { handleWiseBalanceWebhook } from "../wallet/wise-webhook.handler.js";
 import type { WalletService } from "../wallet/wallet.service.js";
 
 const VIRTUAL_ACCOUNT_ROLES = new Set(["SUPER_ADMIN", "ADMIN"]);
@@ -139,5 +141,67 @@ export function registerAdminVirtualAccountRoutes(
     return result.created
       ? sendCreated(reply, result)
       : sendSuccess(reply, result);
+  });
+
+  // ── Wise inbound balance webhook (public — Wise signs with RSA-SHA256) ──
+  // This is the URL you register at Wise. It receives every balances#update
+  // event, verifies the RSA-SHA256 signature, and credits the matching
+  // merchant wallet (or platform reserve) via the SUPE ledger flow.
+  //
+  // Registration URL: POST /admin/wise/webhook-subscriptions
+  // The URL itself:   POST /wise/webhook   (must be in WISE_WEBHOOK_URL env)
+  app.post("/wise/webhook", async (request: FastifyRequest, reply: FastifyReply) => {
+    const rawBody = (request as FastifyRequest & { rawBody?: Buffer }).rawBody
+      ?? Buffer.from(typeof request.body === "string" ? request.body : JSON.stringify(request.body ?? {}));
+
+    const signature = request.headers["x-signature-sha256"] as string | undefined;
+
+    try {
+      const result = await handleWiseBalanceWebhook(prisma, rawBody, signature, request.ip);
+      // Always return 200 to Wise — any non-2xx causes retries.
+      reply.status(200);
+      return sendSuccess(reply, result);
+    } catch (err) {
+      // Signature failure or parse error → 400 (Wise will not retry 4xx).
+      logger.warn({ err: err instanceof Error ? err.message : String(err), ip: request.ip }, "Wise webhook rejected");
+      return reply.status(400).send({
+        success: false,
+        error: {
+          code: err instanceof ValidationError ? "VALIDATION_ERROR" : "WEBHOOK_ERROR",
+          message: err instanceof Error ? err.message : "Webhook processing failed",
+        },
+      });
+    }
+  });
+
+  // ── Wise webhook status (admin) ──────────────────────────────────────
+  // Shows the endpoint URL, subscription state, and env configuration so
+  // an operator can confirm the feed is wired up correctly.
+  app.get("/admin/wise/webhook-status", {
+    preHandler: app.authenticate,
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    assertVirtualAccountAdmin(request);
+    reply.header("Cache-Control", "no-store");
+    const webhookUrl = config.wise.webhookUrl || null;
+    const sigKeyConfigured = Boolean(wiseWebhookPublicKey());
+    let subscriptions: Awaited<ReturnType<typeof listWiseWebhookSubscriptions>> = [];
+    let subscriptionError: string | null = null;
+    if (config.wise.provisioningEnabled && config.wise.apiKey && config.wise.profileId) {
+      try { subscriptions = await listWiseWebhookSubscriptions(); }
+      catch (e) { subscriptionError = e instanceof Error ? e.message : "unknown error"; }
+    }
+    const active = subscriptions.some((s) => s.triggerOn === "balances#update" && s.url === webhookUrl);
+    return sendSuccess(reply, {
+      webhookEndpoint: webhookUrl,
+      webhookEndpointConfigured: Boolean(webhookUrl),
+      signatureKeyConfigured: sigKeyConfigured,
+      environment: config.wise.environment,
+      subscriptionActive: active,
+      subscriptions,
+      subscriptionError,
+      instructions: active
+        ? "Wise will deliver balances#update events to your endpoint. Credits will post automatically."
+        : "Run POST /admin/wise/webhook-subscriptions to register the subscription with Wise.",
+    });
   });
 }
