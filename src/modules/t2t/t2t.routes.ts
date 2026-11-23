@@ -1684,7 +1684,7 @@ export function registerT2tRoutes(app: FastifyInstance): void {
 
         const virtualAccount = await prisma.virtualAccount.findFirst({
           where: { provider: "WISE", externalId: balanceId },
-          include: { wallet: { select: { walletAddress: true } } },
+          include: { wallet: { select: { walletAddress: true, merchantId: true } } },
         });
         if (!virtualAccount) {
           logger.warn(
@@ -1762,6 +1762,44 @@ export function registerT2tRoutes(app: FastifyInstance): void {
             { balanceId, accountCode, amount: receipt.amount, currency },
             "Wise balance credit recorded",
           );
+        }
+
+        // Reconcile with a merchant XML upload: a PENDING SUPE upload that quotes
+        // this transfer reference is promoted to CREDITED once the real funds
+        // land. Best-effort — a failure here never blocks the credit response.
+        const transferReference =
+          typeof data.transfer_reference === "string"
+            ? data.transfer_reference.trim()
+            : "";
+        if (!receipt.duplicate && transferReference) {
+          try {
+            const reconciled = await prisma.inboundPayment.updateMany({
+              where: {
+                endToEndId: transferReference,
+                status: { in: ["PENDING", "CONFIRMED"] },
+                ...(virtualAccount.wallet.merchantId
+                  ? { merchantId: virtualAccount.wallet.merchantId }
+                  : {}),
+              },
+              data: {
+                status: "CREDITED",
+                journalEntryRef: receipt.journalEntryRef,
+                creditedAt: new Date(),
+                confirmedAt: new Date(),
+              },
+            });
+            if (reconciled.count > 0) {
+              logger.info(
+                { transferReference, count: reconciled.count },
+                "Wise credit reconciled a pending SUPE upload",
+              );
+            }
+          } catch (error) {
+            logger.warn(
+              { err: error, transferReference },
+              "Wise credit: SUPE upload reconciliation failed",
+            );
+          }
         }
 
         return sendSuccess(reply, {

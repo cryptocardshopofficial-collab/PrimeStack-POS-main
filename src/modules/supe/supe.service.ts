@@ -135,6 +135,18 @@ export class SupeService {
     return code;
   }
 
+  /**
+   * Merchant fund-file upload — phase 1 of a two-phase flow.
+   *
+   * An uploaded MT103 / ISO 20022 / JSON file is a *declaration* of an expected
+   * inbound payment, not proof that funds have settled. So an upload records the
+   * payment as PENDING in the InboundPayment table and does NOT touch the ledger.
+   * The balance is credited only when a funding rail confirms the money actually
+   * arrived — a signature-verified Wise balance webhook, a camt.054 credit
+   * notification, or a pacs.002 ACSC status report. Wise (and any other rail) is
+   * therefore a transfer rail + virtual receiving-account provider, never a
+   * source of ledger funds.
+   */
   async processFundUpload(body: Record<string, unknown>, ctx: SupeContext) {
     const b = body as {
       format?: string;
@@ -161,123 +173,113 @@ export class SupeService {
     const currency = b.currency.toUpperCase();
     const reference = b.reference.trim();
     const normalizedAmount = amount.toFixed(4);
+    const format = (b.format || "MANUAL_UPLOAD").toString();
 
-    const journalRef =
-      "SUPE-" +
-      createHash("sha256")
-        .update(`${ctx.merchantId || ctx.userId || "admin"}:${reference}`)
-        .digest("hex")
-        .slice(0, 32)
-        .toUpperCase();
+    // The sender quotes this reference on the real transfer, so it is the join
+    // key used later to reconcile the rail's confirmation against this upload.
+    const endToEndId = reference;
 
-    const existing = await this.prisma.journalEntry.findUnique({
-      where: { reference: journalRef },
-      select: { reference: true },
-    });
-    if (existing) throw new ConflictError(`Reference ${reference} has already been processed`);
-
-    let destAccountCode: string;
-    let destinationLabel: string;
-    if (b.destination === "platform-reserve") {
-      destAccountCode = await this.ensurePlatformReserve(currency);
-      destinationLabel = "Platform Reserve";
-    } else {
-      const merchantId = ctx.merchantId;
-      const wallet = merchantId
-        ? await this.prisma.wallet.findFirst({
-            where: { merchantId, status: "ACTIVE" },
-            include: { account: true },
-          })
-        : null;
-      if (wallet) {
-        destAccountCode = wallet.account.code;
-        destinationLabel = "Merchant wallet";
-      } else {
-        destAccountCode = await this.ensurePlatformReserve(currency);
-        destinationLabel = merchantId
-          ? "Platform Reserve (no active wallet for this currency)"
-          : "Platform Reserve (no merchant context on this session)";
+    const existing = await this.prisma.inboundPayment.findUnique({ where: { endToEndId } });
+    if (existing) {
+      if (ctx.merchantId && existing.merchantId && existing.merchantId !== ctx.merchantId) {
+        throw new ConflictError(`Reference ${reference} is already in use`);
       }
+      // Idempotent: the same upload seen again — return the current state.
+      logger.info({ endToEndId, status: existing.status }, "SUPE upload: duplicate ignored");
+      return {
+        endToEndId,
+        reference,
+        fileName: b.fileName || null,
+        amount: existing.amount?.toFixed(4) ?? normalizedAmount,
+        currency: existing.currency ?? currency,
+        format,
+        status: existing.status,
+        credited: existing.status === "CREDITED",
+        journalEntryRef: existing.journalEntryRef,
+        message: `Reference ${reference} was already recorded (status: ${existing.status})`,
+      };
     }
 
-    const fundingAccount = await this.ensureSupeFundingAccount(currency);
-
-    await ledgerService.postEntry({
-      reference: journalRef,
-      entryType: "TRANSFER",
-      description: `SUPE: ${b.format || "fund upload"} — ${reference} — ${b.sender || "unknown sender"}`,
-      source: "SUPE",
-      postedBy: ctx.userId || "system",
-      metadata: {
-        supeFormat: b.format,
-        originalReference: reference,
-        sender: b.sender,
-        senderAccount: b.senderAccount,
-        valueDate: b.date,
-        fileName: b.fileName,
-        note: b.note,
-        destination: b.destination,
-        destinationAccount: destAccountCode,
+    const record = await this.prisma.inboundPayment.create({
+      data: {
+        endToEndId,
+        status: "PENDING",
+        amount: normalizedAmount,  // stored as string; Prisma casts to Decimal(20,4)
         currency,
+        sender: b.sender ?? null,
+        senderAccount: b.senderAccount ?? null,
+        valueDate: b.date ?? null,
+        sourceFormat: format,
+        source: "SUPE_UPLOAD",
+        merchantId: ctx.merchantId ?? null,
       },
-      lines: [
-        { accountCode: fundingAccount, debit: normalizedAmount, credit: "0" },
-        { accountCode: destAccountCode, debit: "0", credit: normalizedAmount },
-      ],
     });
 
     await this.prisma.auditLog.create({
       data: {
         userId: ctx.userId,
         merchantId: ctx.merchantId,
-        action: "SUPE_FUND_UPLOAD",
-        entity: "JournalEntry",
-        entityId: journalRef,
+        action: "SUPE_UPLOAD_PENDING",
+        entity: "InboundPayment",
+        entityId: record.id,
         ipAddress: ctx.ip,
         after: {
+          endToEndId,
           amount: normalizedAmount,
           currency,
           reference,
-          format: b.format,
-          destination: b.destination,
-          destinationAccount: destAccountCode,
-        },
+          format,
+          fileName: b.fileName ?? null,
+        } as unknown as Prisma.InputJsonValue,
       },
     });
 
-    logger.info({ journalRef, amount: normalizedAmount, currency, reference }, "SUPE fund upload credited");
+    logger.info({ endToEndId, amount: normalizedAmount, currency, reference }, "SUPE upload recorded as PENDING");
 
     return {
-      journalEntryRef: journalRef,
+      endToEndId,
+      reference,
       fileName: b.fileName || null,
       amount: normalizedAmount,
       currency,
-      reference,
-      format: b.format,
-      destination: destAccountCode,
-      destinationLabel,
-      status: "CREDITED",
-      message: `${normalizedAmount} ${currency} credited to ${destinationLabel}`,
+      format,
+      status: "PENDING" as SupeInboundStatus,
+      credited: false,
+      message: `${normalizedAmount} ${currency} recorded as PENDING — funds will credit automatically once the funding rail confirms settlement`,
     };
   }
 
   async listUploads(ctx: SupeContext, limit: number) {
     const isAdmin = ctx.role && ADMIN_ROLES.includes(ctx.role);
-    const uploads = await this.prisma.journalEntry.findMany({
-      where: { source: "SUPE", ...(isAdmin ? {} : { postedBy: ctx.userId || "" }) },
-      orderBy: { createdAt: "desc" },
-      take: limit,
-      select: {
-        reference: true,
-        description: true,
-        createdAt: true,
-        status: true,
-        metadata: true,
-        lines: { select: { credit: true, account: { select: { code: true } } }, where: { credit: { not: "0" } }, take: 1 },
-      },
-    });
 
-    return uploads.map((u) => {
+    // Ledger-posted credits (source SUPE) plus merchant uploads still awaiting
+    // rail confirmation (InboundPayment, source SUPE_UPLOAD) — merged so the
+    // history shows both PENDING declarations and finalised credits.
+    const [entries, inbound] = await Promise.all([
+      this.prisma.journalEntry.findMany({
+        where: { source: "SUPE", ...(isAdmin ? {} : { postedBy: ctx.userId || "" }) },
+        orderBy: { createdAt: "desc" },
+        take: limit,
+        select: {
+          reference: true,
+          description: true,
+          createdAt: true,
+          status: true,
+          metadata: true,
+          lines: { select: { credit: true, account: { select: { code: true } } }, where: { credit: { not: "0" } }, take: 1 },
+        },
+      }),
+      this.prisma.inboundPayment.findMany({
+        where: {
+          source: "SUPE_UPLOAD",
+          ...(isAdmin ? {} : { merchantId: ctx.merchantId ?? "__none__" }),
+        },
+        orderBy: { createdAt: "desc" },
+        take: limit,
+      }),
+    ]);
+
+    const credited = entries.map((u) => {
       const meta = u.metadata as Record<string, unknown> | null;
       const creditLine = u.lines[0];
       return {
@@ -293,6 +295,27 @@ export class SupeService {
         destination: creditLine?.account.code || "",
       };
     });
+
+    const creditedRefs = new Set(credited.map((c) => c.journalRef));
+    const pendingRows = inbound
+      // A SUPE-journal credit is already listed above; skip the mirror record.
+      .filter((p) => !(p.journalEntryRef && creditedRefs.has(p.journalEntryRef)))
+      .map((p) => ({
+        reference: p.endToEndId,
+        journalRef: p.journalEntryRef,
+        amount: p.amount?.toFixed(4) ?? "0",
+        currency: p.currency || "USD",
+        format: p.sourceFormat || "Upload",
+        sender: p.sender || "",
+        fileName: "",
+        status: p.status,
+        createdAt: p.createdAt,
+        destination: "",
+      }));
+
+    return [...credited, ...pendingRows]
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      .slice(0, limit);
   }
 
   async getUploadForPdf(reference: string, ctx: SupeContext) {

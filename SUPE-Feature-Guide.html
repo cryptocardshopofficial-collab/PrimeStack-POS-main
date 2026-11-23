@@ -75,11 +75,11 @@ code{background:#F1F5F9;border:1px solid #E2E8F0;border-radius:4px;padding:1px 5
 </div>
 
 <div class="doc-title">🔐 Secure Upload Processing Engine</div>
-<div class="doc-sub">SUPE — Automated fund file parsing, validation, and ledger auto-credit for SWIFT MT103, ISO 20022, and JSON payloads</div>
+<div class="doc-sub">SUPE — Automated fund file parsing and validation for SWIFT MT103, ISO 20022, and JSON payloads. Two-phase: an upload is recorded as PENDING and the wallet is credited only when the funding rail (Wise) confirms settlement.</div>
 
 <div class="alert alert-info">
   <span>ℹ</span>
-  <div>SUPE eliminates manual fund reconciliation. Upload a bank document and the engine extracts all financial fields, validates them, and credits your merchant wallet or platform reserve — all in one click with a full immutable audit trail.</div>
+  <div>SUPE removes manual fund reconciliation. Upload a bank document and the engine extracts and validates all financial fields, then records the payment as <strong>PENDING</strong> against its reference — with a full immutable audit trail. The merchant wallet is credited automatically once the funding rail (Wise) confirms the funds arrived.</div>
 </div>
 
 <!-- Overview -->
@@ -194,15 +194,15 @@ code{background:#F1F5F9;border:1px solid #E2E8F0;border-radius:4px;padding:1px 5
   <div class="step">
     <div class="step-num">7</div>
     <div class="step-body">
-      <div class="step-title">Click "Confirm & Auto-Credit Ledger"</div>
-      <div class="step-desc">The system validates, posts the double-entry ledger transaction, and returns the journal reference. The credit is instant and permanent.</div>
+      <div class="step-title">Click "Submit XML for Verification"</div>
+      <div class="step-desc">The system validates the file and records the payment as <strong>PENDING</strong> against its reference. No ledger entry is created yet — the wallet is credited only after the funding rail (Wise) confirms the funds actually settled.</div>
     </div>
   </div>
   <div class="step">
     <div class="step-num">8</div>
     <div class="step-body">
       <div class="step-title">Confirm in Upload History</div>
-      <div class="step-desc">Click <strong>Refresh</strong> in the Upload History panel. Your upload appears with status <strong>CREDITED</strong>, journal reference, amount, and timestamp.</div>
+      <div class="step-desc">Click <strong>Refresh</strong> in the Upload History panel. Your upload appears with status <strong>PENDING</strong> first, then flips to <strong>CREDITED</strong> with a journal reference once the funding rail confirms settlement.</div>
     </div>
   </div>
 </div>
@@ -336,14 +336,14 @@ code{background:#F1F5F9;border:1px solid #E2E8F0;border-radius:4px;padding:1px 5
     <tr><td>journalRef</td><td>SUPE-prefixed journal entry reference</td></tr>
     <tr><td>amount / currency</td><td>Credited amount and currency</td></tr>
     <tr><td>format</td><td>File format detected (SWIFT MT103, ISO 20022, JSON)</td></tr>
-    <tr><td>status</td><td>CREDITED / FAILED / PENDING</td></tr>
+    <tr><td>status</td><td>PENDING / CONFIRMED / CREDITED / REJECTED</td></tr>
     <tr><td>createdAt</td><td>ISO 8601 timestamp of the credit</td></tr>
   </table>
 </div>
 
 <div class="alert alert-warn" style="margin-top:8px">
   <span>⚠</span>
-  <div><strong>Important:</strong> Always verify extracted fields against the original document before clicking Confirm. Once credited, a journal entry is permanent and cannot be reversed without creating a separate reversal entry through the platform admin.</div>
+  <div><strong>Important:</strong> Always verify extracted fields against the original document before submitting. An upload is recorded as PENDING and creates no ledger entry: your wallet is credited only when the funding rail (Wise) confirms settlement. Once credited, a journal entry is permanent and cannot be reversed without a separate reversal entry through the platform admin.</div>
 </div>
 
 <div class="footer">

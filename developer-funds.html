@@ -121,7 +121,7 @@ footer{padding:26px 5%;border-top:1px solid var(--border);text-align:center;colo
       <article class="summary reveal"><span class="badge internal">Live · partner receipt</span><h3>Server-to-Server (S2S) receipt</h3><p>A registered peer sends an authenticated payment request that credits a PrimeStack wallet and records a journal entry.</p></article>
       <article class="summary reveal"><span class="badge internal">Live · operator JWT or signed webhook</span><h3>Real funds into a terminal</h3><p>Record money that already arrived from a bank/VPA settlement or a partner sender into a terminal or merchant account. Idempotent by reference or event ID.</p></article>
       <article class="summary reveal"><span class="badge limited">Lifecycle live · external network gated</span><h3>Card / POS transaction</h3><p>Run authorize, capture, reverse, and settlement accounting. The external card-network connection is kept behind an approved, certified acquirer adapter.</p></article>
-      <article class="summary reveal"><span class="badge gated">Live when Wise is configured</span><h3>Wise bank-in → payout</h3><p>With live Wise configuration, a credited Wise transfer is matched to a registered customer and paid out to that customer's saved bank account.</p></article>
+      <article class="summary reveal"><span class="badge gated">Live when Wise is configured</span><h3>Wise bank-in (rail)</h3><p>Wise provides virtual receiving accounts and moves the money. Real credits arrive on a signature-verified <code>balances#update</code> webhook and credit the merchant wallet; merchants can upload XML to declare an expected payment.</p></article>
       <article class="summary reveal"><span class="badge limited">Instruction / draft</span><h3>Bank payout &amp; SWIFT drafts</h3><p>Create a withdrawal instruction that debits the wallet, or generate a <code>pacs.008</code> draft. A bank executor completes the actual transfer.</p></article>
       <article class="summary reveal"><span class="badge limited">Standalone · restricted</span><h3>Crypto payout</h3><p>A separate, unlaunched service can broadcast a USDT TRC-20 payout. It has no inbound deposit route and is not part of the standard launcher.</p></article>
     </div>
@@ -133,7 +133,7 @@ footer{padding:26px 5%;border-top:1px solid var(--border);text-align:center;colo
     <a href="#terminal-details">Terminal &amp; sender details</a>
     <a href="#s2s">Server-to-Server receipt</a>
     <a href="#card">Card / POS</a>
-    <a href="#wise">Wise bank-in and payout</a>
+    <a href="#wise">Wise bank-in (rail + virtual accounts)</a>
     <a href="#bank-payout">Bank payout &amp; SWIFT draft</a>
     <a href="#crypto">Crypto payout status</a>
     <a href="#inbound">Receive real funds</a>
@@ -327,33 +327,22 @@ x-s2s-idempotency-key: &lt;unique-for-this-payment&gt;
 
   <section id="wise">
     <article class="flow reveal">
-      <span class="badge gated">Wise pass-through · operator-managed · provider configuration required</span>
-      <h2>5. Receive a Wise bank transfer and pay out to the customer's bank</h2>
-      <p>The separate Rails service is a pass-through: Wise reports an incoming credited transfer, the service matches it to a registered customer, then creates a Wise payout to that customer's saved bank destination. It does not credit the customer's PrimeStack wallet. Without Wise live credentials the payout is simulated.</p>
+      <span class="badge gated">Wise rail · virtual receive accounts · provider configuration required</span>
+      <h2>5. Receive real funds into a Wise virtual account (Wise is a rail, not a fund provider)</h2>
+      <p>Wise is used only as a <strong>transfer rail</strong> and a <strong>virtual receiving-account provider</strong>. It is never a source of ledger funds: money enters the PrimeStack ledger only when a funding rail confirms that the customer's funds actually settled. Real Wise credits arrive as a signature-verified <code>balances#update</code> webhook, and the wallet is credited at that moment by a balanced double-entry posting.</p>
       <h3>Step by step</h3>
       <ol>
-        <li>An authorized operator registers the customer and their verified Wise receiving account identifier and destination bank details in the secured Rails console. The account identifier must match the credited Wise account; do not use a customer-supplied reference as the only matching control.</li>
-        <li>Configure the Wise API key, profile ID, live/sandbox environment, and Wise webhook public key. Test the whole flow in sandbox before switching to live.</li>
-        <li>Register the public callback URL <code>https://YOUR_HOST/api/rails/webhook</code> in Wise for <code>incoming-transfer#credited</code>. The callback is forwarded to the Rails service, which verifies Wise's RSA-SHA256 signature against the raw request body.</li>
-        <li>The payer sends funds to the assigned Wise receiving account details. Wait for Wise's credited event; an API health check or a payment instruction is not proof of receipt.</li>
-        <li>The service matches the credited IBAN/account number to the registered customer. If it cannot match, the transaction is marked <code>UNMATCHED</code> for manual review and is not paid out to a guessed customer.</li>
-        <li>For a match, the Rails service creates and funds a Wise payout to the saved bank destination. Check the Rails transaction and Wise payout status, then reconcile the incoming transfer, payout reference, and bank confirmation.</li>
+        <li>Configure the Wise API key, profile ID, live/sandbox environment, and webhook public key. Test the whole flow in sandbox before switching to live.</li>
+        <li>Provision a Wise virtual receiving account for the merchant (IBAN or local account number) through the admin virtual-account routes. Provisioning is gated by Wise configuration.</li>
+        <li>Register the public callback URL <code>https://YOUR_HOST/wise/webhook</code> in Wise for the <code>balances#update</code> trigger (delivery version 4.0.0). The service verifies Wise's RSA-SHA256 signature (<code>X-Signature-SHA256</code>) against the raw request body; unsigned or mis-signed deliveries are rejected.</li>
+        <li>The payer sends funds to the assigned Wise receiving-account details. Wait for Wise's credit event — a health check or a payment instruction is not proof of receipt.</li>
+        <li>On a credit, the service matches the Wise <code>balance_id</code> to the provisioned virtual account, then posts a double-entry credit to <code>WALLET-&lt;address&gt;-&lt;CCY&gt;</code> and debits the internal funding account. A replay of the same delivery is ignored (idempotent).</li>
+        <li>If the credit carries a <code>transfer_reference</code> that matches a merchant's pending XML upload, that upload is promoted to <code>CREDITED</code> so the merchant's declaration reconciles with the real funds.</li>
       </ol>
-      <div class="table-wrap">
-        <table>
-          <thead><tr><th>Destination method</th><th>Required bank details</th></tr></thead>
-          <tbody>
-            <tr><td>ACH (US)</td><td>Account holder, routing number, account number, and account type</td></tr>
-            <tr><td>SEPA</td><td>Account holder and IBAN</td></tr>
-            <tr><td>UK Faster Payments</td><td>Account holder, sort code, and account number</td></tr>
-            <tr><td>International bank account / SWIFT</td><td>Account holder and supported IBAN or SWIFT/BIC plus account number</td></tr>
-            <tr><td>Mobile money</td><td>Account holder, phone number, provider, and Wise product availability</td></tr>
-          </tbody>
-        </table>
-      </div>
-      <div class="endpoint-list"><code>POST /api/rails/customers (operator session)</code><code>POST /api/rails/webhook (Wise signature verified)</code><code>GET /api/rails/customers/:id/transactions (operator session)</code><code>GET /api/rails/transactions (operator session)</code></div>
-      <div class="status-note"><strong>Go-live check:</strong> Verify the deployed service reports the intended Wise environment and real credentials. In simulation mode, a successful-looking payout result is not money sent to a bank.</div>
-      <div class="status-note"><strong>Manual payout:</strong> <code>POST /api/rails/manual-payout</code> is an operator-console action that can submit a Wise payout, or simulate it when credentials are absent. It does not create the same rails transaction and ledger trail as the credited-webhook flow; do not use it as an unattended customer payout API.</div>
+      <p>Merchants can also <strong>declare an expected inbound payment</strong> by uploading an MT103 / ISO 20022 / JSON file in the merchant SUPE page (<code>/merchant/supe</code>). This is two-phase: the upload is recorded as <code>PENDING</code> against its reference and does <strong>not</strong> credit the ledger. The wallet is credited only when the rail confirms settlement — a signed Wise credit, a <code>camt.054</code> credit notification, or a <code>pacs.002</code> ACSC status report.</p>
+      <div class="endpoint-list"><code>POST /admin/wise/webhook-subscriptions (operator session)</code><code>GET /admin/wise/webhook-status (operator session)</code><code>POST /wise/webhook (Wise RSA signature verified)</code><code>POST /supe/ingest/xml (HMAC)</code></div>
+      <div class="status-note"><strong>Go-live check:</strong> Confirm the deployed service reports the intended Wise environment and real credentials, and that the <code>balances#update</code> subscription is enabled and pointing at <code>/wise/webhook</code>. In simulation mode a successful-looking result is not money received.</div>
+      <div class="status-note"><strong>Rail, not a ledger source:</strong> Never credit a wallet from an uploaded file alone. If no confirmation ever arrives, the upload stays <code>PENDING</code> and no money is created.</div>
     </article>
   </section>
 
@@ -449,7 +438,7 @@ x-primestack-signature: &lt;HMAC-SHA256 hex&gt;
     </div>
     <div class="grid">
       <article class="limit reveal"><h3>Invoices and payment links</h3><p><code>POST /merchant/invoices</code> and <code>POST /merchant/payment-links</code> create request records. The current routes do not provide a checkout, collection confirmation, or settlement callback.</p></article>
-      <article class="limit reveal"><h3>Virtual account records</h3><p>Admin virtual-account provisioning is gated by Wise configuration. When Wise provisioning is enabled the route returns real Wise receiving-account details (IBAN or local account number); otherwise it stores a local identifier only. Receiving funds into the account is a separate step — use <code>POST /t2t/inbound</code> or the signed <code>POST /webhooks/inbound</code>.</p></article>
+      <article class="limit reveal"><h3>Virtual account records</h3><p>Admin virtual-account provisioning is gated by Wise configuration. When Wise provisioning is enabled the route returns real Wise receiving-account details (IBAN or local account number); otherwise it stores a local identifier only. Receiving funds into the account is a separate step — a signature-verified Wise <code>balances#update</code> webhook (see §5) credits the wallet automatically, or use <code>POST /t2t/inbound</code> / the signed <code>POST /webhooks/inbound</code> for other rails.</p></article>
       <article class="limit reveal"><h3>ISO messages and route selection</h3><p>ISO 8583/20022 tools build, parse, or validate messages. PAG route selection recommends a route only. Neither alone reserves funds, sends a bank payment, or confirms settlement.</p></article>
     </div>
   </section>

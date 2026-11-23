@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿﻿﻿﻿// start-dashboard.js — PrimeStack Global Server Network Admin Dashboard
+﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿// start-dashboard.js — PrimeStack Global Server Network Admin Dashboard
 // Node.js HTTP server, no framework, no external deps
 import { createServer } from 'http';
 import { request as httpRequest } from 'http';
@@ -8231,7 +8231,7 @@ function supePage() {
 <div class="page-header">
   <div class="breadcrumb"><a href="/merchant">Merchant</a><span>/</span>SUPE</div>
   <h1>🔐 Secure Upload Processing Engine</h1>
-  <p>Upload SWIFT MT103, ISO 20022 XML, or JSON fund files. The engine parses, validates, and auto-credits the selected destination account.</p>
+  <p>Upload SWIFT MT103, ISO 20022 XML, or JSON fund files. Two-phase: the engine parses and validates the file and records the payment as <strong>PENDING</strong>. Your wallet is credited automatically only when the funding rail (Wise) confirms the real funds have arrived.</p>
 </div>
 <div class="page-body">
   <div class="grid-2" style="gap:20px;align-items:start">
@@ -8252,16 +8252,8 @@ function supePage() {
 
         <div id="supeParseResult" style="display:none">
           <div class="supe-parsed">
-            <div style="font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:10px">Extracted Fields — edit before crediting</div>
+            <div style="font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:10px">Extracted Fields — review before submitting</div>
             <table id="supeFieldsTable"></table>
-          </div>
-
-          <div class="form-group" style="margin-top:14px">
-            <label>Destination Account</label>
-            <select id="supeDest" class="input-mono">
-              <option value="merchant-wallet">Merchant Wallet (default)</option>
-              <option value="platform-reserve">Platform Reserve</option>
-            </select>
           </div>
 
           <div class="form-group">
@@ -8270,11 +8262,11 @@ function supePage() {
           </div>
 
           <div class="alert alert-warn" style="margin-top:8px;font-size:.78rem">
-            ⚠ Verify the extracted amounts and references match the original document before crediting.
+            ⚠ Verify the amount and reference match the sender's transfer. Submitting records this payment as <strong>PENDING</strong> — your wallet is credited only after the funding rail (Wise) confirms the funds have arrived.
           </div>
 
           <button class="btn btn-success supe-credit-btn" style="width:100%;margin-top:12px;justify-content:center" id="supeCreditBtn" onclick="supeCredit()">
-            ✅ Confirm &amp; Auto-Credit Ledger
+            ✅ Submit XML for Verification
           </button>
         </div>
       </div>
@@ -8552,7 +8544,7 @@ function supePage() {
       supeStatus('warn', '⚠ File parsed. Verify the extracted fields below before crediting.');
       toast('File parsed — verify before crediting', 'warning');
     } else {
-      supeStatus('ok', '✅ ' + escapeHtml(p.fileName || 'File') + ' parsed successfully. Review the fields, then confirm to credit.');
+      supeStatus('ok', '✅ ' + escapeHtml(p.fileName || 'File') + ' parsed successfully. Review the fields, then submit for verification.');
       toast('File parsed successfully', 'ok');
     }
     el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -8568,7 +8560,6 @@ function supePage() {
     var sender = (document.getElementById('supeSender').value || '').trim();
     var date = (document.getElementById('supeDate').value || '').trim();
     var description = (document.getElementById('supeDescription').value || '').trim();
-    var dest = document.getElementById('supeDest').value;
     var note = document.getElementById('supeNote').value.trim();
 
     if (!amount || isNaN(parseFloat(amount)) || parseFloat(amount) <= 0) {
@@ -8592,7 +8583,7 @@ function supePage() {
 
     var btn = document.getElementById('supeCreditBtn');
     if (btn) { btn.disabled = true; btn.textContent = 'Processing…'; }
-    supeStatus('info', '⏳ Crediting ' + amount + ' ' + currency + '…');
+    supeStatus('info', '⏳ Submitting ' + amount + ' ' + currency + '…');
 
     try {
       var r = await api('POST', '/supe/process', {
@@ -8604,34 +8595,46 @@ function supePage() {
         senderAccount: _parsed.senderAccount,
         date: date,
         description: description,
-        destination: dest,
         note: note,
         fileName: _parsed.fileName,
       });
 
-      if (r.ok && r.data && r.data.journalEntryRef) {
+      if (r.ok && r.data && r.data.status) {
         var d = r.data;
         var ref = escapeHtml(d.reference || reference);
-        var journal = escapeHtml(d.journalEntryRef);
-        supeStatus('ok', '✅ Credited ' + escapeHtml(d.amount) + ' ' + escapeHtml(d.currency) +
-          ' to ' + escapeHtml(d.destinationLabel || d.destination) + ' — journal <code>' + journal + '</code>');
-        toast('File uploaded — funds credited', 'ok');
-        supePopup('ok', 'File uploaded successfully',
-          'Credited <b>' + escapeHtml(d.amount) + ' ' + escapeHtml(d.currency) + '</b> from <b>' +
-          escapeHtml(d.fileName || _parsed.fileName || 'uploaded file') + '</b>.<br><br>' +
-          'Destination: <b>' + escapeHtml(d.destinationLabel || d.destination) + '</b><br>' +
-          'Reference: <code>' + ref + '</code><br>' +
-          'Journal entry: <code>' + journal + '</code>',
-          [
-            { label: '⬇ Download receipt (PDF)', cls: 'btn-primary', onClick: function() {
-                window.open('/api/supe/uploads/' + encodeURIComponent(d.journalEntryRef) + '/pdf', '_blank');
-              } },
-            { label: 'Upload another', cls: 'btn-ghost', onClick: function() { supeResetForm(); _parsed = null; } },
-          ]);
+        if (d.status === 'PENDING') {
+          supeStatus('ok', '🕓 ' + escapeHtml(d.amount) + ' ' + escapeHtml(d.currency) +
+            ' recorded as PENDING — awaiting rail confirmation for reference <code>' + ref + '</code>');
+          toast('XML submitted — pending rail confirmation', 'ok');
+          supePopup('info', 'Submitted for verification',
+            'Recorded <b>' + escapeHtml(d.amount) + ' ' + escapeHtml(d.currency) + '</b> as <b>PENDING</b> from <b>' +
+            escapeHtml(d.fileName || _parsed.fileName || 'uploaded file') + '</b>.<br><br>' +
+            'Reference: <code>' + ref + '</code><br>' +
+            'Your wallet is credited automatically once the funding rail (Wise) confirms the funds have arrived.',
+            [
+              { label: 'Upload another', cls: 'btn-ghost', onClick: function() { supeResetForm(); _parsed = null; } },
+            ]);
+        } else {
+          var journal = escapeHtml(d.journalEntryRef || '');
+          supeStatus('ok', '✅ Credited ' + escapeHtml(d.amount) + ' ' + escapeHtml(d.currency) +
+            ' — journal <code>' + journal + '</code>');
+          toast('File uploaded — funds credited', 'ok');
+          supePopup('ok', 'File uploaded successfully',
+            'Credited <b>' + escapeHtml(d.amount) + ' ' + escapeHtml(d.currency) + '</b> from <b>' +
+            escapeHtml(d.fileName || _parsed.fileName || 'uploaded file') + '</b>.<br><br>' +
+            'Reference: <code>' + ref + '</code><br>' +
+            'Journal entry: <code>' + journal + '</code>',
+            [
+              { label: '⬇ Download receipt (PDF)', cls: 'btn-primary', onClick: function() {
+                  window.open('/api/supe/uploads/' + encodeURIComponent(d.journalEntryRef) + '/pdf', '_blank');
+                } },
+              { label: 'Upload another', cls: 'btn-ghost', onClick: function() { supeResetForm(); _parsed = null; } },
+            ]);
+        }
         _parsed = null;
         supeLoadHistory();
       } else {
-        var msg = apiErrorMessage(r.data, 'The upload could not be credited.');
+        var msg = apiErrorMessage(r.data, 'The upload could not be processed.');
         supeStatus('err', '❌ ' + escapeHtml(msg));
         toast(msg, 'err');
         supePopup('err', 'Upload failed', escapeHtml(msg) +
@@ -8643,7 +8646,7 @@ function supePage() {
       toast(e.message, 'err');
       supePopup('err', 'Upload failed', escapeHtml(e.message), [{ label: 'OK', cls: 'btn-primary' }]);
     } finally {
-      if (btn) { btn.disabled = false; btn.textContent = '✅ Confirm & Auto-Credit Ledger'; }
+      if (btn) { btn.disabled = false; btn.textContent = '✅ Submit XML for Verification'; }
     }
   };
 
@@ -8666,8 +8669,11 @@ function supePage() {
         '<th style="padding:6px 8px;text-align:left;border-bottom:1px solid var(--border)">Receipt</th>' +
         '</tr></thead><tbody>' +
         uploads.map(function(u){
-          var statusCls = u.status==='CREDITED' ? 'badge-green' : u.status==='FAILED' ? 'badge-red' : 'badge-yellow';
+          var statusCls = u.status==='CREDITED' ? 'badge-green' : (u.status==='FAILED'||u.status==='REJECTED') ? 'badge-red' : 'badge-yellow';
           var fname = u.fileName || '—';
+          var receipt = (u.status==='CREDITED' && u.journalRef)
+            ? '<a href="/api/supe/uploads/' + encodeURIComponent(u.journalRef) + '/pdf" target="_blank" title="Download receipt">PDF ⬇</a>'
+            : '<span style="color:var(--muted)">—</span>';
           return '<tr>' +
             '<td style="padding:6px 8px;font-weight:600" title="' + escapeHtml(fname) + '">' + escapeHtml(fname.length > 28 ? fname.substring(0, 25) + '…' : fname) + '</td>' +
             '<td style="padding:6px 8px;font-family:monospace">' + escapeHtml((u.reference||'').substring(0,20)) + '</td>' +
@@ -8675,7 +8681,7 @@ function supePage() {
             '<td style="padding:6px 8px">' + escapeHtml(u.format||'') + '</td>' +
             '<td style="padding:6px 8px"><span class="badge ' + statusCls + '">' + escapeHtml(u.status||'') + '</span></td>' +
             '<td style="padding:6px 8px;color:var(--muted)">' + (u.createdAt ? new Date(u.createdAt).toLocaleDateString() : '') + '</td>' +
-            '<td style="padding:6px 8px"><a href="/api/supe/uploads/' + encodeURIComponent(u.journalRef || u.reference) + '/pdf" target="_blank" title="Download receipt">PDF ⬇</a></td>' +
+            '<td style="padding:6px 8px">' + receipt + '</td>' +
             '</tr>';
         }).join('') +
         '</tbody></table>';
