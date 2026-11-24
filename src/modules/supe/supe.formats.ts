@@ -236,9 +236,13 @@ export interface ParsedPacs002 {
   rejectionReason: string | null;
 }
 
-/** Extract the first <TxInf> block from a pacs.002 report. */
+/** Extract the first transaction-information block from a pacs.002 report. */
 export function parsePacs002StatusReport(xml: string): ParsedPacs002 {
-  const txInf = xml.match(/<TxInf>([\s\S]*?)<\/TxInf>/);
+  // ISO 20022 pacs.002 wraps each transaction in <TxInfAndSts>; some feeds use the
+  // shorter <TxInf>. Match the real element first, then fall back.
+  const txInf =
+    xml.match(/<TxInfAndSts>([\s\S]*?)<\/TxInfAndSts>/) ??
+    xml.match(/<TxInf>([\s\S]*?)<\/TxInf>/);
   if (!txInf) {
     return {
       orgnlEndToEndId: null,
