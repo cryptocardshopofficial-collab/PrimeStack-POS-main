@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿// start-dashboard.js — PrimeStack Global Server Network Admin Dashboard
+﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿// start-dashboard.js — PrimeStack Global Server Network Admin Dashboard
 // Node.js HTTP server, no framework, no external deps
 import { createServer } from 'http';
 import { request as httpRequest } from 'http';
@@ -7232,7 +7232,7 @@ function wiseToast(msg,kind){
 function wiseJson(resp){return resp.json().then(function(d){return {ok:resp.ok,status:resp.status,data:d};});}
 function wiseLoadConfig(){
   fetch('/api/admin/virtual-account/configuration').then(wiseJson).then(function(r){
-    var d=r.data||{};
+    var d=(r.data&&r.data.data)||r.data||{};
     var cfg=document.getElementById('wise-config-body');
     cfg.innerHTML='<table class="kv"><tr><th>Provider</th><td>WISE</td></tr>'+
       '<tr><th>Enabled</th><td>'+(d.enabled?'<span class="badge badge-green">enabled</span>':'<span class="badge badge-gray">disabled</span>')+'</td></tr>'+
@@ -7247,7 +7247,7 @@ function wiseLoadConfig(){
     var s2=document.querySelector('#wise-stat-env .stat-val'); if(s2)s2.textContent=d.environment||'—';
   }).catch(function(e){document.getElementById('wise-config-body').innerHTML='<div style="color:var(--danger)">'+e.message+'</div>';});
   fetch('/api/admin/wise/webhook-subscriptions').then(wiseJson).then(function(r){
-    var subs=(r.data&&r.data.subscriptions)||[];
+    var subs=(r.data&&r.data.data&&r.data.data.subscriptions)||(r.data&&r.data.subscriptions)||[];
     var body=document.getElementById('wise-sub-body');
     if(!subs.length){body.innerHTML='<div style="color:var(--muted)">No subscriptions registered. Click <b>Register Subscription</b> to start receiving <code>balances#update</code> events.</div>';}
     else{
