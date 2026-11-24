@@ -35,7 +35,7 @@ function wiseBaseUrl(): string {
     : config.wise.sandboxUrl;
 }
 
-async function wiseRequest<T = unknown>(
+export async function wiseRequest<T = unknown>(
   method: "GET" | "POST",
   path: string,
   body?: unknown,
@@ -188,6 +188,32 @@ async function findOrCreateBalance(
     throw new Error(`Wise did not return a balance id for ${currency}`);
   }
   return createdId;
+}
+
+/**
+ * Reads a currency's STANDARD balance (id + amount) so callers can preflight
+ * outbound payouts against the funds actually held at Wise. Read-only — it does
+ * not create a balance.
+ */
+export async function getWiseBalance(
+  currency: string,
+): Promise<{ balanceId: string; amount: string } | null> {
+  if (!isWiseProvisioningEnabled()) return null;
+  const balances = await wiseRequest<unknown>(
+    "GET",
+    `/v4/profiles/${config.wise.profileId}/balances?types=STANDARD`,
+  );
+  const match = (Array.isArray(balances) ? balances : [])
+    .map(asRecord)
+    .find(
+      (balance) =>
+        text(balance.currency)?.toUpperCase() === currency.toUpperCase(),
+    );
+  if (!match) return null;
+  const balanceId = text(match.id);
+  if (!balanceId) return null;
+  const amount = text(asRecord(match.amount).value, match.amount) ?? "0";
+  return { balanceId, amount };
 }
 
 /**

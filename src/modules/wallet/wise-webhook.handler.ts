@@ -53,7 +53,7 @@ function safeText(v: unknown): string {
 
 const SUPE_FUNDING_PREFIX = "SYSTEM-FUNDING";
 
-async function ensureSupeFundingAccount(prisma: PrismaClient, currency: string): Promise<string> {
+export async function ensureSupeFundingAccount(prisma: PrismaClient, currency: string): Promise<string> {
   const code = `${SUPE_FUNDING_PREFIX}-${currency}`;
   const existing = await prisma.account.findUnique({ where: { code }, select: { code: true } });
   if (existing) return existing.code;
@@ -63,7 +63,7 @@ async function ensureSupeFundingAccount(prisma: PrismaClient, currency: string):
   return code;
 }
 
-async function ensurePlatformReserve(prisma: PrismaClient, currency: string): Promise<string> {
+export async function ensurePlatformReserve(prisma: PrismaClient, currency: string): Promise<string> {
   const code = `PLATFORM:RESERVE:${currency}`;
   const existing = await prisma.account.findUnique({ where: { code }, select: { type: true, subtype: true } });
   if (existing) {

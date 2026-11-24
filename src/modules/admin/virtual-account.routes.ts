@@ -1,4 +1,4 @@
-﻿import { z } from "zod";
+import { z } from "zod";
 import type { PrismaClient } from "@prisma/client";
 import type { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 import { config } from "../../config/index.js";
@@ -7,9 +7,11 @@ import { sendCreated, sendSuccess } from "../../shared/utils/response.js";
 
 import {
   ensureWiseWebhookSubscription,
+  getWiseBalance,
   listWiseWebhookSubscriptions,
   wiseWebhookPublicKey,
 } from "../wallet/wise-virtual-account.js";
+import { executeWisePayout } from "../wallet/wise-outbound.js";
 
 import type { WalletService } from "../wallet/wallet.service.js";
 
@@ -27,6 +29,33 @@ function auditUserAgent(request: FastifyRequest): string | undefined {
   const userAgent = request.headers["user-agent"];
   return typeof userAgent === "string" ? userAgent : undefined;
 }
+
+/**
+ * Body for an outbound Wise payout. USD only. A `routingNumber` selects a US
+ * (ACH) recipient; a `swiftCode` selects an international (SWIFT) one.
+ */
+const wisePayoutSchema = z.object({
+  amount: z.union([z.string(), z.number()]).transform((v) => String(v)),
+  currency: z.literal("USD").default("USD"),
+  reference: z.string().max(64).optional(),
+  description: z.string().max(500).optional(),
+  recipient: z.object({
+    accountHolderName: z.string().trim().min(1).max(140),
+    routingNumber: z.string().trim().regex(/^\d{9}$/).optional(),
+    accountNumber: z.string().trim().min(4).max(34).optional(),
+    swiftCode: z.string().trim().min(8).max(11).optional(),
+    iban: z.string().trim().min(4).max(34).optional(),
+    accountType: z.enum(["CHECKING", "SAVINGS"]).optional(),
+    country: z.string().trim().length(2),
+    address: z.object({
+      firstLine: z.string().trim().min(1).max(140),
+      city: z.string().trim().min(1).max(70),
+      state: z.string().trim().max(35).optional(),
+      postCode: z.string().trim().min(1).max(20),
+      country: z.string().trim().length(2),
+    }),
+  }),
+});
 
 export function registerAdminVirtualAccountRoutes(
   app: FastifyInstance,
@@ -173,6 +202,73 @@ export function registerAdminVirtualAccountRoutes(
         ? "Wise will deliver balances#update events to your endpoint. Credits will post automatically."
         : "Run POST /admin/wise/webhook-subscriptions to register the subscription with Wise.",
     });
+  });
+
+  // ── Wise live balances (admin) ─────────────────────────────────────────────
+  // Shows what the profile actually holds at Wise — the funds an outbound
+  // payout can draw from.
+  app.get("/admin/wise/balances", {
+    preHandler: app.authenticate,
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    assertVirtualAccountAdmin(request);
+    reply.header("Cache-Control", "no-store");
+    if (!config.wise.provisioningEnabled || !config.wise.apiKey || !config.wise.profileId) {
+      throw new ForbiddenError("Wise provisioning is not enabled or fully configured");
+    }
+    return sendSuccess(reply, {
+      environment: config.wise.environment,
+      profileId: config.wise.profileId,
+      usd: await getWiseBalance("USD"),
+    });
+  });
+
+  // ── Wise outbound payout (admin) ───────────────────────────────────────────
+  // Sends USD from the profile's Wise balance to an external bank account, and
+  // records the outflow in the ledger (fail-closed).
+  app.post("/admin/wise/payouts", {
+    preHandler: app.authenticate,
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const actor = assertVirtualAccountAdmin(request);
+    reply.header("Cache-Control", "no-store");
+    if (!config.wise.provisioningEnabled || !config.wise.apiKey || !config.wise.profileId) {
+      throw new ForbiddenError("Wise provisioning is not enabled or fully configured");
+    }
+    const parsed = wisePayoutSchema.safeParse(request.body);
+    if (!parsed.success) {
+      throw new ValidationError("Invalid Wise payout request", {
+        errors: parsed.error.errors,
+      });
+    }
+
+    const result = await executeWisePayout({
+      amount: parsed.data.amount,
+      currency: parsed.data.currency,
+      reference: parsed.data.reference,
+      description: parsed.data.description,
+      recipient: parsed.data.recipient,
+      postedBy: actor.id,
+    });
+
+    await prisma.auditLog.create({
+      data: {
+        userId: actor.id,
+        action: "WISE_PAYOUT_SENT",
+        entity: "WisePayout",
+        entityId: result.reference,
+        after: {
+          amount: result.amount,
+          currency: result.currency,
+          wiseRecipientId: result.wiseRecipientId,
+          wiseTransferId: result.wiseTransferId,
+          journalEntryRef: result.journalEntryRef,
+          beneficiary: parsed.data.recipient.accountHolderName,
+        },
+        ipAddress: request.ip,
+        userAgent: auditUserAgent(request),
+      },
+    });
+
+    return sendCreated(reply, result);
   });
 }
 
