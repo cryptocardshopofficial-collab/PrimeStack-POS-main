@@ -305,10 +305,15 @@ export type Iso20022MessageType =
   | "ISO_20022";
 
 export function detectIso20022MessageType(xml: string): Iso20022MessageType {
-  if (xml.includes("pacs.008") || xml.includes("FIToFICstmrCdtTrf")) return "pacs.008";
-  if (xml.includes("pacs.002") || xml.includes("FIToFIPmtStsRpt")) return "pacs.002";
-  if (xml.includes("camt.054") || xml.includes("BkToCstmrDbtCdtNtfctn")) return "camt.054";
-  if (xml.includes("pain.001") || xml.includes("CstmrCdtTrfInitn")) return "pain.001";
+  // Match the message ROOT element (and namespace) first. Confirmation messages
+  // reference other message types by name — e.g. a pacs.002 carries
+  // <OrgnlMsgNmId>pacs.008.001.08</OrgnlMsgNmId> — so a naive substring test on
+  // the type name misclassifies them (a pacs.002 referencing pacs.008 would be
+  // read as a pacs.008 initiation). Check the confirming types before pacs.008.
+  if (xml.includes("FIToFIPmtStsRpt") || xml.includes("pacs.002")) return "pacs.002";
+  if (xml.includes("BkToCstmrDbtCdtNtfctn") || xml.includes("camt.054")) return "camt.054";
+  if (xml.includes("CstmrCdtTrfInitn") || xml.includes("pain.001")) return "pain.001";
+  if (xml.includes("FIToFICstmrCdtTrf") || xml.includes("pacs.008")) return "pacs.008";
   return "ISO_20022";
 }
 
