@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿// start-dashboard.js — PrimeStack Global Server Network Admin Dashboard
+﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿// start-dashboard.js — PrimeStack Global Server Network Admin Dashboard
 // Node.js HTTP server, no framework, no external deps
 import { createServer } from 'http';
 import { request as httpRequest } from 'http';
@@ -10003,6 +10003,16 @@ const server = createServer((req, res) => {
   // reason Wise cannot be pointed at the session-gated /api/* paths.
   if (req.method === 'POST' && path === '/supe/ingest/xml') {
     proxyRawRequest(req, res, API_ORIGIN, '/supe/ingest/xml');
+    return;
+  }
+
+  // -- Watchdog dead-man's-switch ping (public) --
+  // An external uptime monitor polls this to prove the platform is alive. It
+  // carries no secrets and only records a heartbeat inside the API, so it must
+  // bypass the console sign-in gate (otherwise the monitor is redirected to
+  // /login and can never observe an outage).
+  if (req.method === 'GET' && path === '/alarm/ping') {
+    proxyRequest(req, res, API_ORIGIN, '/alarm/ping');
     return;
   }
 
