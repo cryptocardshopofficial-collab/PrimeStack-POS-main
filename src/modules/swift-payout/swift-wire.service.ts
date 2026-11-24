@@ -30,6 +30,10 @@ export interface SwiftWirePayoutInput {
   receivingBankBic?: string;
   intermediaryBic?: string;
   intermediaryName?: string;
+  /** Sending bank BIC for the MT103 block-1 header (F01). */
+  senderBic?: string;
+  /** Receiving bank BIC for the MT103 block-2 header (I103). */
+  receiverBic?: string;
   orderingCustomerName: string;
   orderingCustomerAccount?: string;
   reference?: string;
@@ -146,6 +150,8 @@ export async function executeSwiftWirePayout(
     },
     remittanceInfo: input.remittanceInfo,
     chargeBearer: input.chargeBearer,
+    senderBic: input.senderBic,
+    receiverBic: input.receiverBic,
   });
 
   logger.info(

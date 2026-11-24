@@ -25,6 +25,8 @@ const swiftWireSchema = z.object({
   receivingBankBic: z.string().trim().min(8).max(11).optional(),
   intermediaryBic: z.string().trim().min(8).max(11).optional(),
   intermediaryName: z.string().trim().max(140).optional(),
+  senderBic: z.string().trim().min(8).max(11).optional(),
+  receiverBic: z.string().trim().min(8).max(11).optional(),
   orderingCustomerName: z.string().trim().min(1).max(140),
   orderingCustomerAccount: z.string().trim().max(34).optional(),
   reference: z.string().trim().max(16).optional(),
