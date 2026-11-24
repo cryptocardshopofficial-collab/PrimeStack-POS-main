@@ -11,6 +11,7 @@ import {
   intelligenceDashboardQuerySchema,
 } from "./intelligence.types.js";
 import { intelligenceDashboardHtml } from "./intelligence-dashboard.js";
+import { banIp, listBans, unbanIp } from "../../plugins/security-shield.js";
 
 const readRoles = ["SUPER_ADMIN", "ADMIN", "OPERATOR", "REVIEWER", "READONLY"];
 const writeRoles = ["SUPER_ADMIN", "ADMIN", "OPERATOR"];
@@ -78,5 +79,31 @@ export function registerIntelligenceRoutes(
         );
       },
     );
+
+    // ── Active defense: block / unblock sources from the intelligence plane ──
+    intelligenceApp.get("/admin/intelligence/blocked", async (_request, reply) =>
+      sendSuccess(reply, await listBans()),
+    );
+
+    intelligenceApp.post("/admin/intelligence/block", async (request, reply) => {
+      const body = request.body as { ip?: string; reason?: string; durationSeconds?: number } | null;
+      const ip = body?.ip?.trim();
+      if (!ip) throw new ValidationError("An IP address is required to block");
+      const reason = body?.reason?.trim() || `manual:blocked by ${actorId(request)}`;
+      const duration =
+        Number.isInteger(body?.durationSeconds) && (body?.durationSeconds ?? 0) > 0
+          ? (body!.durationSeconds as number)
+          : 7200;
+      await banIp(ip, reason, duration);
+      return sendCreated(reply, { ip, reason, durationSeconds: duration, banned: true });
+    });
+
+    intelligenceApp.post("/admin/intelligence/unblock", async (request, reply) => {
+      const body = request.body as { ip?: string } | null;
+      const ip = body?.ip?.trim();
+      if (!ip) throw new ValidationError("An IP address is required to unblock");
+      await unbanIp(ip);
+      return sendSuccess(reply, { ip, banned: false });
+    });
   });
 }

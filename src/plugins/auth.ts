@@ -76,6 +76,8 @@ export async function hmacAuthPlugin(app: FastifyInstance): Promise<void> {
         path === "/t2t/inbound" ||
         // The inbound funds webhook carries its own shared-secret signature.
         path === "/webhooks/inbound" ||
+        // Public dead-man's-switch ping for an external uptime monitor.
+        path === "/alarm/ping" ||
         // Wise signs its webhook body with RSA (X-Signature-SHA256), verified
         // inside the route.
         path.startsWith("/wise/webhook") ||

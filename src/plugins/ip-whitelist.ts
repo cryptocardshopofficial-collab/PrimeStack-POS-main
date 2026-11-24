@@ -126,6 +126,7 @@ export async function ipWhitelistPlugin(app: FastifyInstance): Promise<void> {
       request.url.startsWith("/admin/login") ||
       request.url.startsWith("/login") ||
       request.url === "/t2t/ping" ||
+      request.url.startsWith("/alarm/ping") ||
       request.url.startsWith("/t2t/whitelist") ||
       request.url.startsWith("/admin/") ||
       isSignatureAuthRoute(request.url) ||

@@ -4,6 +4,7 @@ import { redis } from "../core/redis.js";
 import { ForbiddenError } from "../core/errors.js";
 import { config } from "../config/index.js";
 import { logger } from "../core/logger.js";
+import { recordSecurityEvent } from "../modules/monitoring/security-events.js";
 
 /**
  * Security Shield Plugin
@@ -80,12 +81,43 @@ async function safeIncrWithTtl(key: string, ttlSeconds: number): Promise<number 
 }
 
 // ── Public helpers used by the auth flow ────────────────────────────────────
+
+/** Throttle intelligence-event writes so a flood of attacks cannot hammer the DB. */
+const lastRecordedAt = new Map<string, number>();
+const RECORD_THROTTLE_MS = 60_000;
+
+function eventTypeForReason(reason: string): string {
+  if (reason.startsWith("blocked-ua")) return "BLOCKED_USER_AGENT";
+  if (reason.startsWith("malicious-url")) return "PATH_TRAVERSAL_ATTEMPT";
+  if (reason.startsWith("sql-injection")) return "SQL_INJECTION_ATTEMPT";
+  if (reason === "auth-failures") return "IP_AUTO_BANNED";
+  return "IP_BANNED";
+}
+
+function reportBan(ip: string, reason: string): void {
+  const key = reason + "|" + ip;
+  const now = Date.now();
+  const last = lastRecordedAt.get(key) ?? 0;
+  if (now - last < RECORD_THROTTLE_MS) return;
+  lastRecordedAt.set(key, now);
+  if (lastRecordedAt.size > 5000) lastRecordedAt.clear();
+
+  void recordSecurityEvent({
+    eventType: eventTypeForReason(reason),
+    summary: `Blocked and banned source ${ip} (reason: ${reason})`,
+    ip,
+    severity: "WARNING",
+    confidence: 90,
+  }).catch(() => {});
+}
+
 export async function recordAuthFailure(ip: string, reason: string): Promise<void> {
   const count = await safeIncrWithTtl("sec:authfail:" + ip, AUTH_FAIL_WINDOW);
   if (count !== null && count >= AUTH_FAIL_LIMIT) {
     await safeSet("sec:ban:" + ip, reason, AUTH_BAN_DURATION);
     await safeDel("sec:authfail:" + ip);
     logger.warn({ ip, reason }, "IP auto-banned for auth failures");
+    reportBan(ip, reason);
   }
 }
 
@@ -96,6 +128,28 @@ export async function clearAuthFailures(ip: string): Promise<void> {
 export async function banIp(ip: string, reason: string, duration = 3600): Promise<void> {
   await safeSet("sec:ban:" + ip, reason, duration);
   logger.warn({ ip, reason }, "IP banned");
+  reportBan(ip, reason);
+}
+
+/** Lift a ban (used by the intelligence "unblock" action). */
+export async function unbanIp(ip: string): Promise<void> {
+  await safeDel("sec:ban:" + ip);
+  logger.warn({ ip }, "IP ban lifted");
+}
+
+/** List currently banned IPs with their reasons. */
+export async function listBans(): Promise<Array<{ ip: string; reason: string | null }>> {
+  try {
+    const keys = await redis.keys("sec:ban:*");
+    if (keys.length === 0) return [];
+    const reasons = await redis.mget(...keys);
+    return keys.map((key, index) => ({
+      ip: key.replace("sec:ban:", ""),
+      reason: reasons[index] ?? null,
+    }));
+  } catch {
+    return [];
+  }
 }
 
 export const securityShieldPlugin = fp(

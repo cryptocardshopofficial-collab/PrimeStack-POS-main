@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿// start-dashboard.js — PrimeStack Global Server Network Admin Dashboard
+﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿// start-dashboard.js — PrimeStack Global Server Network Admin Dashboard
 // Node.js HTTP server, no framework, no external deps
 import { createServer } from 'http';
 import { request as httpRequest } from 'http';
@@ -23,6 +23,7 @@ const CINEMATIC_THEME_JS = readOptional('./cinematic-theme.js', 'utf8');
 const AGENT_REGISTRATION_CONTENT = readFileSync(new URL('./agent-registration-content.html', import.meta.url), 'utf8');
 const AGENT_PORTAL_HTML = readFileSync(new URL('./agent-portal.html', import.meta.url), 'utf8');
 const MERCHANT_PORTAL_HTML = readFileSync(new URL('./merchant-portal.html', import.meta.url), 'utf8');
+const ORBIT_HTML = readOptional('./orbit_primestack_intelligence.html', 'utf8');
 const PORTAL_MODE = process.env.PORTAL_MODE || 'combined';
 if (!['combined', 'admin', 'merchant'].includes(PORTAL_MODE)) {
   throw new Error('PORTAL_MODE must be combined, admin, or merchant');
@@ -577,12 +578,15 @@ function sidebar(active) {
     ${link('/ops/terminals','Terminal Ops','<svg width="14" height="14" fill="none" viewBox="0 0 16 16"><rect x="1.5" y="3" width="13" height="9" rx="1.5" stroke="currentColor" stroke-width="1.5"/><path d="M5 7l2 2 4-3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>')}
     ${link('/ops/network','Network / Keys','<svg width="14" height="14" fill="none" viewBox="0 0 16 16"><circle cx="4" cy="8" r="2" stroke="currentColor" stroke-width="1.5"/><circle cx="12" cy="4" r="2" stroke="currentColor" stroke-width="1.5"/><circle cx="12" cy="12" r="2" stroke="currentColor" stroke-width="1.5"/><path d="M6 8h3M6 7.5L10 5M6 8.5L10 11" stroke="currentColor" stroke-width="1.5"/></svg>')}
     ${link('/ops/iso8583','ISO 8583','<svg width="14" height="14" fill="none" viewBox="0 0 16 16"><rect x="1.5" y="3.5" width="13" height="9" rx="1.5" stroke="currentColor" stroke-width="1.5"/><path d="M4.5 7h7M4.5 9.5h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>')}
+    ${link('/ops/intelligence','Intelligence','<svg width="14" height="14" fill="none" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.5" stroke="currentColor" stroke-width="1.5"/><path d="M8 1.5v3M8 11.5v3M1.5 8h3M11.5 8h3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><circle cx="8" cy="8" r="1.8" fill="currentColor"/></svg>')}
+    ${link('/ops/orbit','ORBIT HUD','<svg width="14" height="14" fill="none" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.5" stroke="currentColor" stroke-width="1.5"/><path d="M8 8l5-3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><circle cx="8" cy="8" r="1.5" fill="currentColor"/></svg>')}
+    ${link('/admin/alarms','Alarm Console','<svg width="14" height="14" fill="none" viewBox="0 0 16 16"><path d="M8 1.5a4 4 0 0 1 4 4v3l1.5 2.5h-11L4 8.5v-3a4 4 0 0 1 4-4z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M6.5 13.5a1.6 1.6 0 0 0 3 0" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>')}
   </div>
   <script>
   (function(){
     var tabs=Array.prototype.slice.call(document.querySelectorAll('[data-nav-tab]'));
     var panels=Array.prototype.slice.call(document.querySelectorAll('[data-nav-panel]'));
-    var selected=${JSON.stringify(active.startsWith('/merchant') ? 'merchant' : active.startsWith('/ops') ? 'ops' : 'platform')};
+    var selected=${JSON.stringify(active.startsWith('/merchant') ? 'merchant' : (active.startsWith('/ops') || active === '/admin/alarms') ? 'ops' : 'platform')};
     function activate(group,focus){
       tabs.forEach(function(tab){
         var current=tab.dataset.navTab===group;
@@ -697,6 +701,37 @@ ${JS}
     w.textContent="PrimeStack \u00a9 "+new Date().getFullYear()+" \u2022 Authorized Access Only";
     document.body.appendChild(w);
   });
+})();
+<\/script>
+<div id="alarmBar" style="display:none;position:fixed;top:0;left:0;right:0;z-index:100000;background:#b50909;color:#fff;padding:9px 14px;font:700 12px/1.4 Inter,Arial,sans-serif;text-align:center;box-shadow:0 2px 10px rgba(0,0,0,.35)"></div>
+<script>
+(function(){
+  function esc(s){return String(s==null?"":s).replace(/</g,"&lt;").replace(/>/g,"&gt;");}
+  function render(d){
+    var bar=document.getElementById("alarmBar"); if(!bar) return;
+    var act=(d&&d.active)||[];
+    if(!act.length){bar.style.display="none";bar.innerHTML="";return;}
+    var top=act[0];
+    bar.style.display="block";
+    bar.innerHTML='<a href="/admin/alarms" style="color:#fff;text-decoration:none;display:block">\u26a0 '+act.length+' ACTIVE ALARM'+(act.length>1?'S':'')+' \u2014 '+esc(top.severity)+': '+esc(top.message)+' \u2014 open alarm console</a>';
+    if(top.severity==="CRITICAL"&&!window.__alarmBeeped){
+      try{
+        var c=new (window.AudioContext||window.webkitAudioContext)();
+        var o=c.createOscillator(),g=c.createGain();
+        o.connect(g);g.connect(c.destination);o.type="square";o.frequency.value=880;
+        g.gain.setValueAtTime(0.15,c.currentTime);
+        g.gain.exponentialRampToValueAtTime(0.001,c.currentTime+0.6);
+        o.start();o.stop(c.currentTime+0.7);window.__alarmBeeped=true;
+      }catch(e){}
+    }
+  }
+  function poll(){
+    fetch("/api/admin/alarms",{cache:"no-store"})
+      .then(function(r){return r.json()})
+      .then(function(p){ if(p&&p.success) render(p.data); })
+      .catch(function(){});
+  }
+  poll(); setInterval(poll,30000);
 })();
 <\/script>
 </body>
@@ -4674,7 +4709,153 @@ function opsHub() {
     <div class="card-title">${svgIcon('monitor')} Monitoring</div>
     <div class="card-sub">All 14 service health status</div>
   </a>
+  <a href="/ops/intelligence" class="card" style="text-decoration:none">
+    <div class="card-title">${svgIcon('shield')} Security Intelligence</div>
+    <div class="card-sub">Threat feed &amp; active defense</div>
+  </a>
+  <a href="/admin/alarms" class="card" style="text-decoration:none">
+    <div class="card-title">${svgIcon('audit')} Alarm Console</div>
+    <div class="card-sub">Platform health alarms &amp; acknowledgement</div>
+  </a>
 </div>
+`);
+}
+
+// --- Ops Intelligence --------------------------------------------------------
+function opsIntelligence() {
+  return page('Security Intelligence', '/ops/intelligence', `
+<div class="page-header">
+  <div class="breadcrumb"><a href="/">Home</a><span>/</span><a href="/ops">Ops</a><span>/</span>Intelligence</div>
+  <h1>Security Intelligence &amp; Active Defense</h1>
+  <p>Live threat feed, automated blocks, and the platform-wide security event log.</p>
+</div>
+<div class="grid-3" style="gap:12px;margin-bottom:16px">
+  <div class="card"><div class="card-sub">Security events logged</div><div style="font-size:1.7rem;font-weight:700;margin-top:4px" id="int-events">—</div></div>
+  <div class="card"><div class="card-sub">Blocked IPs (live)</div><div style="font-size:1.7rem;font-weight:700;margin-top:4px;color:#e5484d" id="int-blocked-count">—</div></div>
+  <div class="card"><div class="card-sub">Attack events (last 100)</div><div style="font-size:1.7rem;font-weight:700;margin-top:4px;color:#e8a33d" id="int-threats">—</div></div>
+</div>
+
+<div class="card" style="margin-bottom:16px">
+  <div class="card-title" style="margin-bottom:12px">${svgIcon('shield')} Active Defense — Block a source IP</div>
+  <div class="form-row">
+    <div class="form-group"><label>IP address</label><input id="int-block-ip" class="input-mono" placeholder="203.0.113.42"></div>
+    <div class="form-group"><label>Reason</label><input id="int-block-reason" placeholder="manual block"></div>
+    <div class="form-group"><label>Duration (seconds)</label><input id="int-block-secs" class="input-mono" value="7200"></div>
+  </div>
+  <button class="btn btn-primary" onclick="intBlock()">Block IP</button>
+  <div id="int-block-result" class="result"></div>
+</div>
+
+<div class="card" style="margin-bottom:16px">
+  <div class="card-header"><div class="card-title">Currently Blocked IPs</div><button class="btn btn-ghost btn-sm" onclick="loadBlocked()">${svgIcon("refresh")} Refresh</button></div>
+  <div class="table-wrap"><table><thead><tr><th>IP</th><th>Reason</th><th style="width:100px"></th></tr></thead>
+  <tbody id="int-blocked-tbody"><tr><td colspan="3" style="text-align:center;color:var(--muted)">Loading…</td></tr></tbody></table></div>
+</div>
+
+<div class="card">
+  <div class="card-header"><div class="card-title">Security Event Log</div><button class="btn btn-ghost btn-sm" onclick="loadIntEvents()">${svgIcon("refresh")} Refresh</button></div>
+  <div class="table-wrap"><table><thead><tr><th>Time</th><th>Event</th><th>Source</th><th>Confidence</th><th>Summary</th></tr></thead>
+  <tbody id="int-events-tbody"><tr><td colspan="5" style="text-align:center;color:var(--muted)">Loading…</td></tr></tbody></table></div>
+</div>
+<script>
+function intEsc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function intIsThreat(type,src){return /BLOCK|SQL|TRAVERSAL|BAN|ATTACK|INJECT|SCAN|PROBE/i.test(String(type)+' '+String(src||''));}
+function loadIntEvents(){
+  api('GET','/admin/intelligence/events?limit=100').then(function(r){
+    var ev=(r.ok&&r.data.data)||[];
+    document.getElementById('int-events').textContent=ev.length;
+    document.getElementById('int-threats').textContent=ev.filter(function(x){return intIsThreat(x.eventType,x.sourceSystem);}).length;
+    var rows=ev.map(function(x){return '<tr><td>'+new Date(x.createdAt).toLocaleString()+'</td><td><code>'+intEsc(x.eventType)+'</code></td><td>'+intEsc(x.sourceSystem)+'</td><td>'+intEsc(x.confidenceScore)+'%</td><td>'+intEsc(x.summary)+'</td></tr>';}).join('');
+    document.getElementById('int-events-tbody').innerHTML=rows||'<tr><td colspan="5" style="text-align:center;color:var(--muted)">No security events recorded</td></tr>';
+  });
+}
+function loadBlocked(){
+  api('GET','/admin/intelligence/blocked').then(function(r){
+    var rows=(r.ok&&r.data.data)||[];
+    document.getElementById('int-blocked-count').textContent=rows.length;
+    var html=rows.map(function(b){return '<tr><td><code>'+intEsc(b.ip)+'</code></td><td>'+intEsc(b.reason||'—')+'</td><td><button class="btn btn-ghost btn-sm" onclick="intUnblock(\\''+intEsc(b.ip)+'\\')">Unblock</button></td></tr>';}).join('');
+    document.getElementById('int-blocked-tbody').innerHTML=html||'<tr><td colspan="3" style="text-align:center;color:var(--muted)">No IPs currently blocked</td></tr>';
+  });
+}
+function intBlock(){
+  var ip=document.getElementById('int-block-ip').value.trim();
+  if(!ip){toast('Enter an IP address','err');return;}
+  var secs=parseInt(document.getElementById('int-block-secs').value,10);
+  if(!(secs>0))secs=7200;
+  api('POST','/admin/intelligence/block',{ip:ip,reason:document.getElementById('int-block-reason').value.trim()||'manual block',durationSeconds:secs}).then(function(r){
+    showResult('int-block-result',r.data,r.ok);
+    if(r.ok){toast('IP '+ip+' blocked','ok');document.getElementById('int-block-ip').value='';loadBlocked();loadIntEvents();}
+  });
+}
+function intUnblock(ip){
+  api('POST','/admin/intelligence/unblock',{ip:ip}).then(function(r){if(r.ok){toast('IP '+ip+' unblocked','ok');loadBlocked();}});
+}
+document.addEventListener('DOMContentLoaded',function(){loadBlocked();loadIntEvents();setInterval(function(){loadBlocked();loadIntEvents();},30000);});
+<\/script>
+`);
+}
+
+// --- Alarm Console -----------------------------------------------------------
+function adminAlarms() {
+  return page('Alarm Console', '/admin/alarms', `
+<div class="page-header">
+  <div class="breadcrumb"><a href="/">Home</a><span>/</span>Alarm Console</div>
+  <h1>Platform Alarm Console</h1>
+  <p>Real-time alarms raised by the watchdog, the Security Shield, and process-level failures. Delivered to your email / Slack / Teams webhook when configured.</p>
+</div>
+<div class="grid-3" style="gap:12px;margin-bottom:16px">
+  <div class="card"><div class="card-sub">Active alarms</div><div style="font-size:1.7rem;font-weight:700;margin-top:4px" id="alm-active">—</div></div>
+  <div class="card"><div class="card-sub">Critical</div><div style="font-size:1.7rem;font-weight:700;margin-top:4px;color:#e5484d" id="alm-critical">—</div></div>
+  <div class="card"><div class="card-sub">Watchdog last ping</div><div style="font-size:1rem;font-weight:700;margin-top:8px" id="alm-ping">—</div><div class="card-sub" id="alm-ping-sub">external monitor dead-man's switch</div></div>
+</div>
+<div class="card" style="margin-bottom:16px">
+  <div class="card-header"><div class="card-title">Active Alarms</div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-ghost btn-sm" onclick="loadAlarms()">${svgIcon("refresh")} Refresh</button>
+      <button class="btn btn-primary btn-sm" onclick="testAlarm()">Send test alarm</button>
+    </div>
+  </div>
+  <div class="table-wrap"><table><thead><tr><th>Severity</th><th>Code</th><th>Message</th><th>Count</th><th>Since</th><th style="width:110px"></th></tr></thead>
+  <tbody id="alm-active-tbody"><tr><td colspan="6" style="text-align:center;color:var(--muted)">Loading…</td></tr></tbody></table></div>
+</div>
+<div class="card">
+  <div class="card-header"><div class="card-title">Alarm History</div></div>
+  <div class="table-wrap"><table><thead><tr><th>Severity</th><th>Code</th><th>Message</th><th>First seen</th><th>Cleared</th><th>Acknowledged by</th></tr></thead>
+  <tbody id="alm-history-tbody"><tr><td colspan="6" style="text-align:center;color:var(--muted)">Loading…</td></tr></tbody></table></div>
+</div>
+<script>
+function almEsc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function almBadge(sev){
+  var color=sev==='CRITICAL'?'#e5484d':sev==='WARNING'?'#e8a33d':'#6b7280';
+  return '<span style="display:inline-block;padding:2px 8px;border-radius:10px;font-weight:700;font-size:11px;color:#fff;background:'+color+'">'+almEsc(sev)+'</span>';
+}
+function loadAlarms(){
+  api('GET','/admin/alarms').then(function(r){
+    var d=(r.ok&&r.data.data)||{};
+    var act=d.active||[], hist=d.history||[], counts=d.counts||{};
+    document.getElementById('alm-active').textContent=act.length;
+    document.getElementById('alm-critical').textContent=counts.CRITICAL||0;
+    var arows=act.map(function(a){return '<tr><td>'+almBadge(a.severity)+'</td><td><code>'+almEsc(a.code)+'</code></td><td>'+almEsc(a.message)+'</td><td>'+almEsc(a.count)+'</td><td>'+new Date(a.firstSeenAt).toLocaleString()+'</td><td><button class="btn btn-ghost btn-sm" onclick="ackAlarm(\\''+almEsc(a.id)+'\\')">Acknowledge</button></td></tr>';}).join('');
+    document.getElementById('alm-active-tbody').innerHTML=arows||'<tr><td colspan="6" style="text-align:center;color:var(--muted)">No active alarms — all systems nominal</td></tr>';
+    var hrows=hist.slice(0,50).map(function(a){return '<tr><td>'+almBadge(a.severity)+'</td><td><code>'+almEsc(a.code)+'</code></td><td>'+almEsc(a.message)+'</td><td>'+new Date(a.firstSeenAt).toLocaleString()+'</td><td>'+(a.clearedAt?new Date(a.clearedAt).toLocaleString():'—')+'</td><td>'+almEsc(a.acknowledgedBy||'—')+'</td></tr>';}).join('');
+    document.getElementById('alm-history-tbody').innerHTML=hrows||'<tr><td colspan="6" style="text-align:center;color:var(--muted)">No alarm history</td></tr>';
+  });
+}
+function loadPing(){
+  api('GET','/alarm/ping').then(function(r){
+    var d=(r.ok&&r.data.data)||{};
+    document.getElementById('alm-ping').textContent=d.lastPingAt?new Date(d.lastPingAt).toLocaleString():'never';
+    if(d.active!==undefined)document.getElementById('alm-ping-sub').textContent='external monitor dead-man\\u2019s switch · '+d.active+' active';
+  });
+}
+function ackAlarm(id){
+  api('POST','/admin/alarms/'+encodeURIComponent(id)+'/ack',{}).then(function(r){if(r.ok){toast('Alarm acknowledged','ok');loadAlarms();}else{toast('Could not acknowledge','err');}});
+}
+function testAlarm(){
+  api('POST','/admin/alarms/test',{}).then(function(r){if(r.ok){toast('Test alarm raised','ok');loadAlarms();}else{toast('Could not raise test alarm','err');}});
+}
+document.addEventListener('DOMContentLoaded',function(){loadAlarms();loadPing();setInterval(function(){loadAlarms();loadPing();},30000);});
+<\/script>
 `);
 }
 
@@ -6434,7 +6615,8 @@ function canAccessDashboard(role, path) {
       path.startsWith('/merchant/');
   }
   if (['OPERATOR', 'REVIEWER', 'READONLY'].includes(role)) {
-    return ['/ops', '/ops/terminals', '/ops/iso8583'].includes(path);
+    return ['/ops', '/ops/terminals', '/ops/iso8583', '/ops/intelligence',
+      '/ops/orbit', '/admin/alarms'].includes(path);
   }
   return false;
 }
@@ -6474,10 +6656,20 @@ function canProxyDashboardApi(role, method, targetPath) {
   if (verb === 'GET') {
     return ['/terminals', '/terminals/groups', '/terminals/firmware',
       '/terminals/parameters', '/terminals/fleet'].includes(path) ||
-      ['/iso8583/hosts', '/iso8583/messages', '/iso8583/metrics'].includes(path);
+      ['/iso8583/hosts', '/iso8583/messages', '/iso8583/metrics'].includes(path) ||
+      ['/admin/alarms', '/admin/intelligence/dashboard',
+       '/admin/intelligence/events', '/admin/intelligence/blocked',
+       '/alarm/ping'].includes(path);
   }
-  return verb === 'POST' &&
-    ['/iso8583/parse', '/iso8583/build'].includes(path);
+  if (verb === 'POST') {
+    if (['/iso8583/parse', '/iso8583/build'].includes(path)) return true;
+    // Alarm/defense writes are limited to OPERATOR (REVIEWER/READONLY are read-only).
+    if (role !== 'OPERATOR') return false;
+    return ['/admin/alarms/test', '/admin/intelligence/block',
+      '/admin/intelligence/unblock'].includes(path) ||
+      /^\/admin\/alarms\/[^/]+\/ack$/.test(path);
+  }
+  return false;
 }
 
 // --- Operator Session --------------------------------------------------------
@@ -9987,6 +10179,18 @@ const server = createServer((req, res) => {
     return;
   }
 
+  // ORBIT HUD is a standalone full-screen document — serve it verbatim behind the
+  // authenticated console (not wrapped in the console chrome).
+  if (path === '/ops/orbit') {
+    res.writeHead(200, {
+      'Content-Type': 'text/html; charset=utf-8',
+      'Cache-Control': 'no-store',
+      'X-Content-Type-Options': 'nosniff',
+    });
+    res.end(ORBIT_HTML || '<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>ORBIT</title></head><body style="background:#05070d;color:#22d3ee;font-family:monospace;padding:40px">ORBIT HUD asset (orbit_primestack_intelligence.html) not found.</body></html>');
+    return;
+  }
+
   if (path === '/platform/guide') {
     const pageHeaders = { 'Content-Type': 'text/html; charset=utf-8' };
     if (path === '/platform/agents') pageHeaders['Cache-Control'] = 'no-store';
@@ -10047,6 +10251,8 @@ switch (path) {
     case '/ops/terminals':         html = opsTerminals();        break;
     case '/ops/network':           html = opsNetwork();          break;
     case '/ops/iso8583':           html = opsIso8583();          break;
+    case '/ops/intelligence':      html = opsIntelligence();     break;
+    case '/admin/alarms':          html = adminAlarms();         break;
     case '/admin/svc/ledger':      html = adminLedger();         break;
     case '/admin/svc/ipwhitelist': html = adminIpWhitelist();    break;
     case '/admin/svc/auth':        html = adminAuth();           break;
