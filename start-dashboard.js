@@ -5670,60 +5670,167 @@ function receiveFundsPage() {
 <div id="rcv-bank-acct" class="tab-pane" data-g="rcv">
 <div class="grid-2" style="gap:16px;align-items:start">
   <div class="card">
-    <div class="card-title" style="margin-bottom:16px">Receive from Bank Account</div>
-    <div class="alert alert-info" style="margin-bottom:16px">
-      Record an incoming ACH, wire transfer, or SWIFT payment from an external bank account to your platform.
+    <div class="card-title" style="margin-bottom:4px">Receive from Bank Account</div>
+    <div class="card-sub" style="margin-bottom:16px">Record an incoming ACH, wire transfer, or SWIFT payment from an external bank account to your platform.</div>
+
+    <!-- Pending receipt notice — shown when fields are pre-filled -->
+    <div id="rc-ba-pending-notice" style="margin-bottom:16px;padding:12px 14px;background:#fefce8;border:1px solid #fde047;border-radius:8px;font-size:.8rem;color:#713f12;display:none">
+      <strong>⏳ Awaiting confirmation</strong> — These details are pre-filled and ready. Submit this form only after the funds appear on your ICICI bank statement (account 029905003783).
     </div>
+
     <div class="form-row">
-      <div class="form-group"><label>Transfer Type</label><select id="rc-ba-type"><option value="ACH">ACH</option><option value="WIRE">Wire Transfer</option><option value="SWIFT">SWIFT</option><option value="SEPA">SEPA</option><option value="FEDWIRE">FedWire</option><option value="INTERNAL">Internal Bank Transfer</option></select></div>
-      <div class="form-group"><label>Currency</label><select id="rc-ba-currency"><option>USD</option><option>EUR</option><option>GBP</option><option>AED</option><option>NGN</option><option>KES</option></select></div>
+      <div class="form-group">
+        <label>Transfer Type</label>
+        <select id="rc-ba-type">
+          <option value="ACH">ACH</option>
+          <option value="WIRE">Wire Transfer</option>
+          <option value="SWIFT">SWIFT</option>
+          <option value="SEPA">SEPA</option>
+          <option value="FEDWIRE">FedWire</option>
+          <option value="INTERNAL">Internal Bank Transfer</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Currency</label>
+        <select id="rc-ba-currency">
+          <option value="USD">USD</option>
+          <option value="EUR">EUR</option>
+          <option value="GBP">GBP</option>
+          <option value="AED">AED</option>
+          <option value="NGN">NGN</option>
+          <option value="KES">KES</option>
+          <option value="INR">INR</option>
+        </select>
+      </div>
     </div>
-    <div class="form-group"><label>Amount *</label><input id="rc-ba-amount" type="number" placeholder="25000.00" step="0.01"></div>
+
+    <div class="form-group">
+      <label>Amount *</label>
+      <input id="rc-ba-amount" type="number" placeholder="25000.00" step="0.01">
+    </div>
+
     <div class="form-row">
-      <div class="form-group"><label>Sender Name *</label><input id="rc-ba-sender" placeholder="Full name of sender"></div>
-      <div class="form-group"><label>Sender Bank</label><input id="rc-ba-sender-bank" placeholder="Bank name"></div>
+      <div class="form-group">
+        <label>Sender Name *</label>
+        <input id="rc-ba-sender" placeholder="Full legal name of sender">
+      </div>
+      <div class="form-group">
+        <label>Sender Bank</label>
+        <input id="rc-ba-sender-bank" placeholder="Bank name">
+      </div>
     </div>
+
     <div class="form-row">
-      <div class="form-group"><label>Sender Account (masked)</label><input id="rc-ba-sender-acct" class="input-mono" placeholder="****1234"></div>
-      <div class="form-group"><label>Sender Country</label><select id="rc-ba-sender-country"><option value="US">US</option><option value="GB">UK</option><option value="AE">UAE</option><option value="EU">EU</option><option value="NG">Nigeria</option><option value="KE">Kenya</option></select></div>
+      <div class="form-group">
+        <label>Sender Account (masked)</label>
+        <input id="rc-ba-sender-acct" class="input-mono" placeholder="****1234">
+      </div>
+      <div class="form-group">
+        <label>Sender Country</label>
+        <select id="rc-ba-sender-country">
+          <option value="US">US — United States</option>
+          <option value="GB">GB — United Kingdom</option>
+          <option value="AE">AE — UAE</option>
+          <option value="EU">EU — Europe</option>
+          <option value="NG">NG — Nigeria</option>
+          <option value="KE">KE — Kenya</option>
+          <option value="IN">IN — India</option>
+          <option value="SG">SG — Singapore</option>
+        </select>
+      </div>
     </div>
+
     <div class="form-row">
-      <div class="form-group"><label>Bank Reference / Auth Code *</label><input id="rc-ba-ref" placeholder="Wire ref, ACH trace, SWIFT UETR—"></div>
-      <div class="form-group"><label>Value Date</label><input id="rc-ba-date" type="date"></div>
+      <div class="form-group">
+        <label>Bank Reference / Auth Code *</label>
+        <input id="rc-ba-ref" class="input-mono" placeholder="Wire ref, ACH trace, SWIFT UETR">
+      </div>
+      <div class="form-group">
+        <label>Value Date</label>
+        <input id="rc-ba-date" type="date">
+      </div>
     </div>
-    <div class="form-group"><label>Destination Account</label>
+
+    <div class="form-group">
+      <label>Destination Account</label>
       <select id="rc-ba-dest">
+        <option value="TERMINAL-EP022162-USD">TERMINAL-EP022162-USD — Platform Terminal (EP022162)</option>
         <option value="PLATFORM:RESERVE:USD">PLATFORM:RESERVE:USD — Main Reserve</option>
         <option value="BANK:INCOMING:USD">BANK:INCOMING:USD — Incoming Pool</option>
         <option value="MERCHANT:ESCROW:USD">MERCHANT:ESCROW:USD — Merchant Escrow</option>
       </select>
     </div>
-    <div class="form-group"><label>Authorized By</label><input id="rc-ba-auth" placeholder="Your name / admin ID"></div>
-    <div class="form-group"><label>Notes</label><input id="rc-ba-notes" placeholder="Additional context—"></div>
-    <button class="btn btn-success" style="width:100%;justify-content:center;padding:11px" onclick="receiveBankAccount()">
-      ${svgIcon("send")} Receive Bank Transfer
+
+    <div class="form-group">
+      <label>Authorized By</label>
+      <input id="rc-ba-auth" placeholder="Your name / admin ID">
+    </div>
+
+    <div class="form-group">
+      <label>Notes</label>
+      <input id="rc-ba-notes" placeholder="Additional context, ticket number, purpose">
+    </div>
+
+    <!-- Confirm checkbox — must tick before submitting -->
+    <div style="margin:14px 0;padding:12px;background:var(--success-bg);border:1px solid var(--success-border);border-radius:8px;display:flex;align-items:flex-start;gap:10px">
+      <input type="checkbox" id="rc-ba-confirmed" style="margin-top:2px;flex-shrink:0">
+      <label for="rc-ba-confirmed" style="font-size:.8rem;color:var(--success-dark,#166534);cursor:pointer;line-height:1.5">
+        I confirm that the funds have physically arrived in ICICI bank account <strong>029905003783</strong> and I have verified the amount, sender name, and bank reference on the official bank statement before submitting this record.
+      </label>
+    </div>
+
+    <button class="btn btn-success" style="width:100%;justify-content:center;padding:11px" onclick="receiveBankAccountConfirmed()">
+      ${svgIcon("send")} Confirm &amp; Record Receipt
     </button>
     <div id="rc-ba-result" class="result"></div>
   </div>
-  <div class="card">
-    <div class="card-title">Quick Amount Presets</div>
-    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px">
-      <button class="btn btn-ghost btn-sm" onclick="document.getElementById('rc-ba-amount').value=1000">$1,000</button>
-      <button class="btn btn-ghost btn-sm" onclick="document.getElementById('rc-ba-amount').value=5000">$5,000</button>
-      <button class="btn btn-ghost btn-sm" onclick="document.getElementById('rc-ba-amount').value=10000">$10,000</button>
-      <button class="btn btn-ghost btn-sm" onclick="document.getElementById('rc-ba-amount').value=50000">$50,000</button>
-      <button class="btn btn-ghost btn-sm" onclick="document.getElementById('rc-ba-amount').value=100000">$100,000</button>
-      <button class="btn btn-ghost btn-sm" onclick="document.getElementById('rc-ba-amount').value=500000">$500,000</button>
+  <div>
+
+    <!-- Pending receipts panel -->
+    <div class="card" style="margin-bottom:12px">
+      <div class="card-title" style="margin-bottom:4px">⏳ Pending Receipts</div>
+      <div class="card-sub" style="margin-bottom:12px">Counterparties who have confirmed they are sending. Click to pre-fill the form — submit only after verifying on your bank statement.</div>
+      <div id="rc-ba-pending-list">Loading…</div>
     </div>
-    <div style="margin-top:16px;padding:12px;background:var(--success-bg);border:1px solid var(--success-border);border-radius:8px;font-size:.78rem">
-      <strong style="color:var(--success)">?</strong> Every received transfer creates:
-      <div style="margin-top:6px;line-height:1.8">
-        — Immutable double-entry ledger record<br>
-        — Audit event with sender details<br>
-        — SHA-256 entry hash for proof<br>
-        — Downloadable receipt
+
+    <!-- Receiving bank details card -->
+    <div class="card" style="margin-bottom:12px">
+      <div class="card-title" style="margin-bottom:10px">🏦 Your Receiving Bank Details</div>
+      <div style="font-size:.78rem;line-height:2.1">
+        <div><strong>Bank:</strong> ICICI Bank, Jayanagar 9th Block</div>
+        <div><strong>Account Name:</strong> M/S.UNITED SOLAR AND WIND POWER TECHNOLOGIES</div>
+        <div><strong>Account Number:</strong> <code class="input-mono">029905003783</code></div>
+        <div><strong>SWIFT (International):</strong> <code class="input-mono">ICICINBBXXX</code></div>
+        <div><strong>SWIFT (NRI):</strong> <code class="input-mono">ICICINBBNRI</code></div>
+        <div><strong>IFSC (Domestic India):</strong> <code class="input-mono">ICIC0000299</code></div>
+        <div><strong>Terminal ID:</strong> <code class="input-mono">EP022162</code></div>
+        <div><strong>MSN:</strong> <code class="input-mono">PSM-4AA182A2</code></div>
+        <div><strong>Merchant ID:</strong> <code class="input-mono">100000000036000</code></div>
       </div>
     </div>
+
+    <!-- How it works -->
+    <div class="card">
+      <div class="card-title" style="margin-bottom:8px">How to record a receipt</div>
+      <div style="font-size:.78rem;line-height:2.1">
+        <div>1. Counterparty sends wire / ACH to your ICICI account</div>
+        <div>2. Funds appear on your ICICI bank statement</div>
+        <div>3. Click the pending receipt above to pre-fill</div>
+        <div>4. Verify amount + reference match your statement</div>
+        <div>5. Tick the confirmation checkbox</div>
+        <div>6. Click <strong>Confirm &amp; Record Receipt</strong></div>
+      </div>
+      <div style="margin-top:12px;padding:10px 12px;background:var(--success-bg);border:1px solid var(--success-border);border-radius:8px;font-size:.78rem">
+        <strong style="color:var(--success)">Every receipt creates:</strong>
+        <div style="margin-top:4px;line-height:1.8">
+          — Double-entry ledger record (immutable)<br>
+          — Credit on <code>TERMINAL-EP022162-USD</code><br>
+          — Audit log with sender + reference<br>
+          — Downloadable confirmation
+        </div>
+      </div>
+    </div>
+
   </div>
 </div>
 </div>
@@ -5892,6 +5999,85 @@ function receiveBankServer(){
   });
 }
 
+function receiveBankAccountConfirmed(){
+  // Confirmation checkbox must be ticked
+  var confirmed = document.getElementById('rc-ba-confirmed');
+  if(confirmed && !confirmed.checked){
+    toast('Please confirm the funds have arrived in your bank account first','err');
+    return;
+  }
+  receiveBankAccount();
+}
+
+function prefillBankReceipt(opts){
+  // opts: { type, currency, amount, sender, senderBank, senderAcct,
+  //         senderCountry, ref, date, dest, auth, notes }
+  if(opts.type)          setVal('rc-ba-type',          opts.type);
+  if(opts.currency)      setVal('rc-ba-currency',       opts.currency);
+  if(opts.amount)        setVal('rc-ba-amount',         opts.amount);
+  if(opts.sender)        setVal('rc-ba-sender',         opts.sender);
+  if(opts.senderBank)    setVal('rc-ba-sender-bank',    opts.senderBank);
+  if(opts.senderAcct)    setVal('rc-ba-sender-acct',    opts.senderAcct);
+  if(opts.senderCountry) setVal('rc-ba-sender-country', opts.senderCountry);
+  if(opts.ref)           setVal('rc-ba-ref',            opts.ref);
+  if(opts.date)          setVal('rc-ba-date',           opts.date);
+  if(opts.dest)          setVal('rc-ba-dest',           opts.dest);
+  if(opts.auth)          setVal('rc-ba-auth',           opts.auth);
+  if(opts.notes)         setVal('rc-ba-notes',          opts.notes);
+  // Show the pending notice and scroll to the tab
+  var notice = document.getElementById('rc-ba-pending-notice');
+  if(notice) notice.style.display = 'block';
+  // Switch to the Bank Account tab
+  var tab = document.querySelector('[data-t="rcv-bank-acct"]');
+  if(tab) tab.click();
+  // Scroll into view
+  var form = document.getElementById('rcv-bank-acct');
+  if(form) form.scrollIntoView({ behavior:'smooth', block:'start' });
+  toast('Form pre-filled — verify funds on your bank statement before submitting','info');
+}
+
+function setVal(id, val){
+  var el = document.getElementById(id);
+  if(!el) return;
+  el.value = val;
+  el.dispatchEvent(new Event('change'));
+}
+
+// ── Pre-filled pending receipts ──────────────────────────────────
+// Called on page load to restore any saved pending receipts.
+// Add entries here as counterparties confirm their intent to send.
+var PENDING_RECEIPTS = [
+  {
+    label:         'kenia lopez — ACH $5,000 USD — BofA',
+    type:          'ACH',
+    currency:      'USD',
+    amount:        '5000.00',
+    sender:        'kenia lopez',
+    senderBank:    'Bank of America',
+    senderAcct:    '457049714706',
+    senderCountry: 'US',
+    ref:           '122101706',
+    date:          '2026-11-27',
+    dest:          'TERMINAL-EP022162-USD',
+    auth:          'PRIMESTACK TECHNOLOGIES',
+    notes:         'For Health Department — awaiting bank confirmation',
+  },
+];
+
+function loadPendingReceiptButtons(){
+  var container = document.getElementById('rc-ba-pending-list');
+  if(!container) return;
+  if(!PENDING_RECEIPTS.length){
+    container.innerHTML = '<div style="color:var(--muted);font-size:.8rem">No pending receipts saved.</div>';
+    return;
+  }
+  container.innerHTML = PENDING_RECEIPTS.map(function(r, i){
+    return '<button class="btn btn-ghost btn-sm" style="width:100%;text-align:left;margin-bottom:6px" onclick="prefillBankReceipt(PENDING_RECEIPTS['+i+'])">'
+      + '⏳ ' + r.label
+      + '</button>';
+  }).join('');
+}
+
 function receiveBankAccount(){
   var amount=document.getElementById('rc-ba-amount').value.trim();
   var currency=document.getElementById('rc-ba-currency').value;
@@ -5917,6 +6103,11 @@ function receiveBankAccount(){
       toast('Received '+currency+' '+parseFloat(amount).toLocaleString()+' from '+sender,'ok');
       api('POST','/audit/events',{action:'BANK_ACCOUNT_RECEIPT',actor:auth||'platform-admin',resource:'/platform/receive-funds',details:{amount,currency,sender,ref,type}}).catch(function(){});
       loadReceiveHistory();
+      // Clear the pending notice and confirmation checkbox
+      var notice = document.getElementById('rc-ba-pending-notice');
+      if(notice) notice.style.display = 'none';
+      var cb = document.getElementById('rc-ba-confirmed');
+      if(cb) cb.checked = false;
     } else toast('Failed: '+(r.data.error&&r.data.error.message||'check fields'),'err');
   });
 }
@@ -5976,6 +6167,7 @@ document.addEventListener('DOMContentLoaded', function(){
   initTabs('rcv');
   loadBankHosts();
   loadReceiveHistory();
+  loadPendingReceiptButtons();
 });
 <\/script>
 `);

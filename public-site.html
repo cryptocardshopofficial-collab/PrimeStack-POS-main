@@ -415,27 +415,13 @@
     body.pricing-theme #hero,body.pricing-theme .ticker,body.pricing-theme .metrics,body.pricing-theme #solutionsSection,body.pricing-theme #pageGuide,body.pricing-theme #networkArchitecture,body.pricing-theme #pricingSection{display:none!important}
     body.pricing-theme::before{content:"";position:fixed;inset:0;z-index:90;pointer-events:none;opacity:.09;mix-blend-mode:overlay;height:auto;width:auto;transform:none;box-shadow:none;background-color:transparent;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>")}
     body.pricing-theme::after{content:"";position:fixed;inset:0;z-index:89;pointer-events:none;background:radial-gradient(ellipse at 50% 40%,transparent 55%,#000a 100%)}
-    #pricingFlight{--pf-ink:#07090d;--pf-ink-2:#0d1118;--pf-line:#1c2430;--pf-paper:#ece6d6;--pf-dim:#7d8796;--pf-lime:#c6ff3d;--pf-amber:#ffb02e;--pf-coral:#ff5d4a;--pf-sky:#5cc8ff;--pf-serif:'Instrument Serif','Times New Roman',serif;--pf-mono:'Martian Mono',ui-monospace,'SF Mono',Menlo,monospace;--pf-spring:linear(0,0.009,0.035 2.1%,0.141,0.281 6.7%,0.723 12.9%,0.938 16.7%,1.017,1.077,1.121,1.149 24.3%,1.159,1.163,1.161,1.154 29.9%,1.129 32.8%,1.051 39.6%,1.017 43.1%,0.991,0.977 51%,0.974 53.8%,0.975 57.1%,0.997 69.8%,1.003 76.9%,1.004 83.8%,1);position:relative;color:var(--pf-paper);font-family:var(--pf-mono);font-weight:300;line-height:1.6;overflow-x:clip;timeline-scope:--t-silver,--t-platinum,--t-gold,--t-custom,--t-spine}
+    #pricingFlight{--pf-ink:#07090d;--pf-ink-2:#0d1118;--pf-line:#1c2430;--pf-paper:#ece6d6;--pf-dim:#7d8796;--pf-lime:#c6ff3d;--pf-amber:#ffb02e;--pf-coral:#ff5d4a;--pf-sky:#5cc8ff;--pf-serif:'Instrument Serif','Times New Roman',serif;--pf-mono:'Martian Mono',ui-monospace,'SF Mono',Menlo,monospace;--pf-spring:linear(0,0.009,0.035 2.1%,0.141,0.281 6.7%,0.723 12.9%,0.938 16.7%,1.017,1.077,1.121,1.149 24.3%,1.159,1.163,1.161,1.154 29.9%,1.129 32.8%,1.051 39.6%,1.017 43.1%,0.991,0.977 51%,0.974 53.8%,0.975 57.1%,0.997 69.8%,1.003 76.9%,1.004 83.8%,1);position:relative;color:var(--pf-paper);font-family:var(--pf-mono);font-weight:300;line-height:1.6;overflow-x:clip}
+    #pricingFlight [hidden]{display:none!important}
     #pricingFlight h1,#pricingFlight h2,#pricingFlight p,#pricingFlight code{margin:0}
     #pricingFlight a{color:inherit;text-decoration:none}
     /* scroll progress */
     #pricingFlight .pf-progress{position:fixed;inset:0 0 auto 0;height:3px;z-index:100;background:linear-gradient(90deg,var(--pf-lime),var(--pf-amber),var(--pf-coral));transform-origin:0 50%;scale:0 1;animation:pfGrow 1ms linear both;animation-timeline:scroll(root block)}
     @keyframes pfGrow{to{scale:1 1}}
-    /* HUD lanes */
-    #pricingFlight .pf-hud{position:fixed;z-index:80;right:clamp(12px,2vw,28px);top:50%;translate:0 -50%;display:grid;gap:14px;font-size:10px;letter-spacing:.14em;text-transform:uppercase;animation:pfHudIn 1ms linear both;animation-timeline:scroll(root block);animation-range:0 8vh}
-    @keyframes pfHudIn{from{opacity:0;translate:20px -50%}to{opacity:1;translate:0 -50%}}
-    #pricingFlight .pf-lane{display:grid;grid-template-columns:auto 10px;align-items:center;gap:10px;justify-items:end;color:var(--pf-dim)}
-    #pricingFlight .pf-lane i{width:10px;height:10px;border-radius:50%;border:1px solid var(--pf-dim);background:transparent;animation:pfPip 1ms linear both}
-    #pricingFlight .pf-lane span{animation:pfLaneTxt 1ms linear both}
-    #pricingFlight .pf-lane[data-b="silver"] :is(i,span){animation-timeline:--t-silver;animation-range:entry 90% cover 55%}
-    #pricingFlight .pf-lane[data-b="platinum"] :is(i,span){animation-timeline:--t-platinum;animation-range:entry 90% cover 55%}
-    #pricingFlight .pf-lane[data-b="gold"] :is(i,span){animation-timeline:--t-gold;animation-range:entry 90% cover 55%}
-    #pricingFlight .pf-lane[data-b="custom"] :is(i,span){animation-timeline:--t-custom;animation-range:entry 90% cover 55%}
-    @keyframes pfPip{to{background:var(--pf-lime);border-color:var(--pf-lime);box-shadow:0 0 14px var(--pf-lime);scale:1.35}}
-    @keyframes pfLaneTxt{to{color:var(--pf-paper)}}
-    #pricingFlight .pf-readout{margin-top:6px;padding-top:12px;border-top:1px solid var(--pf-line);text-align:right;color:var(--pf-dim);animation:pfRd 1ms linear both;animation-timeline:scroll(root block);counter-reset:p var(--pf-p)}
-    #pricingFlight .pf-readout::before{content:counter(p) "%";color:var(--pf-lime);font-weight:600;font-size:18px;letter-spacing:0;display:block}
-    @keyframes pfRd{from{--pf-p:0}to{--pf-p:100}}
     /* hero */
     #pricingFlight .pf-hero{min-height:150svh;position:relative;view-timeline:--t-hero block}
     #pricingFlight .pf-hero-stick{position:sticky;top:0;height:100svh;display:grid;place-items:center;overflow:hidden;padding:0 6vw}
@@ -460,54 +446,68 @@
     #pricingFlight .pf-intro .w:nth-child(3n){animation-range:entry 62% cover 46%}
     #pricingFlight .pf-intro .w:nth-child(4n){animation-range:entry 68% cover 50%}
     @keyframes pfLit{to{color:var(--pf-paper)}}
-    /* timeline + spine */
-    #pricingFlight .pf-timeline{position:relative;padding:6vh 6vw 4vh;max-width:1180px;margin:0 auto;view-timeline:--t-spine block}
-    #pricingFlight .pf-spine,#pricingFlight .pf-spine::after{position:absolute;left:50%;top:0;bottom:0;width:2px;translate:-50% 0}
-    #pricingFlight .pf-spine{background:repeating-linear-gradient(var(--pf-line) 0 6px,transparent 6px 12px)}
-    #pricingFlight .pf-spine::after{content:"";background:linear-gradient(var(--pf-lime),var(--pf-amber) 70%,var(--pf-coral));box-shadow:0 0 22px var(--pf-lime),0 0 60px #c6ff3d55;transform-origin:top;scale:1 0;animation:pfFill 1ms linear both;animation-timeline:--t-spine;animation-range:cover 18% cover 82%}
-    @keyframes pfFill{to{scale:1 1}}
-    #pricingFlight .pf-event{position:relative;display:grid;grid-template-columns:1fr 1fr;column-gap:0;align-items:center;margin:0 0 clamp(120px,24vh,260px)}
-    #pricingFlight .pf-event:last-of-type{margin-bottom:0}
-    #pricingFlight #pf-silver{view-timeline:--t-silver block}
-    #pricingFlight #pf-platinum{view-timeline:--t-platinum block}
-    #pricingFlight #pf-gold{view-timeline:--t-gold block}
-    #pricingFlight #pf-custom{view-timeline:--t-custom block}
-    #pricingFlight .pf-card{position:relative;padding:clamp(22px,3vw,40px);background:linear-gradient(160deg,var(--pf-ink-2),#090c11);border:1px solid var(--pf-line);border-radius:4px;overflow:hidden;isolation:isolate;animation:pfCardIn 1ms var(--pf-spring) both;animation-timeline:view(block);animation-range:entry 0% entry 85%}
-    #pricingFlight .pf-event:nth-child(odd) .pf-card{grid-column:1;margin-right:clamp(36px,6vw,84px);--from:-90px}
-    #pricingFlight .pf-event:nth-child(even) .pf-card{grid-column:2;margin-left:clamp(36px,6vw,84px);--from:90px}
-    @keyframes pfCardIn{from{opacity:0;translate:var(--from) 40px;rotate:calc(var(--from) / 30);scale:.86;filter:blur(8px)}}
-    #pricingFlight .pf-card::before{content:"";position:absolute;inset:0;z-index:-1;opacity:.9;background:radial-gradient(420px 220px at var(--pf-mx,50%) 0%,color-mix(in oklab,var(--c) 28%,transparent),transparent 70%);animation:pfSweep 1ms linear both;animation-timeline:view(block);animation-range:entry 20% exit 20%}
-    @keyframes pfSweep{from{--pf-mx:0%}to{--pf-mx:100%}}
-    #pricingFlight .pf-card .pf-tag{display:inline-flex;align-items:center;gap:10px;font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--c)}
-    #pricingFlight .pf-card .pf-tag::before{content:"";width:26px;height:1px;background:var(--c);transform-origin:left;animation:pfTagLine 1ms linear both;animation-timeline:view(block);animation-range:entry 30% entry 100%}
-    @keyframes pfTagLine{from{scale:0 1}}
-    #pricingFlight .pf-card h2{font-family:var(--pf-serif);font-weight:400;font-size:clamp(40px,5.6vw,84px);line-height:.92;letter-spacing:-.03em;margin:14px 0 6px}
-    #pricingFlight .pf-card h2 small{font-size:.38em;font-family:var(--pf-mono);letter-spacing:0;color:var(--pf-dim);font-weight:300;margin-left:.4em}
-    #pricingFlight .pf-card p{color:#aab3c0;font-size:13px;max-width:42ch}
-    #pricingFlight .pf-card code{color:var(--c);background:#ffffff0a;padding:1px 6px;border-radius:3px;font-size:12px}
-    /* price slot-machine */
-    #pricingFlight .pf-year{display:block;font-family:var(--pf-serif);font-style:italic;font-size:clamp(54px,9vw,140px);line-height:1;margin-top:20px;color:transparent;-webkit-text-stroke:1px var(--c);counter-reset:y var(--pf-y);animation:pfSpin 1ms linear both;animation-timeline:view(block);animation-range:entry 0% entry 85%}
-    #pricingFlight .pf-year::before{content:"$" counter(y)}
-    #pricingFlight .pf-year.pf-quote::before{content:"Quote"}
-    @keyframes pfSpin{from{--pf-y:calc(var(--to) - 80)}to{--pf-y:var(--to)}}
-    #pricingFlight .pf-year .pf-mo{font-family:var(--pf-mono);font-size:11px;letter-spacing:.2em;-webkit-text-stroke:0;color:var(--pf-dim);text-transform:uppercase;margin-left:14px;vertical-align:top}
-    /* spine node + connector */
-    #pricingFlight .pf-node{position:absolute;left:50%;top:50%;width:22px;height:22px;translate:-50% -50%;z-index:3;border-radius:50%;background:var(--pf-ink);border:2px solid var(--c);animation:pfNode 1ms var(--pf-spring) both;animation-timeline:view(block);animation-range:entry 35% entry 70%}
-    #pricingFlight .pf-node::after{content:"";position:absolute;inset:-2px;border-radius:50%;border:1px solid var(--c);animation:pfPing 2.4s ease-out infinite}
-    @keyframes pfNode{from{scale:0}to{scale:1;box-shadow:0 0 0 6px var(--pf-ink),0 0 30px var(--c)}}
-    @keyframes pfPing{to{scale:3.2;opacity:0}}
-    #pricingFlight .pf-event:nth-child(odd) .pf-node{--dir:-1}
-    #pricingFlight .pf-event:nth-child(even) .pf-node{--dir:1}
-    #pricingFlight .pf-link{position:absolute;top:50%;height:1px;background:var(--c);width:clamp(36px,6vw,84px);transform-origin:var(--o);animation:pfLinkIn 1ms linear both;animation-timeline:view(block);animation-range:entry 30% entry 75%;scale:0 1}
-    #pricingFlight .pf-event:nth-child(odd) .pf-link{right:50%;--o:right;margin-right:11px}
-    #pricingFlight .pf-event:nth-child(even) .pf-link{left:50%;--o:left;margin-left:11px}
-    @keyframes pfLinkIn{to{scale:1 1}}
-    /* chips */
-    #pricingFlight .pf-chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:22px}
-    #pricingFlight .pf-chips span{font-size:10px;letter-spacing:.12em;padding:5px 10px;border:1px solid var(--pf-line);border-radius:99px;color:var(--pf-dim);animation:pfChip 1ms var(--pf-spring) both;animation-timeline:view(block);animation-range:entry 55% entry 100%}
-    #pricingFlight .pf-chips span:nth-child(2){animation-range:entry 65% entry 105%}
-    #pricingFlight .pf-chips span:nth-child(3){animation-range:entry 75% entry 110%}
-    @keyframes pfChip{from{opacity:0;translate:0 14px;scale:.8}}
+    /* service catalog */
+    #pricingFlight .pf-catalog{padding:2vh 6vw 4vh;max-width:1240px;margin:0 auto}
+    #pricingFlight .pf-sec-head{display:grid;gap:12px;margin:0 0 7vh;max-width:72ch}
+    #pricingFlight .pf-sec-head .k{font-size:11px;letter-spacing:.24em;text-transform:uppercase;color:var(--pf-lime)}
+    #pricingFlight .pf-sec-head h2{font-family:var(--pf-serif);font-weight:400;font-size:clamp(30px,4.4vw,58px);line-height:1.02;letter-spacing:-.02em;color:var(--pf-paper)}
+    #pricingFlight .pf-sec-head h2 em{font-style:italic;color:var(--pf-lime)}
+    #pricingFlight .pf-sec-head p{color:var(--pf-dim);font-size:13px;max-width:62ch}
+    #pricingFlight .pf-group{margin:0 0 8vh}
+    #pricingFlight .pf-group-title{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;margin:0 0 20px;padding-bottom:12px;border-bottom:1px solid var(--pf-line)}
+    #pricingFlight .pf-group-title h3{font-family:var(--pf-serif);font-weight:400;font-size:clamp(22px,2.6vw,32px);letter-spacing:-.01em;color:var(--pf-paper)}
+    #pricingFlight .pf-group-title span{font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--pf-dim)}
+    #pricingFlight .pf-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(248px,1fr));gap:16px}
+    #pricingFlight .pf-service{--c:var(--pf-lime);position:relative;padding:24px;display:flex;flex-direction:column;gap:14px;background:linear-gradient(160deg,var(--pf-ink-2),#090c11);border:1px solid var(--pf-line);border-radius:6px;overflow:hidden;isolation:isolate;transition:border-color .25s,transform .25s}
+    #pricingFlight .pf-service:hover{border-color:color-mix(in oklab,var(--c) 55%,var(--pf-line));transform:translateY(-4px)}
+    #pricingFlight .pf-service::before{content:"";position:absolute;inset:0;z-index:-1;opacity:.5;background:radial-gradient(360px 200px at 85% 0%,color-mix(in oklab,var(--c) 26%,transparent),transparent 72%)}
+    #pricingFlight .pf-service .pf-tag{display:inline-flex;align-items:center;gap:10px;font-size:10.5px;letter-spacing:.22em;text-transform:uppercase;color:var(--c)}
+    #pricingFlight .pf-service .pf-tag::before{content:"";width:24px;height:1px;background:var(--c)}
+    #pricingFlight .pf-service h3{font-family:var(--pf-serif);font-weight:400;font-size:clamp(21px,2.2vw,28px);line-height:1.08;letter-spacing:-.01em;color:var(--pf-paper)}
+    #pricingFlight .pf-service p{font-family:var(--pf-mono);color:#aab3c0;font-size:12.5px;line-height:1.7;flex:1}
+    #pricingFlight .pf-price{font-family:var(--pf-serif);font-style:italic;font-size:clamp(38px,4.6vw,58px);line-height:1;color:transparent;-webkit-text-stroke:1px var(--c)}
+    #pricingFlight .pf-price small{display:block;margin-top:10px;-webkit-text-stroke:0;font-family:var(--pf-mono);font-size:10.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--pf-dim)}
+    #pricingFlight .pf-service .pf-cta{display:inline-flex;align-items:center;gap:8px;margin-top:2px;padding-top:14px;border-top:1px solid var(--pf-line);font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--c)}
+    #pricingFlight .pf-service .pf-cta:hover{color:var(--pf-paper)}
+    /* discussion booking */
+    #pricingFlight .pf-book{padding:2vh 6vw 6vh;max-width:1160px;margin:0 auto}
+    #pricingFlight .pf-book-card{display:grid;grid-template-columns:1fr 1fr;gap:clamp(20px,3vw,48px);padding:clamp(20px,3vw,40px);background:linear-gradient(160deg,var(--pf-ink-2),#090c11);border:1px solid var(--pf-line);border-radius:8px}
+    #pricingFlight .pf-cal-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 16px}
+    #pricingFlight .pf-cal-head b{font-family:var(--pf-serif);font-size:22px;font-weight:400;color:var(--pf-paper)}
+    #pricingFlight .pf-cal-nav{display:flex;gap:8px}
+    #pricingFlight .pf-cal-nav button{width:34px;height:34px;border:1px solid var(--pf-line);border-radius:5px;background:#ffffff06;color:var(--pf-paper);cursor:pointer;font-size:14px;line-height:1}
+    #pricingFlight .pf-cal-nav button:hover:not(:disabled){border-color:var(--pf-lime);color:var(--pf-lime)}
+    #pricingFlight .pf-cal-nav button:disabled{opacity:.3;cursor:not-allowed}
+    #pricingFlight .pf-cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+    #pricingFlight .pf-dow{text-align:center;padding:4px 0;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--pf-dim)}
+    #pricingFlight .pf-day{aspect-ratio:1;display:grid;place-items:center;border:1px solid transparent;border-radius:5px;background:#ffffff06;color:var(--pf-paper);font-family:var(--pf-mono);font-size:12px;cursor:pointer;transition:.15s}
+    #pricingFlight .pf-day:hover:not(:disabled){border-color:var(--pf-lime)}
+    #pricingFlight .pf-day:disabled{background:transparent;color:#39424f;cursor:not-allowed}
+    #pricingFlight .pf-day.is-empty{visibility:hidden}
+    #pricingFlight .pf-day.sel{background:var(--pf-lime);border-color:var(--pf-lime);color:#07090d;font-weight:600}
+    #pricingFlight .pf-slots{margin:20px 0 0}
+    #pricingFlight .pf-slots h4{font-size:10.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--pf-dim);font-weight:400;margin:0 0 12px}
+    #pricingFlight .pf-slot-list{display:grid;gap:10px;max-height:246px;overflow:auto;padding-right:4px}
+    #pricingFlight .pf-slot{display:flex;justify-content:space-between;gap:12px;padding:12px 14px;border:1px solid var(--pf-line);border-radius:5px;background:#ffffff05;color:var(--pf-paper);font-family:var(--pf-mono);font-size:12px;cursor:pointer;transition:.15s}
+    #pricingFlight .pf-slot:hover{border-color:var(--pf-sky)}
+    #pricingFlight .pf-slot.sel{border-color:var(--pf-lime);background:#c6ff3d1f}
+    #pricingFlight .pf-slot em{color:var(--pf-dim);font-style:normal}
+    #pricingFlight .pf-book-side{display:grid;align-content:start;gap:14px}
+    #pricingFlight .pf-tz{font-size:11px;line-height:1.75;color:var(--pf-dim)}
+    #pricingFlight .pf-tz b{color:var(--pf-lime);font-weight:500}
+    #pricingFlight .pf-form{display:grid;gap:13px;margin-top:2px}
+    #pricingFlight .pf-field{display:grid;gap:6px}
+    #pricingFlight .pf-field label{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--pf-dim)}
+    #pricingFlight .pf-field input,#pricingFlight .pf-field textarea{width:100%;background:#ffffff08;border:1px solid var(--pf-line);border-radius:5px;color:var(--pf-paper);padding:11px 13px;font-family:var(--pf-mono);font-size:12.5px}
+    #pricingFlight .pf-field input:focus,#pricingFlight .pf-field textarea:focus{outline:none;border-color:var(--pf-lime)}
+    #pricingFlight .pf-field textarea{resize:vertical;min-height:64px}
+    #pricingFlight .pf-submit{padding:14px;border:0;border-radius:5px;background:var(--pf-lime);color:#07090d;font-family:var(--pf-mono);font-size:12px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;cursor:pointer}
+    #pricingFlight .pf-submit:hover{background:var(--pf-paper)}
+    #pricingFlight .pf-summary{font-family:var(--pf-mono);font-size:12px;line-height:1.75;color:var(--pf-dim);padding:12px 14px;border:1px dashed var(--pf-line);border-radius:5px}
+    #pricingFlight .pf-summary b{color:var(--pf-paper)}
+    #pricingFlight .pf-confirm{padding:13px 14px;border:1px solid var(--pf-lime);border-radius:5px;background:#c6ff3d14;color:var(--pf-paper);font-family:var(--pf-mono);font-size:12px;line-height:1.8}
+    #pricingFlight .pf-confirm b{color:var(--pf-lime)}
+    #pricingFlight .pf-confirm a{color:var(--pf-lime);border-bottom:1px solid #c6ff3d66}
     /* finale seal */
     #pricingFlight .pf-finale{min-height:130svh;position:relative;view-timeline:--fin block;margin-top:-18svh}
     #pricingFlight .pf-finale-stick{position:sticky;top:0;height:100svh;display:grid;place-items:center;text-align:center;padding:6vw;overflow:hidden}
@@ -527,36 +527,25 @@
     #pricingFlight .pf-foot{padding:8vh 6vw 10vh;text-align:center;font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--pf-dim)}
     #pricingFlight .pf-foot a{color:var(--pf-lime);border-bottom:1px solid #c6ff3d55}
     #pricingFlight .pf-foot a:hover{border-color:var(--pf-lime)}
-    /* per-plan colours */
-    #pricingFlight #pf-silver{--c:var(--pf-sky)}
-    #pricingFlight #pf-platinum{--c:var(--pf-amber)}
-    #pricingFlight #pf-gold{--c:var(--pf-lime)}
-    #pricingFlight #pf-custom{--c:var(--pf-coral)}
     /* small screens */
+    @media(max-width:860px){
+      #pricingFlight .pf-book-card{grid-template-columns:1fr}
+    }
     @media(max-width:760px){
-      #pricingFlight .pf-hud{display:none}
-      #pricingFlight .pf-spine,#pricingFlight .pf-spine::after{left:18px}
-      #pricingFlight .pf-event{grid-template-columns:1fr;padding-left:44px}
-      #pricingFlight .pf-event .pf-card,#pricingFlight .pf-event:nth-child(odd) .pf-card,#pricingFlight .pf-event:nth-child(even) .pf-card{grid-column:1;margin:0;--from:60px}
-      #pricingFlight .pf-node{left:18px}
-      #pricingFlight .pf-link{display:none}
+      #pricingFlight .pf-hero h1{font-size:clamp(52px,19vw,120px)}
+      #pricingFlight .pf-seal{--size:min(80vmin,420px)}
     }
     /* fallbacks */
     #pricingFlight .pf-notice{display:none}
     @supports not (animation-timeline: scroll()){
       #pricingFlight .pf-notice{display:block;position:fixed;z-index:120;bottom:12px;left:12px;right:12px;padding:10px 14px;background:var(--pf-amber);color:#000;font-size:11px;letter-spacing:.08em;border-radius:4px}
-      #pricingFlight :is(.pf-card,.pf-node,.pf-chips span,.pf-intro .w,.pf-year){animation:none}
-      #pricingFlight .pf-card{opacity:0;translate:0 30px;transition:opacity .7s,translate .7s var(--pf-spring)}
-      #pricingFlight .pf-card.in{opacity:1;translate:0 0}
-      #pricingFlight .pf-spine::after{scale:1 1}
-      #pricingFlight .pf-year::before{content:attr(data-year)}
       #pricingFlight .pf-intro .w{color:var(--pf-paper)}
-      #pricingFlight .pf-seal{animation:none}
+      #pricingFlight .pf-seal{animation:none;opacity:1}
     }
     @media(prefers-reduced-motion:reduce){
       #pricingFlight *,#pricingFlight *::before,#pricingFlight *::after{animation:none!important;transition:none!important}
-      #pricingFlight .pf-card{opacity:1}#pricingFlight .pf-spine::after{scale:1 1}#pricingFlight .pf-node{scale:1}#pricingFlight .pf-link{scale:1 1}
-      #pricingFlight .pf-intro .w{color:var(--pf-paper)}#pricingFlight .pf-year::before{content:attr(data-year)}#pricingFlight .pf-seal{opacity:1}
+      #pricingFlight .pf-intro .w{color:var(--pf-paper)}
+      #pricingFlight .pf-seal{opacity:1}
     }
   </style>
 </head>
@@ -572,8 +561,7 @@
       <div class="nav-item"><a class="nav-link" href="/security">Security & compliance <svg width="8" height="8" viewBox="0 0 8 8"><path d="M1 2.5 4 5.5l3-3" fill="none" stroke="currentColor"/></svg></a><button class="nav-toggle" type="button" aria-label="Show Security and compliance submenu" aria-expanded="false">+</button><div class="mega"><a href="/security"><strong>Security</strong>Authentication and access controls</a><a href="/compliance"><strong>Compliance</strong>Governance and operating controls</a></div></div>
       <div class="nav-item"><a class="nav-link" href="/solutions">Solutions <svg width="8" height="8" viewBox="0 0 8 8"><path d="M1 2.5 4 5.5l3-3" fill="none" stroke="currentColor"/></svg></a><button class="nav-toggle" type="button" aria-label="Show Solutions submenu" aria-expanded="false">+</button><div class="mega"><a href="/merchants"><strong>For merchants</strong>Connect payment experiences</a><a href="/enterprises"><strong>For enterprises</strong>Global treasury operations</a><a href="/partners"><strong>For partners</strong>Build on PrimeStack</a></div></div>
       <div class="nav-item"><a class="nav-link" href="/pricing">Pricing</a></div>
-      <div class="nav-item"><a class="nav-link" href="/merchant-register">Get started</a></div>
-      <div class="nav-item"><a class="nav-link" href="/developer">Developers</a></div>
+      <div class="nav-item"><a class="nav-link" href="/developer">Developers <svg width="8" height="8" viewBox="0 0 8 8"><path d="M1 2.5 4 5.5l3-3" fill="none" stroke="currentColor"/></svg></a><button class="nav-toggle" type="button" aria-label="Show Developers submenu" aria-expanded="false">+</button><div class="mega"><a href="/developer"><strong>Developer portal</strong>Integration center &amp; API reference</a><a href="/developer/funds"><strong>Funds movement guide</strong>T2T, S2S, wallets &amp; ledger flows</a><a href="/developer/t2t"><strong>T2T integration</strong>Terminal-to-terminal transfers</a><a href="/developer/s2s"><strong>S2S integration</strong>Server-to-server payments</a><a href="/developer/reference"><strong>API reference</strong>Full endpoint documentation</a></div></div>
       <div class="nav-item"><a class="nav-link" href="/company">Company <svg width="8" height="8" viewBox="0 0 8 8"><path d="M1 2.5 4 5.5l3-3" fill="none" stroke="currentColor"/></svg></a><button class="nav-toggle" type="button" aria-label="Show Company submenu" aria-expanded="false">+</button><div class="mega"><a href="/about"><strong>About us</strong>Our mission and infrastructure</a><a href="/careers"><strong>Careers</strong>Build the payment future</a><a href="/contact"><strong>Contact</strong>Talk to our team</a></div></div>
       <div class="nav-item"><a class="nav-link" href="/terms">Legal <svg width="8" height="8" viewBox="0 0 8 8"><path d="M1 2.5 4 5.5l3-3" fill="none" stroke="currentColor"/></svg></a><button class="nav-toggle" type="button" aria-label="Show Legal submenu" aria-expanded="false">+</button><div class="mega"><a href="/terms"><strong>Terms & conditions</strong>Website and service terms</a><a href="/privacy"><strong>Privacy policy</strong>Information practices</a><a href="/cookies"><strong>Cookie policy</strong>Website tracking details</a><a href="/acceptable-use"><strong>Acceptable use</strong>Permitted platform use</a></div></div>
     </div>
@@ -614,92 +602,181 @@
     <div class="pf-notice">Your browser doesn't support animation-timeline yet — showing a graceful fallback.</div>
     <div class="pf-progress" aria-hidden="true"></div>
 
-    <aside class="pf-hud" aria-hidden="true">
-      <div class="pf-lane" data-b="silver"><span>Silver</span><i></i></div>
-      <div class="pf-lane" data-b="platinum"><span>Platinum</span><i></i></div>
-      <div class="pf-lane" data-b="gold"><span>Gold</span><i></i></div>
-      <div class="pf-lane" data-b="custom"><span>Custom</span><i></i></div>
-      <div class="pf-readout">scrolled</div>
-    </aside>
-
     <div class="pf-hero">
       <div class="pf-hero-stick">
-        <div class="pf-eyebrow"><span><b>Pricing</b> / Subscription &amp; service charges</span><span>Four plans · 7-day access</span></div>
+        <div class="pf-eyebrow"><span><b>Pricing</b> / Book per service</span><span>USD · pay per booking</span></div>
         <div class="pf-ghost" aria-hidden="true">
-          <span>Silver</span><span>Platinum</span><span>Gold</span><span>Custom</span><span>renew every 7 days</span>
+          <span>one platform</span><span>every service</span><span>pay per booking</span><span>no bundling</span><span>USD</span>
         </div>
-        <h1>four<br><em>plans</em></h1>
+        <h1>pay per<br><em>service</em></h1>
         <div class="pf-cue">scroll</div>
       </div>
     </div>
 
-    <p class="pf-intro" id="pfIntro"><b>Four plans</b> built around 7-day access. Choose the scope that fits your operations — <b>Silver</b>, <b>Platinum</b>, and <b>Gold</b> renew per period, while <b>Custom</b> is quoted to the services you select.</p>
+    <p class="pf-intro" id="pfIntro"><b>One platform</b> for services that usually require many separate vendors. Book exactly what you need — <b>transaction connectivity</b>, <b>fund receiving</b>, <b>wallet transfer</b>, or <b>dashboard access</b> — and pay only for that service.</p>
 
-    <div class="pf-timeline" id="pfTimeline">
-      <div class="pf-spine" aria-hidden="true"></div>
+    <section class="pf-catalog" aria-labelledby="pfCatalogTitle">
+      <div class="pf-sec-head">
+        <span class="k">Service pricing</span>
+        <h2 id="pfCatalogTitle">Choose the service. Book it. <em>Move the value.</em></h2>
+        <p>Each charge below is a one-time booking fee in USD unless a term is stated. Prices reflect services assembled across a single global platform.</p>
+      </div>
 
-      <section class="pf-event" id="pf-silver">
-        <i class="pf-link"></i><i class="pf-node"></i>
-        <article class="pf-card">
-          <span class="pf-tag">Silver</span>
-          <h2>Entry scale <small>$3,000</small></h2>
-          <p>Core dashboard access and baseline platform features for a <code>7-day</code> service period.</p>
-          <span class="pf-year" style="--to:3000" data-year="$3,000"><span class="pf-mo">USD / 7 days</span></span>
-          <div class="pf-chips"><span>Core access</span><span>Baseline features</span><span>7-day period</span></div>
-        </article>
-      </section>
+      <div class="pf-group">
+        <div class="pf-group-title"><h3>Transaction &amp; connectivity</h3><span>One-time booking · USD 500</span></div>
+        <div class="pf-grid">
+          <article class="pf-service" style="--c:var(--pf-sky)">
+            <span class="pf-tag">Booking</span>
+            <h3>Server to Server Transaction</h3>
+            <p>Connect two servers and move a transaction directly between them.</p>
+            <span class="pf-price">$500<small>USD · one-time booking</small></span>
+            <a class="pf-cta" href="/contact">Book service <span>→</span></a>
+          </article>
+          <article class="pf-service" style="--c:var(--pf-sky)">
+            <span class="pf-tag">Booking</span>
+            <h3>Terminal to Terminal</h3>
+            <p>Book a terminal-to-terminal transaction across approved endpoints.</p>
+            <span class="pf-price">$500<small>USD · one-time booking</small></span>
+            <a class="pf-cta" href="/contact">Book service <span>→</span></a>
+          </article>
+          <article class="pf-service" style="--c:var(--pf-sky)">
+            <span class="pf-tag">Booking</span>
+            <h3>Ledger to Ledger</h3>
+            <p>Post a balanced movement from one ledger account to another.</p>
+            <span class="pf-price">$500<small>USD · one-time booking</small></span>
+            <a class="pf-cta" href="/contact">Book service <span>→</span></a>
+          </article>
+          <article class="pf-service" style="--c:var(--pf-sky)">
+            <span class="pf-tag">Booking</span>
+            <h3>IP to IP</h3>
+            <p>Transact between allow-listed IP endpoints on the network.</p>
+            <span class="pf-price">$500<small>USD · one-time booking</small></span>
+            <a class="pf-cta" href="/contact">Book service <span>→</span></a>
+          </article>
+          <article class="pf-service" style="--c:var(--pf-sky)">
+            <span class="pf-tag">Booking</span>
+            <h3>API to API</h3>
+            <p>Initiate a signed API-to-API transaction between integrated systems.</p>
+            <span class="pf-price">$500<small>USD · one-time booking</small></span>
+            <a class="pf-cta" href="/contact">Book service <span>→</span></a>
+          </article>
+        </div>
+      </div>
 
-      <section class="pf-event" id="pf-platinum">
-        <i class="pf-link"></i><i class="pf-node"></i>
-        <article class="pf-card">
-          <span class="pf-tag">Platinum</span>
-          <h2>Growth scale <small>$6,000</small></h2>
-          <p>Expanded access for higher-volume operations across collection, routing, and settlement.</p>
-          <span class="pf-year" style="--to:6000" data-year="$6,000"><span class="pf-mo">USD / 7 days</span></span>
-          <div class="pf-chips"><span>Higher volume</span><span>Expanded scope</span><span>7-day period</span></div>
-        </article>
-      </section>
+      <div class="pf-group">
+        <div class="pf-group-title"><h3>Fund receiving &amp; wallet</h3><span>Per booking · USD 500–1,000</span></div>
+        <div class="pf-grid">
+          <article class="pf-service" style="--c:var(--pf-amber)">
+            <span class="pf-tag">Booking</span>
+            <h3>Receiving Bank Server Funds</h3>
+            <p>Book receipt of funds arriving from a connected bank server.</p>
+            <span class="pf-price">$500<small>USD · one-time booking</small></span>
+            <a class="pf-cta" href="/contact">Book service <span>→</span></a>
+          </article>
+          <article class="pf-service" style="--c:var(--pf-amber)">
+            <span class="pf-tag">Booking</span>
+            <h3>Receiving Global Server Funds</h3>
+            <p>Book receipt of funds from the global server network.</p>
+            <span class="pf-price">$1,000<small>USD · one-time booking</small></span>
+            <a class="pf-cta" href="/contact">Book service <span>→</span></a>
+          </article>
+          <article class="pf-service" style="--c:var(--pf-amber)">
+            <span class="pf-tag">Booking</span>
+            <h3>Receiving M1 Server Available Fund</h3>
+            <p>Book receipt against the M1 server available fund.</p>
+            <span class="pf-price">$1,000<small>USD · one-time booking</small></span>
+            <a class="pf-cta" href="/contact">Book service <span>→</span></a>
+          </article>
+          <article class="pf-service" style="--c:var(--pf-amber)">
+            <span class="pf-tag">Booking</span>
+            <h3>Direct M1 Wallet Transfer to Platform</h3>
+            <p>Book a direct M1 wallet transfer into the platform.</p>
+            <span class="pf-price">$1,000<small>USD · one-time booking</small></span>
+            <a class="pf-cta" href="/contact">Book service <span>→</span></a>
+          </article>
+        </div>
+      </div>
 
-      <section class="pf-event" id="pf-gold">
-        <i class="pf-link"></i><i class="pf-node"></i>
-        <article class="pf-card">
-          <span class="pf-tag">Gold</span>
-          <h2>Enterprise scale <small>$10,000</small></h2>
-          <p>Premium access with broader operational scope and priority handling for enterprise-scale activity.</p>
-          <span class="pf-year" style="--to:10000" data-year="$10,000"><span class="pf-mo">USD / 7 days</span></span>
-          <div class="pf-chips"><span>Enterprise</span><span>Priority scope</span><span>7-day period</span></div>
-        </article>
-      </section>
+      <div class="pf-group">
+        <div class="pf-group-title"><h3>Platform access</h3><span>Recurring term</span></div>
+        <div class="pf-grid">
+          <article class="pf-service" style="--c:var(--pf-lime)">
+            <span class="pf-tag">Access</span>
+            <h3>Merchant Dashboard Access</h3>
+            <p>Full merchant dashboard access for a three-month operating term.</p>
+            <span class="pf-price">$5,000<small>USD / 3 months</small></span>
+            <a class="pf-cta" href="/merchant-register">Get access <span>→</span></a>
+          </article>
+        </div>
+      </div>
 
-      <section class="pf-event" id="pf-custom">
-        <i class="pf-link"></i><i class="pf-node"></i>
-        <article class="pf-card">
-          <span class="pf-tag">Custom</span>
-          <h2>Built to order <small>Quote</small></h2>
-          <p>Select exactly the services you need. Pricing is quoted to your package, volume, and deployment model.</p>
-          <span class="pf-year pf-quote" data-year="Quote"><span class="pf-mo">Contact sales</span></span>
-          <div class="pf-chips"><span>Requirements-based</span><span>Project billing</span><span>Request a quote</span></div>
-        </article>
-      </section>
-    </div>
+      <div class="pf-group">
+        <div class="pf-group-title"><h3>Advisory</h3><span>Book a session</span></div>
+        <div class="pf-grid">
+          <article class="pf-service" style="--c:var(--pf-coral)">
+            <span class="pf-tag">Discussion</span>
+            <h3>Book a Discussion</h3>
+            <p>A 30-minute call with our team to scope the service you need.</p>
+            <span class="pf-price">$50<small>USD / 30 minutes</small></span>
+            <a class="pf-cta" href="#pfBook">Book below <span>→</span></a>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="pf-book" id="pfBook" aria-labelledby="pfBookTitle">
+      <div class="pf-sec-head">
+        <span class="k">Book a discussion</span>
+        <h2 id="pfBookTitle">30 minutes. <em>$50.</em></h2>
+        <p>Reserve a 30-minute discussion with our team for $50 USD. Slots are shown in North American time and open from 5:00 PM Dubai time onward.</p>
+      </div>
+      <div class="pf-book-card">
+        <div class="pf-cal">
+          <div class="pf-cal-head">
+            <b id="pfCalLabel">Month</b>
+            <div class="pf-cal-nav">
+              <button type="button" id="pfCalPrev" aria-label="Previous month">‹</button>
+              <button type="button" id="pfCalNext" aria-label="Next month">›</button>
+            </div>
+          </div>
+          <div class="pf-cal-grid" id="pfCalGrid"></div>
+          <div class="pf-slots" id="pfSlots" hidden>
+            <h4 id="pfSlotsTitle">Available times</h4>
+            <div class="pf-slot-list" id="pfSlotList"></div>
+          </div>
+        </div>
+        <div class="pf-book-side">
+          <div class="pf-tz"><b>North American time (ET)</b><br>Slots open 8:00 AM ET / 5:00 PM Dubai and run every 30 minutes. Each session is 30 minutes.</div>
+          <div class="pf-summary" id="pfSummary">Select a date and time to continue.</div>
+          <form class="pf-form" id="pfForm" novalidate>
+            <div class="pf-field"><label for="pfName">Full name</label><input id="pfName" name="name" type="text" autocomplete="name" required></div>
+            <div class="pf-field"><label for="pfEmail">Email</label><input id="pfEmail" name="email" type="email" autocomplete="email" required></div>
+            <div class="pf-field"><label for="pfCompany">Company (optional)</label><input id="pfCompany" name="company" type="text" autocomplete="organization"></div>
+            <div class="pf-field"><label for="pfNotes">What would you like to cover? (optional)</label><textarea id="pfNotes" name="notes"></textarea></div>
+            <button class="pf-submit" type="submit">Book discussion · $50</button>
+          </form>
+          <div class="pf-confirm" id="pfConfirm" hidden></div>
+        </div>
+      </div>
+    </section>
 
     <div class="pf-finale">
       <div class="pf-finale-stick">
         <div class="pf-seal">
           <svg class="pf-ring-text" viewBox="0 0 200 200" aria-hidden="true">
             <defs><path id="pfCirc" d="M100,100 m-92,0 a92,92 0 1,1 184,0 a92,92 0 1,1 -184,0"/></defs>
-            <text><textPath href="#pfCirc">silver · platinum · gold · custom · renew every 7 days ·</textPath></text>
+            <text><textPath href="#pfCirc">one platform · every service · pay per booking · usd ·</textPath></text>
           </svg>
           <div class="pf-seal-in">
             <span class="k">Pricing</span>
-            <span class="big">7 days<br><em>of access</em></span>
-            <p>Choose a plan and keep operations running. Renew or recharge after each 7-day period.</p>
+            <span class="big">every<br><em>service</em></span>
+            <p>Book the services you need and pay only for those bookings. No bundles, no wasted access.</p>
           </div>
         </div>
       </div>
     </div>
 
-    <div class="pf-foot">Four plans · 7-day access · <a href="/contact">Request a custom quote</a></div>
+    <div class="pf-foot">One platform · booked per service · <a href="/contact">Talk to our team</a></div>
   </div>
 
   <header class="hero" id="hero"><div class="hero-image"></div><div class="hero-overlay"></div><div class="pointer-light" id="pointerLight"></div><div class="orbit one"></div><div class="orbit two"></div>
@@ -834,7 +911,303 @@
 
     <section class="home-only" id="homeRails"><div class="container"><div class="section-heading reveal"><div><div class="eyebrow">Connected rails</div></div><div><h2>Build across established and emerging networks.</h2><p>Connect payment experiences to the banking, messaging, card, wallet, and settlement systems your business requires.</p></div></div><div class="rail-grid reveal"><div class="rail"><span class="signal"></span><strong>SWIFT</strong><span>Cross-border</span></div><div class="rail"><span class="signal"></span><strong>SEPA</strong><span>Europe</span></div><div class="rail"><span class="signal"></span><strong>Fedwire / ACH</strong><span>United States</span></div><div class="rail"><span class="signal"></span><strong>UPI</strong><span>India</span></div><div class="rail"><span class="signal"></span><strong>T2T / S2S</strong><span>Terminal networks</span></div><div class="rail"><span class="signal"></span><strong>ISO 20022</strong><span>Structured payments</span></div></div></div></section>
 
-    <section class="band home-only" id="homeOperators"><div class="container"><div class="band-grid"><article class="band-card reveal"><div class="eyebrow">For operators</div><h3>Run the network with clarity.</h3><p>Monitor services, bank routes, transaction states, settlement queues, terminals, risk controls, and operator activity.</p><div class="steps"><div class="step"><span>01</span><strong>Configure</strong></div><div class="step"><span>02</span><strong>Monitor</strong></div><div class="step"><span>03</span><strong>Reconcile</strong></div></div></article><article class="band-card reveal delay1"><div class="eyebrow">For developers</div><h3>Integrate with predictable APIs.</h3><p>Use documented resources, HMAC signatures, idempotency controls, structured errors, and developer tooling.</p><a class="button primary" href="/developer">Open developer portal</a></article></div></div></section>
+    <section class="band home-only" id="homeOperators"><div class="container"><div class="band-grid"><article class="band-card reveal"><div class="eyebrow">For operators</div><h3>Run the network with clarity.</h3><p>Monitor services, bank routes, transaction states, settlement queues, terminals, risk controls, and operator activity.</p><div class="steps"><div class="step"><span>01</span><strong>Configure</strong></div><div class="step"><span>02</span><strong>Monitor</strong></div><div class="step"><span>03</span><strong>Reconcile</strong></div></div></article><article class="band-card reveal delay1"><div class="eyebrow">For developers</div><h3>Integrate with predictable APIs.</h3><p>Use documented resources, HMAC signatures, idempotency controls, structured errors, and developer tooling.</p><a class="button primary" href="#developerSection">Explore developer tools</a></article></div></div></section>
+
+    <!-- ═══════════════════════════════════════════════════════════
+         DEVELOPER SECTION — surfaces developer portal on main site
+         ═══════════════════════════════════════════════════════════ -->
+    <section class="dev-section home-only" id="developerSection" aria-labelledby="devSectionTitle">
+      <style>
+        .dev-section{padding:100px 0;background:var(--navy);color:#fff;overflow:hidden}
+        .dev-section .eyebrow{color:#7cb1ff}
+        .dev-section h2{font-family:Manrope,sans-serif;font-size:clamp(38px,5vw,58px);line-height:1;letter-spacing:-.055em;margin:9px 0 0;color:#fff}
+        .dev-section-intro{max-width:580px;font-size:16px;line-height:1.75;color:rgba(255,255,255,.65);margin:16px 0 48px}
+        /* ── Integration journey ── */
+        .dev-journey{display:grid;grid-template-columns:repeat(4,1fr);gap:0;border:1px solid rgba(255,255,255,.1);border-radius:12px;overflow:hidden;margin-bottom:52px}
+        .dev-step{padding:28px 24px;border-right:1px solid rgba(255,255,255,.08);position:relative;background:rgba(255,255,255,.02);transition:.25s}
+        .dev-step:last-child{border-right:0}
+        .dev-step:hover{background:rgba(53,120,246,.08)}
+        .dev-step-num{font-family:"JetBrains Mono",monospace;font-size:11px;font-weight:700;color:#3578f6;letter-spacing:.12em;margin-bottom:18px;display:flex;align-items:center;gap:8px}
+        .dev-step-num::after{content:"";flex:1;height:1px;background:rgba(53,120,246,.3)}
+        .dev-step h4{font-family:Manrope,sans-serif;font-size:16px;font-weight:700;margin:0 0 8px;color:#fff}
+        .dev-step p{font-size:12px;line-height:1.65;color:rgba(255,255,255,.52);margin:0}
+        /* ── Capability cards ── */
+        .dev-caps{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:52px}
+        .dev-cap{padding:22px;border:1px solid rgba(255,255,255,.1);border-radius:10px;background:rgba(255,255,255,.025);transition:.25s}
+        .dev-cap:hover{border-color:rgba(53,120,246,.4);background:rgba(53,120,246,.06)}
+        .dev-cap-icon{width:36px;height:36px;border-radius:8px;background:rgba(53,120,246,.12);display:grid;place-items:center;margin-bottom:16px;font-size:16px}
+        .dev-cap h4{font-family:Manrope,sans-serif;font-size:14px;font-weight:700;margin:0 0 7px;color:#fff}
+        .dev-cap p{font-size:12px;line-height:1.65;color:rgba(255,255,255,.52);margin:0}
+        .dev-cap-tags{display:flex;gap:5px;flex-wrap:wrap;margin-top:12px}
+        .dev-cap-tag{padding:2px 8px;border-radius:999px;font-size:10px;font-weight:700;font-family:"JetBrains Mono",monospace;background:rgba(53,120,246,.1);border:1px solid rgba(53,120,246,.2);color:#7cb1ff}
+        /* ── Code snip ── */
+        .dev-split{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:52px;align-items:start}
+        .dev-code-wrap{background:#060f1c;border:1px solid rgba(255,255,255,.1);border-radius:10px;overflow:hidden}
+        .dev-code-bar{display:flex;align-items:center;justify-content:space-between;padding:10px 16px;border-bottom:1px solid rgba(255,255,255,.07);background:rgba(255,255,255,.03)}
+        .dev-code-dots{display:flex;gap:5px}
+        .dev-code-dots span{width:10px;height:10px;border-radius:50%}
+        .dev-code-dots span:nth-child(1){background:#ff5f56}
+        .dev-code-dots span:nth-child(2){background:#febc2e}
+        .dev-code-dots span:nth-child(3){background:#27c93f}
+        .dev-code-label{font-family:"JetBrains Mono",monospace;font-size:11px;color:rgba(255,255,255,.35)}
+        .dev-code-wrap pre{margin:0;padding:18px 20px;font-family:"JetBrains Mono",monospace;font-size:12px;line-height:1.85;color:#94a3b8;overflow-x:auto}
+        .dev-code-wrap pre .kw{color:#60a5fa}
+        .dev-code-wrap pre .str{color:#86efac}
+        .dev-code-wrap pre .cm{color:#475569}
+        .dev-code-wrap pre .num{color:#f9a8d4}
+        .dev-code-wrap pre .fn{color:#fbbf24}
+        /* ── Auth fact cards ── */
+        .dev-auth-facts{display:flex;flex-direction:column;gap:10px}
+        .dev-auth-fact{padding:16px 20px;border:1px solid rgba(255,255,255,.08);border-radius:8px;background:rgba(255,255,255,.025)}
+        .dev-auth-fact strong{display:block;font-size:13px;color:#fff;margin-bottom:4px}
+        .dev-auth-fact span{font-size:12px;color:rgba(255,255,255,.52);line-height:1.6}
+        .dev-auth-fact code{font-family:"JetBrains Mono",monospace;font-size:11px;color:#7cb1ff;background:rgba(53,120,246,.08);padding:1px 5px;border-radius:3px}
+        /* ── Service list ── */
+        .dev-services{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin-bottom:52px}
+        .dev-service{padding:16px 14px;border:1px solid rgba(255,255,255,.08);border-radius:8px;background:rgba(255,255,255,.02);text-align:center;transition:.2s;text-decoration:none;color:inherit}
+        .dev-service:hover{border-color:rgba(53,120,246,.4);background:rgba(53,120,246,.06);color:#fff}
+        .dev-service-ico{font-size:20px;margin-bottom:8px;display:block}
+        .dev-service strong{display:block;font-size:11px;font-weight:700;color:#fff;margin-bottom:3px}
+        .dev-service span{font-size:10px;color:rgba(255,255,255,.45);font-family:"JetBrains Mono",monospace}
+        /* ── Bottom CTA bar ── */
+        .dev-cta-bar{display:flex;align-items:center;justify-content:space-between;gap:24px;padding:32px 36px;border:1px solid rgba(53,120,246,.22);border-radius:12px;background:linear-gradient(120deg,rgba(53,120,246,.12),rgba(85,214,232,.04))}
+        .dev-cta-bar h3{font-family:Manrope,sans-serif;font-size:22px;font-weight:800;margin:0 0 6px;color:#fff}
+        .dev-cta-bar p{font-size:13px;color:rgba(255,255,255,.55);margin:0}
+        .dev-cta-links{display:flex;gap:10px;flex-shrink:0}
+        @media(max-width:1050px){
+          .dev-journey{grid-template-columns:1fr 1fr}
+          .dev-step:nth-child(2){border-right:0}
+          .dev-step:nth-child(1),.dev-step:nth-child(2){border-bottom:1px solid rgba(255,255,255,.08)}
+          .dev-caps{grid-template-columns:1fr 1fr}
+          .dev-services{grid-template-columns:repeat(3,1fr)}
+          .dev-split{grid-template-columns:1fr}
+        }
+        @media(max-width:700px){
+          .dev-section{padding:68px 0}
+          .dev-journey{grid-template-columns:1fr}
+          .dev-step{border-right:0;border-bottom:1px solid rgba(255,255,255,.08)}
+          .dev-step:last-child{border-bottom:0}
+          .dev-caps{grid-template-columns:1fr}
+          .dev-services{grid-template-columns:repeat(2,1fr)}
+          .dev-cta-bar{flex-direction:column;align-items:flex-start;padding:24px}
+          .dev-cta-links{flex-direction:column;width:100%}
+          .dev-cta-links .button{width:100%;text-align:center}
+        }
+      </style>
+
+      <div class="container">
+        <div class="section-heading reveal">
+          <div>
+            <div class="eyebrow">Developer platform</div>
+          </div>
+          <div>
+            <h2 id="devSectionTitle">Build with predictable, authenticated APIs.</h2>
+            <p class="dev-section-intro">HMAC-signed requests, idempotent operations, structured errors, and integration guides for terminals, server connections, wallets, ISO messaging, and payment rails.</p>
+          </div>
+        </div>
+
+        <!-- Integration journey: 4 steps -->
+        <div class="dev-journey reveal">
+          <div class="dev-step">
+            <div class="dev-step-num">01</div>
+            <h4>Request access</h4>
+            <p>Register as a merchant to receive a HMAC key ID and secret. Credentials are provisioned by an administrator and scoped to your merchant account.</p>
+          </div>
+          <div class="dev-step">
+            <div class="dev-step-num">02</div>
+            <h4>Sign requests</h4>
+            <p>Every API call carries four headers — key ID, Unix timestamp (ms), unique nonce, and an HMAC-SHA256 signature over the concatenated request body.</p>
+          </div>
+          <div class="dev-step">
+            <div class="dev-step-num">03</div>
+            <h4>Integrate &amp; test</h4>
+            <p>Use the developer portal to walk through T2T, S2S, wallet, ledger, and ISO 20022 / ISO 8583 flows with live code examples and idempotency guidance.</p>
+          </div>
+          <div class="dev-step">
+            <div class="dev-step-num">04</div>
+            <h4>Go live</h4>
+            <p>Activate your terminals, whitelist your server IPs, and start processing. Every transaction posts an immutable double-entry ledger record automatically.</p>
+          </div>
+        </div>
+
+        <!-- Service capability grid -->
+        <div class="dev-caps reveal">
+          <div class="dev-cap">
+            <div class="dev-cap-icon">⇄</div>
+            <h4>Terminal-to-Terminal (T2T)</h4>
+            <p>Move funds directly between two registered terminals over your whitelisted IP. Uses an idempotency key hashed to a deterministic journal reference — zero double-posts even on retries.</p>
+            <div class="dev-cap-tags"><span class="dev-cap-tag">POST /t2t/transfer</span><span class="dev-cap-tag">HMAC</span><span class="dev-cap-tag">Idempotent</span></div>
+          </div>
+          <div class="dev-cap">
+            <div class="dev-cap-icon">⇋</div>
+            <h4>Server-to-Server (S2S)</h4>
+            <p>Establish encrypted server connections and initiate payments between institutions. Supports bank withdrawals, receipts, and bilateral reconciliation with full audit logs.</p>
+            <div class="dev-cap-tags"><span class="dev-cap-tag">POST /s2s/payments</span><span class="dev-cap-tag">AES-256-GCM</span><span class="dev-cap-tag">Bilateral</span></div>
+          </div>
+          <div class="dev-cap">
+            <div class="dev-cap-icon">◈</div>
+            <h4>Wallets &amp; Ledger</h4>
+            <p>Create CUSTOMER, MERCHANT, ESCROW, or TREASURY wallets. Every balance is backed by a double-entry ledger account — holds, releases, escrow, and transfers are all ledger operations.</p>
+            <div class="dev-cap-tags"><span class="dev-cap-tag">POST /wallets</span><span class="dev-cap-tag">Double-entry</span><span class="dev-cap-tag">Escrow</span></div>
+          </div>
+          <div class="dev-cap">
+            <div class="dev-cap-icon">⬡</div>
+            <h4>ISO 20022 Messaging</h4>
+            <p>Parse and generate pacs.008, pacs.009, pacs.002, camt.053, MT103, and MT202 messages. The SUPE engine ingests raw XML via a signed ingest endpoint with SHA-256 checksum verification.</p>
+            <div class="dev-cap-tags"><span class="dev-cap-tag">POST /supe/ingest/xml</span><span class="dev-cap-tag">pacs.008</span><span class="dev-cap-tag">MT103</span></div>
+          </div>
+          <div class="dev-cap">
+            <div class="dev-cap-icon">⊞</div>
+            <h4>ISO 8583 &amp; Authorization</h4>
+            <p>Submit card authorizations, captures, and reversals through the switch core. The fraud engine runs velocity, blacklist, and AML checks before every authorization, returning standard response codes.</p>
+            <div class="dev-cap-tags"><span class="dev-cap-tag">POST /transactions/authorize</span><span class="dev-cap-tag">0110 MTI</span><span class="dev-cap-tag">Fraud engine</span></div>
+          </div>
+          <div class="dev-cap">
+            <div class="dev-cap-icon">↗</div>
+            <h4>Webhooks &amp; Streaming</h4>
+            <p>Register webhook endpoints to receive real-time event delivery for payments posted, settlements completed, and chargebacks opened. Signed with HMAC so you can verify every delivery.</p>
+            <div class="dev-cap-tags"><span class="dev-cap-tag">POST /webhooks/subscriptions</span><span class="dev-cap-tag">HMAC-signed</span><span class="dev-cap-tag">Kafka</span></div>
+          </div>
+        </div>
+
+        <!-- Auth code sample + auth facts -->
+        <div class="dev-split reveal">
+          <div class="dev-code-wrap">
+            <div class="dev-code-bar">
+              <div class="dev-code-dots"><span></span><span></span><span></span></div>
+              <span class="dev-code-label">sign-request.js — HMAC-SHA256 signing</span>
+            </div>
+            <pre><span class="cm">// Build the four required auth headers</span>
+<span class="kw">import</span> { createHmac, randomBytes } <span class="kw">from</span> <span class="str">'crypto'</span>;
+
+<span class="kw">const</span> <span class="fn">signRequest</span> = (keyId, secret, body = <span class="str">''</span>) =&gt; {
+  <span class="kw">const</span> timestamp = <span class="fn">String</span>(Date.now()); <span class="cm">// 13-digit ms</span>
+  <span class="kw">const</span> nonce     = <span class="fn">randomBytes</span>(<span class="num">16</span>).toString(<span class="str">'hex'</span>);
+  <span class="kw">const</span> payload   = keyId + timestamp + nonce + body;
+  <span class="kw">const</span> signature = <span class="fn">createHmac</span>(<span class="str">'sha256'</span>, secret)
+                      .update(payload).digest(<span class="str">'hex'</span>);
+  <span class="kw">return</span> {
+    <span class="str">'x-primestack-key-id'</span>:    keyId,
+    <span class="str">'x-primestack-timestamp'</span>: timestamp,
+    <span class="str">'x-primestack-nonce'</span>:     nonce,
+    <span class="str">'x-primestack-signature'</span>: signature,
+  };
+};
+
+<span class="cm">// POST /t2t/transfer</span>
+<span class="kw">const</span> body = JSON.stringify({
+  sourceId: <span class="str">'TID-001'</span>, destId: <span class="str">'TID-002'</span>,
+  amount: <span class="str">'500.00'</span>,  currency: <span class="str">'USD'</span>,
+});
+<span class="kw">const</span> headers = <span class="fn">signRequest</span>(KEY_ID, SECRET, body);
+<span class="kw">await</span> <span class="fn">fetch</span>(<span class="str">'https://api.primestack.io/t2t/transfer'</span>, {
+  method: <span class="str">'POST'</span>,
+  headers: { ...headers, <span class="str">'content-type'</span>: <span class="str">'application/json'</span>,
+             <span class="str">'x-primestack-idempotency-key'</span>: nonce },
+  body,
+});</pre>
+          </div>
+          <div class="dev-auth-facts">
+            <div class="dev-auth-fact">
+              <strong>Four required headers</strong>
+              <span>Every request carries <code>x-primestack-key-id</code>, <code>x-primestack-timestamp</code>, <code>x-primestack-nonce</code>, and <code>x-primestack-signature</code>. Missing any one returns <code>401</code>.</span>
+            </div>
+            <div class="dev-auth-fact">
+              <strong>Timestamp window</strong>
+              <span>The server rejects requests where the timestamp is more than ±5 minutes from server time. Synchronise your clock with NTP before signing.</span>
+            </div>
+            <div class="dev-auth-fact">
+              <strong>Nonce replay protection</strong>
+              <span>Each nonce is stored on first use and rejected on replay. Use a cryptographically random 16–128 character alphanumeric string per request.</span>
+            </div>
+            <div class="dev-auth-fact">
+              <strong>Idempotency key (T2T)</strong>
+              <span>T2T transfers require <code>x-primestack-idempotency-key</code>. The same key with the same parameters returns the original result without re-posting to the ledger.</span>
+            </div>
+            <div class="dev-auth-fact">
+              <strong>Signature scope</strong>
+              <span>The HMAC is computed over <code>keyId + timestamp + nonce + body</code>. For GET requests body is an empty string. Use HMAC-SHA256 with the full secret.</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Service quick-links -->
+        <div class="dev-services reveal">
+          <a class="dev-service" href="/developer/t2t">
+            <span class="dev-service-ico">⇄</span>
+            <strong>T2T</strong>
+            <span>Terminal transfer</span>
+          </a>
+          <a class="dev-service" href="/developer/s2s">
+            <span class="dev-service-ico">⇋</span>
+            <strong>S2S</strong>
+            <span>Server payments</span>
+          </a>
+          <a class="dev-service" href="/developer/wallets">
+            <span class="dev-service-ico">◈</span>
+            <strong>Wallets</strong>
+            <span>Accounts &amp; ledger</span>
+          </a>
+          <a class="dev-service" href="/developer/iso20022">
+            <span class="dev-service-ico">⬡</span>
+            <strong>ISO 20022</strong>
+            <span>Message parsing</span>
+          </a>
+          <a class="dev-service" href="/developer/iso8583">
+            <span class="dev-service-ico">⊞</span>
+            <strong>ISO 8583</strong>
+            <span>Card switching</span>
+          </a>
+          <a class="dev-service" href="/developer/banking">
+            <span class="dev-service-ico">🏦</span>
+            <strong>Banking</strong>
+            <span>Rails &amp; routing</span>
+          </a>
+          <a class="dev-service" href="/developer/security">
+            <span class="dev-service-ico">🔐</span>
+            <strong>Security</strong>
+            <span>Auth &amp; access</span>
+          </a>
+          <a class="dev-service" href="/developer/ping">
+            <span class="dev-service-ico">⟳</span>
+            <strong>Ping &amp; health</strong>
+            <span>Connectivity</span>
+          </a>
+          <a class="dev-service" href="/developer/api">
+            <span class="dev-service-ico">↗</span>
+            <strong>API gateway</strong>
+            <span>Keys &amp; webhooks</span>
+          </a>
+          <a class="dev-service" href="/developer/funds">
+            <span class="dev-service-ico">💰</span>
+            <strong>Funds guide</strong>
+            <span>Movement flow</span>
+          </a>
+          <a class="dev-service" href="/developer/reference">
+            <span class="dev-service-ico">📖</span>
+            <strong>API reference</strong>
+            <span>Full docs</span>
+          </a>
+          <a class="dev-service" href="/merchant-register">
+            <span class="dev-service-ico">✦</span>
+            <strong>Get access</strong>
+            <span>Register merchant</span>
+          </a>
+        </div>
+
+        <!-- Bottom CTA -->
+        <div class="dev-cta-bar reveal">
+          <div>
+            <h3>Ready to integrate?</h3>
+            <p>Open the full Developer Integration Center for step-by-step guides, live code samples, T2T flows, authentication walkthroughs, and the complete API reference.</p>
+          </div>
+          <div class="dev-cta-links">
+            <a class="button primary" href="/developer">Open developer portal</a>
+            <a class="button light" href="/developer/funds">Funds movement guide</a>
+          </div>
+        </div>
+      </div>
+    </section>
 
     <section class="cta home-only" id="homeCta"><div class="container"><div class="cta-box reveal"><div><div class="eyebrow">Start building</div><h2>Bring your payment operations onto one network.</h2><p>Explore integration resources for your rails, markets, settlement model, and operating requirements.</p></div><div class="cta-actions"><a class="button light" href="/developer">View developer portal</a></div></div></div></section>
   </main>
@@ -1952,7 +2325,7 @@
       "Global payment infrastructure for collection, transfers, settlement, banking, wallets, and developer integrations.": "Globale Zahlungsinfrastruktur für Einzug, Überweisungen, Abwicklung, Banking, Wallets und Entwicklerintegrationen.",
       "Payments": "Zahlungen",
       "Network": "Netzwerk",
-      "Subscriptions & charges": "Abonnements & Gebühren",
+      "Service pricing": "Servicepreise",
       "Company": "Unternehmen",
       "Cookies": "Cookies",
       "© 2026 PrimeStack Global Server Network": "© 2026 PrimeStack Global Server Network",
@@ -1990,7 +2363,7 @@
       "/security":{"eyebrow":"Security","title":"Security built into<br><em>every request.</em>","text":"Identity, network controls, replay resistance, secret handling, audit visibility, and least-privilege administration are platform primitives.","cards":[["01","Signed requests","HMAC-SHA256 authentication and timestamp validation protect API communication.","Developer security","/developer"],["02","Network controls","IP allowlisting, nonce handling, and request validation restrict access.","Compliance","/compliance"],["03","Audit visibility","Track operator and transaction activity across operational boundaries.","Governance","/compliance"]]},
       "/compliance":{"eyebrow":"Compliance and governance","title":"Operate with<br><em>clear boundaries.</em>","text":"PrimeStack supports role-based access, audit records, network policy, approval workflows, and documented operating practices.","cards":[["01","Role-based access","Restrict console and API operations according to assigned responsibilities.","Security","/security"],["02","Transaction review","Review transaction status, routing, settlement, and exception state.","Network operations","/network"],["03","Policy controls","Document acceptable use and platform participation requirements.","Terms","/terms"]]},
       "/solutions":{"eyebrow":"Solutions","title":"Infrastructure shaped<br><em>around your business.</em>","text":"PrimeStack supports merchants, enterprises, banking partners, technology partners, and payment operators.","cards":[["01","Merchants","Connect collection, transfers, wallet, terminal, and payout experiences.","For merchants","/merchants"],["02","Enterprises","Coordinate global treasury, settlement, and supplier payment operations.","For enterprises","/enterprises"],["03","Partners","Build, integrate, operate, and extend connected payment capabilities.","Partner network","/partners"]]},
-      "/pricing":{"eyebrow":"Plans & pricing","title":"Four plans.<br><em>Seven days of access.</em>","text":"Silver is $3,000 USD, Platinum is $6,000 USD, and Gold is $10,000 USD per 7-day service period. Custom pricing depends on the services selected. Recharge or renew after 7 days to continue service.","cards":[["01","Silver","$3,000 USD for a 7-day period with core platform access.","View Silver","/contact"],["02","Platinum","$6,000 USD for a 7-day period with expanded platform access.","View Platinum","/contact"],["03","Gold","$10,000 USD for a 7-day period with premium platform access.","View Gold","/contact"],["04","Custom","Choose the services for your package; price is quoted for a 7-day access period.","Request a custom quote","/contact"]]},
+      "/pricing":{"eyebrow":"Service pricing","title":"Pay per service.<br><em>Move the value.</em>","text":"Book the service you need and pay only for that booking. Transaction and connectivity services are $500, fund receiving ranges from $500 to $1,000, merchant dashboard access is $5,000 for three months, and a 30-minute discussion is $50.","cards":[["01","Transaction &amp; connectivity","Server to server, terminal to terminal, ledger to ledger, IP to IP, and API to API bookings at $500.","Book a service","/contact"],["02","Fund receiving &amp; wallet","Receiving bank, global server, and M1 server funds, plus direct M1 wallet transfers from $500 to $1,000.","Book a service","/contact"],["03","Dashboard access","Merchant dashboard access for a three-month term at $5,000.","Get access","/merchant-register"],["04","Discussion","A 30-minute paid discussion booked in North American time for $50.","Book a discussion","/contact"]]},
       "/merchants":{"eyebrow":"Merchant solutions","title":"Payments that fit<br><em>your operating model.</em>","text":"Give merchants tools for balances, transfers, terminals, receiving accounts, API credentials, payment links, and reporting.","cards":[["01","Merchant operations","Manage balances, payouts, wallet activity, and bank profiles.","Merchant platform","/wallets"],["02","Terminal operations","Register, monitor, and connect terminal or external sender endpoints.","Global network","/network"],["03","Developer tools","Generate integration credentials and inspect API resources.","Developer portal","/developer"]]},
       "/enterprises":{"eyebrow":"Enterprise solutions","title":"One view of<br><em>global money movement.</em>","text":"Support treasury operations, supplier payments, settlements, reconciliation, controlled access, and global rail coordination.","cards":[["01","Treasury control","Coordinate balances, payment approvals, and ledger activity.","Wallet infrastructure","/wallets"],["02","Global payments","Send funds through supported domestic and international routes.","Send payments","/send"],["03","Operational reporting","Monitor transactions, settlements, and exception state.","Settlement operations","/settlement"]]},
       "/partners":{"eyebrow":"Partner network","title":"Build beyond<br><em>the platform.</em>","text":"Partner with PrimeStack across technology integration, banking connectivity, merchant distribution, processing, and network operations.","cards":[["01","Technology partners","Integrate applications and infrastructure through documented APIs.","Developer portal","/developer"],["02","Banking partners","Explore correspondent, receiving, settlement, and connectivity workflows.","Banking network","/banking"],["03","Distribution partners","Introduce merchants and enterprise payment programs.","Contact partners","/contact"]]},
@@ -2647,8 +3020,7 @@
     })();
   </script>
   <script>
-    // /pricing flight theme: split the intro into words for the scrub effect and
-    // provide an IntersectionObserver fallback where animation-timeline is unsupported.
+    // /pricing page: word-scrub intro and the discussion booking calendar.
     (function () {
       const flight = document.getElementById('pricingFlight');
       if (!flight) return;
@@ -2668,10 +3040,103 @@
         const frag = document.createElement('p'); walk(intro, frag); intro.replaceChildren(...frag.childNodes);
       }
 
-      if (!CSS.supports('animation-timeline: scroll()')) {
-        const io = new IntersectionObserver(es => es.forEach(e => e.isIntersecting && e.target.classList.add('in')), { threshold: .25 });
-        flight.querySelectorAll('.pf-card').forEach(c => io.observe(c));
+      // ---- discussion booking ----
+      const calGrid = document.getElementById('pfCalGrid');
+      const calLabel = document.getElementById('pfCalLabel');
+      const prevBtn = document.getElementById('pfCalPrev');
+      const nextBtn = document.getElementById('pfCalNext');
+      const slotsWrap = document.getElementById('pfSlots');
+      const slotsTitle = document.getElementById('pfSlotsTitle');
+      const slotList = document.getElementById('pfSlotList');
+      const summary = document.getElementById('pfSummary');
+      const form = document.getElementById('pfForm');
+      const confirmBox = document.getElementById('pfConfirm');
+      if (!calGrid || !form) return;
+
+      const BOOK_EMAIL = 'support@primestack.io';
+      const DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+      const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+      // 30-minute slots, 8:00 AM to 1:00 PM US Eastern (= 5:00 PM to 10:00 PM Dubai).
+      const ET_START = 8 * 60, ET_END = 13 * 60, DXB_SHIFT = 9 * 60;
+      const SLOTS = [];
+      for (let m = ET_START; m <= ET_END; m += 30) SLOTS.push(m);
+
+      const fmt = mins => {
+        const h = Math.floor((mins % 1440) / 60), m = mins % 60, ap = h >= 12 ? 'PM' : 'AM';
+        const hh = h % 12 === 0 ? 12 : h % 12;
+        return hh + ':' + String(m).padStart(2, '0') + ' ' + ap;
+      };
+      const esc = value => String(value).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch]);
+
+      const today = new Date(); today.setHours(0, 0, 0, 0);
+      let viewYear = today.getFullYear(), viewMonth = today.getMonth();
+      let selDate = null, selSlot = null;
+
+      const sameDay = (a, b) => a && b && a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+      const dubai = mins => (mins + DXB_SHIFT) % 1440;
+
+      function renderCalendar() {
+        calLabel.textContent = MONTHS[viewMonth] + ' ' + viewYear;
+        const first = new Date(viewYear, viewMonth, 1).getDay();
+        const days = new Date(viewYear, viewMonth + 1, 0).getDate();
+        let html = DOW.map(d => '<span class="pf-dow">' + d + '</span>').join('');
+        for (let i = 0; i < first; i++) html += '<span class="pf-day is-empty"></span>';
+        for (let d = 1; d <= days; d++) {
+          const date = new Date(viewYear, viewMonth, d);
+          const past = date < today;
+          const sel = sameDay(date, selDate);
+          html += '<button type="button" class="pf-day' + (sel ? ' sel' : '') + '" data-day="' + d + '"' + (past ? ' disabled' : '') + '>' + d + '</button>';
+        }
+        calGrid.innerHTML = html;
+        prevBtn.disabled = viewYear === today.getFullYear() && viewMonth === today.getMonth();
       }
+
+      function renderSlots() {
+        if (!selDate) { slotsWrap.hidden = true; return; }
+        slotsWrap.hidden = false;
+        slotsTitle.textContent = 'Available times · ' + MONTHS[selDate.getMonth()] + ' ' + selDate.getDate() + ', ' + selDate.getFullYear();
+        slotList.innerHTML = SLOTS.map(m =>
+          '<button type="button" class="pf-slot' + (m === selSlot ? ' sel' : '') + '" data-slot="' + m + '"><span>' + fmt(m) + ' ET</span><em>' + fmt(dubai(m)) + ' Dubai</em></button>'
+        ).join('');
+      }
+
+      function updateSummary() {
+        if (!selDate || selSlot === null) { summary.textContent = 'Select a date and time to continue.'; return; }
+        summary.innerHTML = 'Discussion on <b>' + MONTHS[selDate.getMonth()] + ' ' + selDate.getDate() + ', ' + selDate.getFullYear() + '</b> at <b>' + fmt(selSlot) + ' ET</b> (' + fmt(dubai(selSlot)) + ' Dubai) · 30 minutes · <b>USD 50</b>';
+      }
+
+      calGrid.addEventListener('click', e => {
+        const btn = e.target.closest('.pf-day');
+        if (!btn || btn.disabled) return;
+        selDate = new Date(viewYear, viewMonth, Number(btn.dataset.day));
+        selSlot = null;
+        renderCalendar(); renderSlots(); updateSummary();
+      });
+      slotList.addEventListener('click', e => {
+        const btn = e.target.closest('.pf-slot');
+        if (!btn) return;
+        selSlot = Number(btn.dataset.slot);
+        renderSlots(); updateSummary();
+      });
+      prevBtn.addEventListener('click', () => { viewMonth--; if (viewMonth < 0) { viewMonth = 11; viewYear--; } renderCalendar(); });
+      nextBtn.addEventListener('click', () => { viewMonth++; if (viewMonth > 11) { viewMonth = 0; viewYear++; } renderCalendar(); });
+
+      form.addEventListener('submit', e => {
+        e.preventDefault();
+        if (!selDate || selSlot === null) { summary.textContent = 'Please choose a date and time for your discussion.'; return; }
+        const name = document.getElementById('pfName').value.trim();
+        const email = document.getElementById('pfEmail').value.trim();
+        const company = document.getElementById('pfCompany').value.trim();
+        const notes = document.getElementById('pfNotes').value.trim();
+        if (!name || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { summary.textContent = 'Please enter your name and a valid email address.'; return; }
+        const when = MONTHS[selDate.getMonth()] + ' ' + selDate.getDate() + ', ' + selDate.getFullYear() + ' at ' + fmt(selSlot) + ' ET (' + fmt(dubai(selSlot)) + ' Dubai)';
+        const body = ['Discussion booking request', '', 'Name: ' + name, 'Email: ' + email, company ? 'Company: ' + company : '', 'Date & time: ' + when, 'Duration: 30 minutes', 'Fee: USD 50', notes ? 'Notes: ' + notes : ''].filter(Boolean).join('\r\n');
+        confirmBox.hidden = false;
+        confirmBox.innerHTML = 'Reserved: <b>' + esc(name) + '</b>, your 30-minute discussion is set for <b>' + esc(when) + '</b> (fee <b>USD 50</b>).<br>Send the request to confirm → <a href="mailto:' + BOOK_EMAIL + '?subject=' + encodeURIComponent('Discussion booking request — ' + name) + '&body=' + encodeURIComponent(body) + '">' + BOOK_EMAIL + '</a>';
+        confirmBox.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      });
+
+      renderCalendar();
     })();
   </script>
 </body>
