@@ -28,7 +28,7 @@ const prisma = new PrismaClient();
 const PLATFORM_TID        = "EP022162";
 const PLATFORM_MSN        = "PSM-4AA182A2";
 const PLATFORM_SERIAL     = "PSN-EP022162-001";
-const PLATFORM_MERCHANT_CODE = "MERCHANT-001"; // seed merchant — replace with real ID in prod
+const PLATFORM_MERCHANT_CODE = "PSM-4AA182A2"; // production merchant
 
 const SETTLEMENT_CURRENCIES = ["USD", "EUR", "GBP", "AED", "INR"] as const;
 

@@ -543,6 +543,7 @@ function sidebar(active) {
     ${link('/platform/banks','Bank Connections','<svg width="14" height="14" fill="none" viewBox="0 0 16 16"><rect x="1" y="5" width="14" height="9" rx="1.5" stroke="currentColor" stroke-width="1.5"/><path d="M1 8h14M5 8v6M11 8v6" stroke="currentColor" stroke-width="1.5"/><path d="M8 2L1 5h14L8 2z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>')}
     ${link('/platform/funding','Funding','<svg width="14" height="14" fill="none" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.5" stroke="currentColor" stroke-width="1.5"/><path d="M8 5v6M6 9.5c0 .83.67 1.5 2 1.5s2-.67 2-1.5S10.5 8 8 8s-2-.67-2-1.5S6.67 5 8 5s2 .67 2 1.5" stroke="currentColor" stroke-width="1.5"/></svg>')}
     ${link('/platform/receive-funds','Receive Funds','<svg width="14" height="14" fill="none" viewBox="0 0 16 16"><path d="M2 8h8m0 0L7 5m3 3L7 11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><rect x="10" y="3" width="4" height="10" rx="1" stroke="currentColor" stroke-width="1.5"/></svg>')}
+    ${link('/platform/disburse','Disburse Funds','<svg width="14" height="14" fill="none" viewBox="0 0 16 16"><path d="M14 8H6m0 0l3-3M6 8l3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><rect x="2" y="3" width="4" height="10" rx="1" stroke="currentColor" stroke-width="1.5"/></svg>')}
     ${link('/platform/wise-virtual-bank','Wise Virtual Bank','<svg width="14" height="14" fill="none" viewBox="0 0 16 16"><path d="M2 3.5h12M2 3.5v9a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-9M5 6.5h6M5 9h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>')}
     ${link('/platform/server-funds','Server Funds','<svg width="14" height="14" fill="none" viewBox="0 0 16 16"><ellipse cx="8" cy="4" rx="6" ry="2" stroke="currentColor" stroke-width="1.5"/><path d="M2 4v4c0 1.1 2.7 2 6 2s6-.9 6-2V4M2 8v4c0 1.1 2.7 2 6 2s6-.9 6-2V8" stroke="currentColor" stroke-width="1.5"/></svg>')}
     ${link('/platform/s2s-engine','S2S Engine','<svg width="14" height="14" fill="none" viewBox="0 0 16 16"><path d="M2 8h9M8 5l3 3-3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><circle cx="3" cy="8" r="1.5" fill="currentColor"/></svg>', active)}
@@ -5561,6 +5562,584 @@ document.addEventListener('DOMContentLoaded', function(){initTabs('sc');loadTxLi
 `);
 }
 
+// --- Disburse Funds ----------------------------------------------------------
+function disbursePage() {
+  return page('Disburse Funds', '/platform/disburse', `
+<div class="page-header">
+  <div class="breadcrumb"><a href="/">Home</a><span>/</span><a href="/platform">Platform</a><span>/</span>Disburse Funds</div>
+  <h1>Disburse Funds</h1>
+  <p>Move funds collected on the platform terminal to any destination — your bank account, merchant wallets, or other terminals. Every disbursement posts an immutable double-entry ledger record.</p>
+</div>
+
+<!-- Terminal balance -->
+<div class="stat-row" style="margin-bottom:20px">
+  <div class="stat" style="border-color:var(--accent-border);background:var(--accent-bg)">
+    <div class="stat-val" id="dsb-bal-terminal" style="color:var(--accent)">…</div>
+    <div class="stat-lbl">EP022162 Available (USD)</div>
+  </div>
+  <div class="stat">
+    <div class="stat-val" id="dsb-bal-reserve" style="color:var(--success)">…</div>
+    <div class="stat-lbl">Platform Reserve (USD)</div>
+  </div>
+  <div class="stat">
+    <div class="stat-val" id="dsb-total-disbursed" style="color:#7c3aed">…</div>
+    <div class="stat-lbl">Total Disbursed (USD)</div>
+  </div>
+  <div style="display:flex;align-items:center">
+    <button class="btn btn-ghost btn-sm" onclick="dsbRefreshBalances()">↻ Refresh</button>
+  </div>
+</div>
+
+<div class="tabs">
+  <div class="tab active" data-g="dsb" data-t="dsb-bank">🏦 To Bank Account</div>
+  <div class="tab" data-g="dsb" data-t="dsb-wallet">◈ To Merchant Wallet</div>
+  <div class="tab" data-g="dsb" data-t="dsb-terminal">⇄ To Terminal</div>
+  <div class="tab" data-g="dsb" data-t="dsb-multi">📋 Bulk Disburse</div>
+  <div class="tab" data-g="dsb" data-t="dsb-history">📋 History</div>
+</div>
+
+<!-- ── TAB 1: To Bank Account ── -->
+<div id="dsb-bank" class="tab-pane active" data-g="dsb">
+<div class="grid-2" style="gap:16px;margin-top:16px;align-items:start">
+  <div class="card">
+    <div class="card-title" style="margin-bottom:4px">🏦 Disburse to Bank Account</div>
+    <div class="card-sub" style="margin-bottom:16px">Move funds from the platform terminal to your ICICI bank account or any external bank.</div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label>Source Account *</label>
+        <select id="dsb-b-source">
+          <option value="TERMINAL-EP022162-USD">TERMINAL-EP022162-USD — Platform Terminal</option>
+          <option value="PLATFORM:RESERVE:USD">PLATFORM:RESERVE:USD — Main Reserve</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Amount *</label>
+        <input id="dsb-b-amount" type="number" placeholder="5000.00" step="0.01">
+      </div>
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label>Currency</label>
+        <select id="dsb-b-currency">
+          <option value="USD">USD</option>
+          <option value="EUR">EUR</option>
+          <option value="GBP">GBP</option>
+          <option value="AED">AED</option>
+          <option value="INR">INR</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Destination Bank</label>
+        <select id="dsb-b-dest-preset" onchange="dsbApplyBankPreset(this.value)">
+          <option value="">— select preset or fill manually —</option>
+          <option value="icici">ICICI — M/S.UNITED SOLAR AND WIND POWER TECHNOLOGIES</option>
+          <option value="custom">Custom bank account</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label>Account Name *</label>
+      <input id="dsb-b-acct-name" placeholder="Beneficiary full legal name">
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label>Account Number *</label>
+        <input id="dsb-b-acct-num" class="input-mono" placeholder="Account / IBAN number">
+      </div>
+      <div class="form-group">
+        <label>SWIFT / BIC *</label>
+        <input id="dsb-b-swift" class="input-mono" placeholder="ICICINBBXXX">
+      </div>
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label>Bank Name</label>
+        <input id="dsb-b-bank-name" placeholder="e.g. ICICI Bank">
+      </div>
+      <div class="form-group">
+        <label>Transfer Method</label>
+        <select id="dsb-b-method">
+          <option value="WIRE">Wire Transfer</option>
+          <option value="SWIFT">SWIFT</option>
+          <option value="ACH">ACH</option>
+          <option value="SEPA">SEPA</option>
+          <option value="INTERNAL">Internal Transfer</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label>Reference / Purpose *</label>
+      <input id="dsb-b-ref" placeholder="e.g. Settlement to ICICI — Nov 2026">
+    </div>
+
+    <div class="form-group">
+      <label>Authorized By *</label>
+      <input id="dsb-b-auth" placeholder="Your name" value="PRIMESTACK TECHNOLOGIES">
+    </div>
+
+    <div class="form-group">
+      <label>Notes</label>
+      <input id="dsb-b-notes" placeholder="Additional context">
+    </div>
+
+    <!-- Ledger preview -->
+    <div style="margin:12px 0;padding:12px;background:var(--accent-bg);border:1px solid var(--accent-border);border-radius:8px;font-size:.78rem">
+      <strong style="color:var(--accent)">Ledger Entry:</strong>
+      <div style="margin-top:6px;line-height:1.9">
+        DEBIT &nbsp; <code id="dsb-b-prev-debit">TERMINAL-EP022162-USD</code><br>
+        CREDIT <code>BANK:OUTGOING:USD</code>
+      </div>
+    </div>
+
+    <button class="btn btn-success" style="width:100%;justify-content:center;padding:11px" onclick="dsbToBank()">
+      🏦 Disburse to Bank Account
+    </button>
+    <div id="dsb-b-result" class="result"></div>
+  </div>
+
+  <div>
+    <!-- Quick presets -->
+    <div class="card" style="margin-bottom:12px">
+      <div class="card-title" style="margin-bottom:8px">Quick Destinations</div>
+      <button class="btn btn-ghost btn-sm" style="width:100%;text-align:left;margin-bottom:6px" onclick="dsbApplyBankPreset('icici')">
+        🏦 ICICI — M/S.UNITED SOLAR AND WIND POWER TECHNOLOGIES (029905003783)
+      </button>
+    </div>
+
+    <!-- Quick amounts -->
+    <div class="card" style="margin-bottom:12px">
+      <div class="card-title" style="margin-bottom:8px">Quick Amounts</div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px">
+        ${[1000,5000,10000,25000,50000,100000].map(n=>`<button class="btn btn-ghost btn-sm" onclick="document.getElementById('dsb-b-amount').value=${n}">\$${n.toLocaleString()}</button>`).join('')}
+      </div>
+    </div>
+
+    <!-- How it works -->
+    <div class="card">
+      <div class="card-title" style="margin-bottom:8px">How disbursement works</div>
+      <div style="font-size:.78rem;line-height:2.1">
+        <div>1. Funds arrive on TERMINAL-EP022162-USD</div>
+        <div>2. You initiate disburse here</div>
+        <div>3. Ledger debits the terminal account</div>
+        <div>4. Ledger credits BANK:OUTGOING:USD</div>
+        <div>5. Your ops team executes the actual wire</div>
+        <div>6. Full audit trail created</div>
+      </div>
+      <div style="margin-top:10px;padding:10px;background:#fef9c3;border:1px solid #fde047;border-radius:7px;font-size:.75rem;color:#713f12">
+        <strong>Note:</strong> The ledger entry is posted immediately. The actual bank wire must be executed separately through your bank.
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ── TAB 2: To Merchant Wallet ── -->
+<div id="dsb-wallet" class="tab-pane" data-g="dsb">
+<div class="grid-2" style="gap:16px;margin-top:16px;align-items:start">
+  <div class="card">
+    <div class="card-title" style="margin-bottom:4px">◈ Disburse to Merchant Wallet</div>
+    <div class="card-sub" style="margin-bottom:16px">Credit any merchant wallet directly from the platform terminal balance.</div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label>Source Account *</label>
+        <select id="dsb-w-source">
+          <option value="TERMINAL-EP022162-USD">TERMINAL-EP022162-USD — Platform Terminal</option>
+          <option value="PLATFORM:RESERVE:USD">PLATFORM:RESERVE:USD — Main Reserve</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Amount *</label>
+        <input id="dsb-w-amount" type="number" placeholder="1000.00" step="0.01">
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label>Destination Wallet Address *</label>
+      <input id="dsb-w-wallet" class="input-mono" placeholder="WALLET-MERCHANT-001 or wallet address">
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label>Currency</label>
+        <select id="dsb-w-currency">
+          <option value="USD">USD</option><option value="EUR">EUR</option><option value="GBP">GBP</option><option value="AED">AED</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Reference *</label>
+        <input id="dsb-w-ref" placeholder="DSB-WALLET-001">
+      </div>
+    </div>
+
+    <div class="form-group"><label>Notes</label><input id="dsb-w-notes" placeholder="Merchant credit, settlement advance…"></div>
+    <button class="btn btn-success" style="width:100%;justify-content:center;padding:11px" onclick="dsbToWallet()">
+      ◈ Disburse to Wallet
+    </button>
+    <div id="dsb-w-result" class="result"></div>
+  </div>
+  <div class="card">
+    <div class="card-title" style="margin-bottom:8px">Active Merchant Wallets</div>
+    <div class="table-wrap">
+      <table><thead><tr><th>Address</th><th>Balance</th><th>Currency</th><th></th></tr></thead>
+      <tbody id="dsb-wallets-tbody"><tr><td colspan="4" style="text-align:center;color:var(--muted)">Loading…</td></tr></tbody></table>
+    </div>
+    <button class="btn btn-ghost btn-sm" style="margin-top:8px" onclick="dsbLoadWallets()">↻ Refresh</button>
+  </div>
+</div>
+</div>
+
+<!-- ── TAB 3: To Terminal ── -->
+<div id="dsb-terminal" class="tab-pane" data-g="dsb">
+<div class="card" style="max-width:600px;margin-top:16px">
+  <div class="card-title" style="margin-bottom:4px">⇄ Disburse to Terminal</div>
+  <div class="card-sub" style="margin-bottom:16px">Move funds from EP022162 to any other registered terminal.</div>
+
+  <div class="form-row">
+    <div class="form-group"><label>Amount *</label><input id="dsb-t-amount" type="number" placeholder="2500.00" step="0.01"></div>
+    <div class="form-group">
+      <label>Currency</label>
+      <select id="dsb-t-currency"><option>USD</option><option>EUR</option><option>GBP</option><option>AED</option></select>
+    </div>
+  </div>
+  <div class="form-row">
+    <div class="form-group"><label>Source TID</label><input id="dsb-t-source" class="input-mono" value="EP022162" readonly></div>
+    <div class="form-group"><label>Destination TID *</label><input id="dsb-t-dest-tid" class="input-mono" placeholder="TID of receiving terminal"></div>
+  </div>
+  <div class="form-group"><label>Reference *</label><input id="dsb-t-ref" placeholder="T2T-DSB-001"></div>
+  <div class="form-group"><label>Notes</label><input id="dsb-t-notes" placeholder="Purpose of terminal transfer"></div>
+  <button class="btn btn-success" style="width:100%;justify-content:center;padding:11px" onclick="dsbToTerminal()">
+    ⇄ Disburse to Terminal
+  </button>
+  <div id="dsb-t-result" class="result"></div>
+</div>
+</div>
+
+<!-- ── TAB 4: Bulk Disburse ── -->
+<div id="dsb-multi" class="tab-pane" data-g="dsb">
+<div class="card" style="margin-top:16px">
+  <div class="card-title" style="margin-bottom:4px">📋 Bulk Disbursement</div>
+  <div class="card-sub" style="margin-bottom:16px">Disburse to multiple destinations from one source in a single operation.</div>
+
+  <div class="form-row" style="margin-bottom:12px">
+    <div class="form-group">
+      <label>Source Account *</label>
+      <select id="dsb-m-source">
+        <option value="TERMINAL-EP022162-USD">TERMINAL-EP022162-USD — Platform Terminal</option>
+        <option value="PLATFORM:RESERVE:USD">PLATFORM:RESERVE:USD — Main Reserve</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Currency</label>
+      <select id="dsb-m-currency"><option>USD</option><option>EUR</option><option>GBP</option></select>
+    </div>
+  </div>
+
+  <div id="dsb-multi-rows">
+    <div class="form-row dsb-multi-row" style="align-items:flex-end;gap:8px;margin-bottom:8px">
+      <div class="form-group" style="flex:2"><label>Destination Account</label><input class="dsb-m-dest input-mono" placeholder="TERMINAL-TID or WALLET-addr"></div>
+      <div class="form-group" style="flex:1"><label>Amount</label><input class="dsb-m-amt" type="number" placeholder="1000.00" step="0.01"></div>
+      <div class="form-group" style="flex:2"><label>Reference</label><input class="dsb-m-ref" placeholder="DSB-001"></div>
+    </div>
+  </div>
+
+  <div style="display:flex;gap:8px;margin-bottom:16px">
+    <button class="btn btn-ghost btn-sm" onclick="dsbAddRow()">+ Add Row</button>
+    <button class="btn btn-ghost btn-sm" onclick="dsbAddPreset('icici')">+ Add ICICI</button>
+  </div>
+
+  <div class="form-group"><label>Authorized By *</label><input id="dsb-m-auth" placeholder="Your name" value="PRIMESTACK TECHNOLOGIES"></div>
+
+  <button class="btn btn-success" style="width:100%;justify-content:center;padding:11px" onclick="dsbBulk()">
+    📋 Execute Bulk Disbursement
+  </button>
+  <div id="dsb-m-result" class="result"></div>
+</div>
+</div>
+
+<!-- ── TAB 5: History ── -->
+<div id="dsb-history" class="tab-pane" data-g="dsb">
+<div class="card" style="margin-top:16px">
+  <div class="card-title" style="margin-bottom:12px">Disbursement History</div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Date</th><th>From</th><th>To</th><th>Amount</th><th>Reference</th><th>Status</th></tr></thead>
+      <tbody id="dsb-hist-tbody"><tr><td colspan="6" style="text-align:center;color:var(--muted)">Loading…</td></tr></tbody>
+    </table>
+  </div>
+  <button class="btn btn-ghost btn-sm" style="margin-top:8px" onclick="dsbLoadHistory()">↻ Refresh</button>
+</div>
+</div>
+
+<script>
+// ── Bank presets ─────────────────────────────────
+var DSB_BANK_PRESETS = {
+  icici: {
+    acctName:  'M/S.UNITED SOLAR AND WIND POWER TECHNOLOGIES',
+    acctNum:   '029905003783',
+    swift:     'ICICINBBXXX',
+    bankName:  'ICICI Bank',
+    method:    'WIRE',
+  }
+};
+
+function dsbApplyBankPreset(key) {
+  var p = DSB_BANK_PRESETS[key];
+  if (!p) return;
+  document.getElementById('dsb-b-acct-name').value = p.acctName;
+  document.getElementById('dsb-b-acct-num').value  = p.acctNum;
+  document.getElementById('dsb-b-swift').value     = p.swift;
+  document.getElementById('dsb-b-bank-name').value = p.bankName;
+  document.getElementById('dsb-b-method').value    = p.method;
+  document.getElementById('dsb-b-prev-debit').textContent = document.getElementById('dsb-b-source').value;
+  toast('ICICI bank details applied', 'ok');
+}
+
+// ── Balance loader ───────────────────────────────
+function dsbRefreshBalances() {
+  api('GET', '/ledger/accounts').then(function(r) {
+    var accounts = r.data.data || r.data || [];
+    var terminal = accounts.find(function(a) { return a.account_number === 'TERMINAL-EP022162-USD'; });
+    var reserve  = accounts.find(function(a) { return a.account_number === 'PLATFORM:RESERVE:USD'; });
+    document.getElementById('dsb-bal-terminal').textContent =
+      terminal ? 'USD ' + parseFloat(terminal.available_balance || terminal.balance).toLocaleString('en-US', {minimumFractionDigits:2}) : '—';
+    document.getElementById('dsb-bal-reserve').textContent =
+      reserve  ? 'USD ' + parseFloat(reserve.available_balance  || reserve.balance).toLocaleString('en-US',  {minimumFractionDigits:2}) : '—';
+  }).catch(function() {
+    document.getElementById('dsb-bal-terminal').textContent = 'Error';
+  });
+
+  // Total disbursed from ledger entries
+  api('GET', '/ledger/entries?source=DISBURSE&pageSize=100').then(function(r) {
+    var entries = (r.data.data || []);
+    var total = entries.reduce(function(sum, e) {
+      return sum + parseFloat(e.totalDebits || 0);
+    }, 0);
+    document.getElementById('dsb-total-disbursed').textContent =
+      'USD ' + total.toLocaleString('en-US', {minimumFractionDigits:2});
+  }).catch(function() {
+    document.getElementById('dsb-total-disbursed').textContent = '—';
+  });
+}
+
+// ── Disburse to bank ─────────────────────────────
+function dsbToBank() {
+  var source  = document.getElementById('dsb-b-source').value;
+  var amount  = document.getElementById('dsb-b-amount').value.trim();
+  var currency= document.getElementById('dsb-b-currency').value;
+  var acctName= document.getElementById('dsb-b-acct-name').value.trim();
+  var acctNum = document.getElementById('dsb-b-acct-num').value.trim();
+  var swift   = document.getElementById('dsb-b-swift').value.trim();
+  var bankName= document.getElementById('dsb-b-bank-name').value.trim();
+  var method  = document.getElementById('dsb-b-method').value;
+  var ref     = document.getElementById('dsb-b-ref').value.trim();
+  var auth    = document.getElementById('dsb-b-auth').value.trim();
+  var notes   = document.getElementById('dsb-b-notes').value.trim();
+
+  if (!amount)  { toast('Amount is required','err'); return; }
+  if (!acctName){ toast('Account name is required','err'); return; }
+  if (!acctNum) { toast('Account number is required','err'); return; }
+  if (!swift)   { toast('SWIFT code is required','err'); return; }
+  if (!ref)     { toast('Reference is required','err'); return; }
+
+  if (!window.confirm('Disburse ' + currency + ' ' + parseFloat(amount).toLocaleString() + ' to ' + acctName + ' (' + acctNum + ')? This will post an immutable ledger entry.')) return;
+
+  var destCode = 'BANK:OUTGOING:' + currency;
+  postLedgerEntry(ref, 'DISBURSE', amount, currency, destCode,
+    { source: source, transferType: method, beneficiaryName: acctName,
+      beneficiaryAccount: acctNum, swiftCode: swift, bankName: bankName,
+      authorizedBy: auth, notes: notes, disbursedAt: new Date().toISOString() },
+    method + ' disbursement to ' + acctName + ' — ' + ref,
+    source
+  ).then(function(r) {
+    showResult('dsb-b-result', r.data, r.ok);
+    if (r.ok) {
+      toast('Disbursed ' + currency + ' ' + parseFloat(amount).toLocaleString() + ' to ' + acctName, 'ok');
+      dsbRefreshBalances();
+      dsbLoadHistory();
+    } else toast('Failed: ' + (r.data.error && r.data.error.message || 'check fields'), 'err');
+  });
+}
+
+// ── Disburse to wallet ───────────────────────────
+function dsbToWallet() {
+  var source  = document.getElementById('dsb-w-source').value;
+  var amount  = document.getElementById('dsb-w-amount').value.trim();
+  var currency= document.getElementById('dsb-w-currency').value;
+  var wallet  = document.getElementById('dsb-w-wallet').value.trim();
+  var ref     = document.getElementById('dsb-w-ref').value.trim();
+  var notes   = document.getElementById('dsb-w-notes').value.trim();
+
+  if (!amount) { toast('Amount is required','err'); return; }
+  if (!wallet) { toast('Destination wallet address is required','err'); return; }
+  if (!ref)    { toast('Reference is required','err'); return; }
+
+  postLedgerEntry(ref, 'DISBURSE', amount, currency, wallet,
+    { source: source, disbursedAt: new Date().toISOString(), notes: notes },
+    'Wallet disbursement to ' + wallet + ' — ' + ref,
+    source
+  ).then(function(r) {
+    showResult('dsb-w-result', r.data, r.ok);
+    if (r.ok) { toast('Disbursed to wallet ' + wallet, 'ok'); dsbRefreshBalances(); }
+    else toast('Failed: ' + (r.data.error && r.data.error.message || 'check fields'), 'err');
+  });
+}
+
+// ── Disburse to terminal ─────────────────────────
+function dsbToTerminal() {
+  var amount  = document.getElementById('dsb-t-amount').value.trim();
+  var currency= document.getElementById('dsb-t-currency').value;
+  var destTid = document.getElementById('dsb-t-dest-tid').value.trim();
+  var ref     = document.getElementById('dsb-t-ref').value.trim();
+  var notes   = document.getElementById('dsb-t-notes').value.trim();
+
+  if (!amount) { toast('Amount is required','err'); return; }
+  if (!destTid){ toast('Destination TID is required','err'); return; }
+  if (!ref)    { toast('Reference is required','err'); return; }
+
+  api('POST', '/t2t/transfer', {
+    sourceId: 'EP022162',
+    destId: destTid,
+    amount: amount,
+    currency: currency,
+    description: notes || 'Disbursement from EP022162 to ' + destTid
+  }).then(function(r) {
+    showResult('dsb-t-result', r.data, r.ok);
+    if (r.ok) { toast('Terminal disbursement complete', 'ok'); dsbRefreshBalances(); }
+    else toast('Failed: ' + (r.data.error && r.data.error.message || 'check fields'), 'err');
+  });
+}
+
+// ── Bulk disbursement ────────────────────────────
+function dsbAddRow() {
+  var container = document.getElementById('dsb-multi-rows');
+  var row = document.createElement('div');
+  row.className = 'form-row dsb-multi-row';
+  row.style.cssText = 'align-items:flex-end;gap:8px;margin-bottom:8px';
+  row.innerHTML = '<div class="form-group" style="flex:2"><input class="dsb-m-dest input-mono" placeholder="Destination account"></div>'
+    + '<div class="form-group" style="flex:1"><input class="dsb-m-amt" type="number" placeholder="Amount" step="0.01"></div>'
+    + '<div class="form-group" style="flex:2"><input class="dsb-m-ref" placeholder="Reference"></div>'
+    + '<button class="btn btn-ghost btn-sm" onclick="this.closest(\'.dsb-multi-row\').remove()" style="flex:none;margin-bottom:0">✕</button>';
+  container.appendChild(row);
+}
+
+function dsbAddPreset(key) {
+  var p = DSB_BANK_PRESETS[key];
+  if (!p) return;
+  var container = document.getElementById('dsb-multi-rows');
+  var row = document.createElement('div');
+  row.className = 'form-row dsb-multi-row';
+  row.style.cssText = 'align-items:flex-end;gap:8px;margin-bottom:8px';
+  row.innerHTML = '<div class="form-group" style="flex:2"><input class="dsb-m-dest input-mono" value="BANK:OUTGOING:USD" readonly></div>'
+    + '<div class="form-group" style="flex:1"><input class="dsb-m-amt" type="number" placeholder="Amount" step="0.01"></div>'
+    + '<div class="form-group" style="flex:2"><input class="dsb-m-ref" placeholder="' + p.acctName + '"></div>'
+    + '<button class="btn btn-ghost btn-sm" onclick="this.closest(\'.dsb-multi-row\').remove()" style="flex:none;margin-bottom:0">✕</button>';
+  container.appendChild(row);
+}
+
+function dsbBulk() {
+  var source   = document.getElementById('dsb-m-source').value;
+  var currency = document.getElementById('dsb-m-currency').value;
+  var auth     = document.getElementById('dsb-m-auth').value.trim();
+  var rows     = Array.from(document.querySelectorAll('.dsb-multi-row'));
+  var items    = rows.map(function(row) {
+    return {
+      dest: row.querySelector('.dsb-m-dest').value.trim(),
+      amt:  row.querySelector('.dsb-m-amt').value.trim(),
+      ref:  row.querySelector('.dsb-m-ref').value.trim(),
+    };
+  }).filter(function(i) { return i.dest && i.amt; });
+
+  if (!items.length) { toast('Add at least one disbursement row','err'); return; }
+
+  var total = items.reduce(function(s,i) { return s + parseFloat(i.amt||0); }, 0);
+  if (!window.confirm('Execute ' + items.length + ' disbursements totalling ' + currency + ' ' + total.toLocaleString() + '?')) return;
+
+  var promises = items.map(function(item, idx) {
+    return postLedgerEntry(
+      item.ref || ('BULK-DSB-' + Date.now() + '-' + idx),
+      'DISBURSE', item.amt, currency, item.dest,
+      { source: source, authorizedBy: auth, bulkIndex: idx },
+      'Bulk disbursement to ' + item.dest,
+      source
+    );
+  });
+
+  Promise.all(promises).then(function(results) {
+    var ok = results.filter(function(r) { return r.ok; }).length;
+    var fail = results.length - ok;
+    showResult('dsb-m-result', { ok: ok, failed: fail, total: results.length }, ok > 0);
+    toast(ok + ' disbursements succeeded' + (fail ? ', ' + fail + ' failed' : ''), ok > 0 ? 'ok' : 'err');
+    dsbRefreshBalances();
+    dsbLoadHistory();
+  });
+}
+
+// ── Load wallets ─────────────────────────────────
+function dsbLoadWallets() {
+  api('GET', '/wallets?status=ACTIVE&pageSize=50').then(function(r) {
+    var wallets = r.data.data || [];
+    var rows = wallets.map(function(w) {
+      return '<tr>'
+        + '<td><code style="font-size:.72rem">' + w.walletAddress + '</code></td>'
+        + '<td><strong>' + parseFloat(w.account && w.account.balance || 0).toLocaleString('en-US',{minimumFractionDigits:2}) + '</strong></td>'
+        + '<td>' + (w.currency||'USD') + '</td>'
+        + '<td><button class="btn btn-ghost btn-sm" onclick="document.getElementById(\'dsb-w-wallet\').value=\'' + w.walletAddress + '\';switchTab(\'dsb\',\'dsb-wallet\')">Select</button></td>'
+        + '</tr>';
+    }).join('');
+    document.getElementById('dsb-wallets-tbody').innerHTML = rows || '<tr><td colspan="4" style="text-align:center;color:var(--muted)">No active wallets</td></tr>';
+  });
+}
+
+// ── Load history ─────────────────────────────────
+function dsbLoadHistory() {
+  api('GET', '/ledger/entries?entryType=TRANSFER&pageSize=20').then(function(r) {
+    var entries = r.data.data || [];
+    var dsb = entries.filter(function(e) {
+      return e.source === 'DISBURSE' || (e.description && e.description.toLowerCase().indexOf('disburs') >= 0);
+    });
+    var rows = dsb.map(function(e) {
+      var meta = e.metadata || {};
+      var debitLine = (e.lines||[]).find(function(l) { return parseFloat(l.debit) > 0; });
+      var creditLine = (e.lines||[]).find(function(l) { return parseFloat(l.credit) > 0; });
+      return '<tr>'
+        + '<td style="font-size:.72rem">' + new Date(e.createdAt).toLocaleString() + '</td>'
+        + '<td><code style="font-size:.7rem">' + (debitLine && debitLine.account && debitLine.account.code || '—') + '</code></td>'
+        + '<td><code style="font-size:.7rem">' + (creditLine && creditLine.account && creditLine.account.code || '—') + '</code></td>'
+        + '<td><strong>' + (debitLine ? parseFloat(debitLine.debit).toLocaleString('en-US',{minimumFractionDigits:2}) : '—') + '</strong></td>'
+        + '<td style="font-size:.72rem"><code>' + e.reference + '</code></td>'
+        + '<td><span class="badge badge-' + (e.status==='POSTED'?'green':'blue') + '">' + e.status + '</span></td>'
+        + '</tr>';
+    }).join('');
+    document.getElementById('dsb-hist-tbody').innerHTML = rows || '<tr><td colspan="6" style="text-align:center;color:var(--muted)">No disbursements yet</td></tr>';
+  });
+}
+
+function switchTab(group, tabId) {
+  document.querySelectorAll('[data-g="'+group+'"].tab').forEach(function(t) { t.classList.remove('active'); });
+  document.querySelectorAll('[data-g="'+group+'"].tab-pane').forEach(function(p) { p.classList.remove('active'); });
+  var tab = document.querySelector('[data-t="'+tabId+'"]');
+  var pane = document.getElementById(tabId);
+  if (tab) tab.classList.add('active');
+  if (pane) pane.classList.add('active');
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  initTabs('dsb');
+  dsbRefreshBalances();
+  dsbLoadWallets();
+  dsbLoadHistory();
+});
+<\/script>
+`);
+}
+
 // --- Receive Real Funds ------------------------------------------------------
 function receiveFundsPage() {
   return page('Receive Real Funds', '/platform/receive-funds', `
@@ -10434,6 +11013,7 @@ switch (path) {
     case '/platform/agents':       html = platformAgentRegistration(); break;
     case '/platform/receive-funds': html = receiveFundsPage();  break;
     case '/platform/server-funds':  html = serverFundsPage();   break;
+    case '/platform/disburse':      html = disbursePage();      break;
     case '/platform/wise-virtual-bank': html = wiseVirtualBankPage(); break;
     case '/platform/rails':         html = railsPage();         break;
     case '/platform/bank-guide':    html = bankIntegrationGuidePage(); break;
