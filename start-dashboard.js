@@ -544,6 +544,7 @@ function sidebar(active) {
     ${link('/platform/funding','Funding','<svg width="14" height="14" fill="none" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.5" stroke="currentColor" stroke-width="1.5"/><path d="M8 5v6M6 9.5c0 .83.67 1.5 2 1.5s2-.67 2-1.5S10.5 8 8 8s-2-.67-2-1.5S6.67 5 8 5s2 .67 2 1.5" stroke="currentColor" stroke-width="1.5"/></svg>')}
     ${link('/platform/receive-funds','Receive Funds','<svg width="14" height="14" fill="none" viewBox="0 0 16 16"><path d="M2 8h8m0 0L7 5m3 3L7 11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><rect x="10" y="3" width="4" height="10" rx="1" stroke="currentColor" stroke-width="1.5"/></svg>')}
     ${link('/platform/disburse','Disburse Funds','<svg width="14" height="14" fill="none" viewBox="0 0 16 16"><path d="M14 8H6m0 0l3-3M6 8l3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><rect x="2" y="3" width="4" height="10" rx="1" stroke="currentColor" stroke-width="1.5"/></svg>')}
+    ${link('/platform/vault-bank','Vault Bank','<svg width="14" height="14" fill="none" viewBox="0 0 16 16"><rect x="2" y="3" width="12" height="10" rx="1.5" stroke="currentColor" stroke-width="1.5"/><circle cx="8" cy="8" r="2" stroke="currentColor" stroke-width="1.5"/><path d="M8 3v2M8 11v2M2 8h2M12 8h2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>', active)}
     ${link('/platform/wise-virtual-bank','Wise Virtual Bank','<svg width="14" height="14" fill="none" viewBox="0 0 16 16"><path d="M2 3.5h12M2 3.5v9a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-9M5 6.5h6M5 9h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>')}
     ${link('/platform/server-funds','Server Funds','<svg width="14" height="14" fill="none" viewBox="0 0 16 16"><ellipse cx="8" cy="4" rx="6" ry="2" stroke="currentColor" stroke-width="1.5"/><path d="M2 4v4c0 1.1 2.7 2 6 2s6-.9 6-2V4M2 8v4c0 1.1 2.7 2 6 2s6-.9 6-2V8" stroke="currentColor" stroke-width="1.5"/></svg>')}
     ${link('/platform/s2s-engine','S2S Engine','<svg width="14" height="14" fill="none" viewBox="0 0 16 16"><path d="M2 8h9M8 5l3 3-3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><circle cx="3" cy="8" r="1.5" fill="currentColor"/></svg>', active)}
@@ -5558,6 +5559,615 @@ function loadSettlementQueue(){
   });
 }
 document.addEventListener('DOMContentLoaded', function(){initTabs('sc');loadTxList();loadAcquirers();loadRoutingRules();loadSettlementQueue();refreshHealthBadge('sc-badge',9019);});
+<\/script>
+`);
+}
+
+// --- Vault Bank --------------------------------------------------------------
+function vaultBankPage() {
+  return page('Vault Bank', '/platform/vault-bank', `
+<div class="page-header">
+  <div class="breadcrumb"><a href="/">Home</a><span>/</span><a href="/platform">Platform</a><span>/</span>Vault Bank</div>
+  <h1>🏛 Vault Bank</h1>
+  <p>Your private server vault — a secured ledger of all real bank accounts across currencies. Funds arriving at any vault account are credited to the platform server. From here you disburse to multiple destinations.</p>
+</div>
+
+<!-- Total vault balance row -->
+<div class="stat-row" style="margin-bottom:20px">
+  <div class="stat" style="border-color:var(--accent-border);background:var(--accent-bg)">
+    <div class="stat-val" id="vb-total-usd" style="color:var(--accent)">…</div>
+    <div class="stat-lbl">Total Vault (USD)</div>
+  </div>
+  <div class="stat">
+    <div class="stat-val" id="vb-total-eur" style="color:#7c3aed">…</div>
+    <div class="stat-lbl">Total Vault (EUR)</div>
+  </div>
+  <div class="stat">
+    <div class="stat-val" id="vb-total-gbp" style="color:#0891b2">…</div>
+    <div class="stat-lbl">Total Vault (GBP)</div>
+  </div>
+  <div class="stat">
+    <div class="stat-val" id="vb-total-sgd" style="color:#059669">…</div>
+    <div class="stat-lbl">Total Vault (SGD)</div>
+  </div>
+  <div class="stat">
+    <div class="stat-val" id="vb-total-inr" style="color:#d97706">…</div>
+    <div class="stat-lbl">Total Vault (INR)</div>
+  </div>
+  <div style="display:flex;align-items:center;gap:8px">
+    <button class="btn btn-ghost btn-sm" onclick="vbRefresh()">↻ Refresh</button>
+    <button class="btn btn-primary btn-sm" onclick="vbOpenCredit()">+ Credit Vault</button>
+  </div>
+</div>
+
+<div class="tabs">
+  <div class="tab active" data-g="vb" data-t="vb-accounts">🏦 Vault Accounts</div>
+  <div class="tab" data-g="vb" data-t="vb-credit">↓ Credit Vault</div>
+  <div class="tab" data-g="vb" data-t="vb-move">↑ Move Funds</div>
+  <div class="tab" data-g="vb" data-t="vb-history">📋 History</div>
+</div>
+
+<!-- ── TAB 1: Vault Accounts ── -->
+<div id="vb-accounts" class="tab-pane active" data-g="vb">
+<div style="margin-top:16px">
+
+  <!-- LOUIS CALTEN — USA (USD) -->
+  <div class="card" style="margin-bottom:12px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+      <div>
+        <div class="card-title" style="margin:0">🇺🇸 LOUIS CALTEN — USA (USD)</div>
+        <div class="card-sub" style="margin:2px 0 0">JPMorgan Chase Bank · Primary USD Vault</div>
+      </div>
+      <div style="text-align:right">
+        <div class="stat-val" id="vb-bal-usa" style="font-size:1.4rem;color:var(--accent)">…</div>
+        <div style="font-size:.7rem;color:var(--muted)">VAULT:LOUIS-CALTEN:USD</div>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;font-size:.78rem">
+      <div><div style="color:var(--muted);font-size:.68rem;text-transform:uppercase;letter-spacing:.06em">Account Holder</div><div style="margin-top:3px;font-weight:600">LOUIS CALTEN</div></div>
+      <div><div style="color:var(--muted);font-size:.68rem;text-transform:uppercase;letter-spacing:.06em">Bank</div><div style="margin-top:3px;font-weight:600" id="vb-usa-bank">[ open PDF to fill ]</div></div>
+      <div><div style="color:var(--muted);font-size:.68rem;text-transform:uppercase;letter-spacing:.06em">Currency</div><div style="margin-top:3px;font-weight:600">USD</div></div>
+      <div><div style="color:var(--muted);font-size:.68rem;text-transform:uppercase;letter-spacing:.06em">Account Number</div><div style="margin-top:3px"><code class="input-mono" id="vb-usa-acct">[ see PDF ]</code></div></div>
+      <div><div style="color:var(--muted);font-size:.68rem;text-transform:uppercase;letter-spacing:.06em">Routing / ABA</div><div style="margin-top:3px"><code class="input-mono" id="vb-usa-routing">[ see PDF ]</code></div></div>
+      <div><div style="color:var(--muted);font-size:.68rem;text-transform:uppercase;letter-spacing:.06em">SWIFT / BIC</div><div style="margin-top:3px"><code class="input-mono" id="vb-usa-swift">[ see PDF ]</code></div></div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:12px">
+      <button class="btn btn-ghost btn-sm" onclick="vbCreditAccount('VAULT:LOUIS-CALTEN:USD','USD','LOUIS CALTEN USA')">↓ Credit</button>
+      <button class="btn btn-ghost btn-sm" onclick="vbMoveFrom('VAULT:LOUIS-CALTEN:USD','USD')">↑ Move Out</button>
+      <button class="btn btn-ghost btn-sm" onclick="vbEditAccount('usa')">✏ Edit Details</button>
+    </div>
+  </div>
+
+  <!-- LOUIS CALTEN — UK (GBP) -->
+  <div class="card" style="margin-bottom:12px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+      <div>
+        <div class="card-title" style="margin:0">🇬🇧 LOUIS CALTEN — UK (GBP)</div>
+        <div class="card-sub" style="margin:2px 0 0">Barclays / NatWest · GBP Vault</div>
+      </div>
+      <div style="text-align:right">
+        <div class="stat-val" id="vb-bal-uk" style="font-size:1.4rem;color:#0891b2">…</div>
+        <div style="font-size:.7rem;color:var(--muted)">VAULT:LOUIS-CALTEN:GBP</div>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;font-size:.78rem">
+      <div><div style="color:var(--muted);font-size:.68rem;text-transform:uppercase;letter-spacing:.06em">Account Holder</div><div style="margin-top:3px;font-weight:600">LOUIS CALTEN</div></div>
+      <div><div style="color:var(--muted);font-size:.68rem;text-transform:uppercase;letter-spacing:.06em">Bank</div><div style="margin-top:3px;font-weight:600" id="vb-uk-bank">[ see PDF ]</div></div>
+      <div><div style="color:var(--muted);font-size:.68rem;text-transform:uppercase;letter-spacing:.06em">Currency</div><div style="margin-top:3px;font-weight:600">GBP</div></div>
+      <div><div style="color:var(--muted);font-size:.68rem;text-transform:uppercase;letter-spacing:.06em">IBAN</div><div style="margin-top:3px"><code class="input-mono" id="vb-uk-iban">[ see PDF ]</code></div></div>
+      <div><div style="color:var(--muted);font-size:.68rem;text-transform:uppercase;letter-spacing:.06em">Sort Code</div><div style="margin-top:3px"><code class="input-mono" id="vb-uk-sort">[ see PDF ]</code></div></div>
+      <div><div style="color:var(--muted);font-size:.68rem;text-transform:uppercase;letter-spacing:.06em">SWIFT / BIC</div><div style="margin-top:3px"><code class="input-mono" id="vb-uk-swift">[ see PDF ]</code></div></div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:12px">
+      <button class="btn btn-ghost btn-sm" onclick="vbCreditAccount('VAULT:LOUIS-CALTEN:GBP','GBP','LOUIS CALTEN UK')">↓ Credit</button>
+      <button class="btn btn-ghost btn-sm" onclick="vbMoveFrom('VAULT:LOUIS-CALTEN:GBP','GBP')">↑ Move Out</button>
+      <button class="btn btn-ghost btn-sm" onclick="vbEditAccount('uk')">✏ Edit Details</button>
+    </div>
+  </div>
+
+  <!-- LOUIS CALTEN — GERMANY (EUR) -->
+  <div class="card" style="margin-bottom:12px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+      <div>
+        <div class="card-title" style="margin:0">🇩🇪 LOUIS CALTEN — GERMANY (EUR)</div>
+        <div class="card-sub" style="margin:2px 0 0">Deutsche Bank / Commerzbank · EUR Vault</div>
+      </div>
+      <div style="text-align:right">
+        <div class="stat-val" id="vb-bal-eur" style="font-size:1.4rem;color:#7c3aed">…</div>
+        <div style="font-size:.7rem;color:var(--muted)">VAULT:LOUIS-CALTEN:EUR</div>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;font-size:.78rem">
+      <div><div style="color:var(--muted);font-size:.68rem;text-transform:uppercase;letter-spacing:.06em">Account Holder</div><div style="margin-top:3px;font-weight:600">LOUIS CALTEN</div></div>
+      <div><div style="color:var(--muted);font-size:.68rem;text-transform:uppercase;letter-spacing:.06em">Bank</div><div style="margin-top:3px;font-weight:600" id="vb-eur-bank">[ see PDF ]</div></div>
+      <div><div style="color:var(--muted);font-size:.68rem;text-transform:uppercase;letter-spacing:.06em">Currency</div><div style="margin-top:3px;font-weight:600">EUR</div></div>
+      <div><div style="color:var(--muted);font-size:.68rem;text-transform:uppercase;letter-spacing:.06em">IBAN</div><div style="margin-top:3px"><code class="input-mono" id="vb-eur-iban">[ see PDF ]</code></div></div>
+      <div><div style="color:var(--muted);font-size:.68rem;text-transform:uppercase;letter-spacing:.06em">BIC</div><div style="margin-top:3px"><code class="input-mono" id="vb-eur-bic">[ see PDF ]</code></div></div>
+      <div><div style="color:var(--muted);font-size:.68rem;text-transform:uppercase;letter-spacing:.06em">SEPA</div><div style="margin-top:3px"><code class="input-mono">SEPA Enabled</code></div></div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:12px">
+      <button class="btn btn-ghost btn-sm" onclick="vbCreditAccount('VAULT:LOUIS-CALTEN:EUR','EUR','LOUIS CALTEN GERMANY')">↓ Credit</button>
+      <button class="btn btn-ghost btn-sm" onclick="vbMoveFrom('VAULT:LOUIS-CALTEN:EUR','EUR')">↑ Move Out</button>
+      <button class="btn btn-ghost btn-sm" onclick="vbEditAccount('eur')">✏ Edit Details</button>
+    </div>
+  </div>
+
+  <!-- LOUIS CALTEN — SINGAPORE (SGD) -->
+  <div class="card" style="margin-bottom:12px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+      <div>
+        <div class="card-title" style="margin:0">🇸🇬 LOUIS CALTEN — SINGAPORE (SGD)</div>
+        <div class="card-sub" style="margin:2px 0 0">DBS / OCBC · SGD Vault</div>
+      </div>
+      <div style="text-align:right">
+        <div class="stat-val" id="vb-bal-sgd" style="font-size:1.4rem;color:#059669">…</div>
+        <div style="font-size:.7rem;color:var(--muted)">VAULT:LOUIS-CALTEN:SGD</div>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;font-size:.78rem">
+      <div><div style="color:var(--muted);font-size:.68rem;text-transform:uppercase;letter-spacing:.06em">Account Holder</div><div style="margin-top:3px;font-weight:600">LOUIS CALTEN</div></div>
+      <div><div style="color:var(--muted);font-size:.68rem;text-transform:uppercase;letter-spacing:.06em">Bank</div><div style="margin-top:3px;font-weight:600" id="vb-sgd-bank">[ see PDF ]</div></div>
+      <div><div style="color:var(--muted);font-size:.68rem;text-transform:uppercase;letter-spacing:.06em">Currency</div><div style="margin-top:3px;font-weight:600">SGD</div></div>
+      <div><div style="color:var(--muted);font-size:.68rem;text-transform:uppercase;letter-spacing:.06em">Account Number</div><div style="margin-top:3px"><code class="input-mono" id="vb-sgd-acct">[ see PDF ]</code></div></div>
+      <div><div style="color:var(--muted);font-size:.68rem;text-transform:uppercase;letter-spacing:.06em">SWIFT / BIC</div><div style="margin-top:3px"><code class="input-mono" id="vb-sgd-swift">[ see PDF ]</code></div></div>
+      <div><div style="color:var(--muted);font-size:.68rem;text-transform:uppercase;letter-spacing:.06em">FAST Enabled</div><div style="margin-top:3px"><code class="input-mono">Yes</code></div></div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:12px">
+      <button class="btn btn-ghost btn-sm" onclick="vbCreditAccount('VAULT:LOUIS-CALTEN:SGD','SGD','LOUIS CALTEN SINGAPORE')">↓ Credit</button>
+      <button class="btn btn-ghost btn-sm" onclick="vbMoveFrom('VAULT:LOUIS-CALTEN:SGD','SGD')">↑ Move Out</button>
+      <button class="btn btn-ghost btn-sm" onclick="vbEditAccount('sgd')">✏ Edit Details</button>
+    </div>
+  </div>
+
+  <!-- LOUIS CALTEN — INDIA (INR) -->
+  <div class="card" style="margin-bottom:12px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+      <div>
+        <div class="card-title" style="margin:0">🇮🇳 LOUIS CALTEN — INDIA (INR)</div>
+        <div class="card-sub" style="margin:2px 0 0">ICICI / HDFC · INR Vault</div>
+      </div>
+      <div style="text-align:right">
+        <div class="stat-val" id="vb-bal-inr" style="font-size:1.4rem;color:#d97706">…</div>
+        <div style="font-size:.7rem;color:var(--muted)">VAULT:LOUIS-CALTEN:INR</div>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;font-size:.78rem">
+      <div><div style="color:var(--muted);font-size:.68rem;text-transform:uppercase;letter-spacing:.06em">Account Holder</div><div style="margin-top:3px;font-weight:600">LOUIS CALTEN</div></div>
+      <div><div style="color:var(--muted);font-size:.68rem;text-transform:uppercase;letter-spacing:.06em">Bank</div><div style="margin-top:3px;font-weight:600" id="vb-inr-bank">[ see PDF ]</div></div>
+      <div><div style="color:var(--muted);font-size:.68rem;text-transform:uppercase;letter-spacing:.06em">Currency</div><div style="margin-top:3px;font-weight:600">INR</div></div>
+      <div><div style="color:var(--muted);font-size:.68rem;text-transform:uppercase;letter-spacing:.06em">Account Number</div><div style="margin-top:3px"><code class="input-mono" id="vb-inr-acct">[ see PDF ]</code></div></div>
+      <div><div style="color:var(--muted);font-size:.68rem;text-transform:uppercase;letter-spacing:.06em">IFSC</div><div style="margin-top:3px"><code class="input-mono" id="vb-inr-ifsc">[ see PDF ]</code></div></div>
+      <div><div style="color:var(--muted);font-size:.68rem;text-transform:uppercase;letter-spacing:.06em">UPI / VPA</div><div style="margin-top:3px"><code class="input-mono" id="vb-inr-upi">[ see PDF ]</code></div></div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:12px">
+      <button class="btn btn-ghost btn-sm" onclick="vbCreditAccount('VAULT:LOUIS-CALTEN:INR','INR','LOUIS CALTEN INDIA')">↓ Credit</button>
+      <button class="btn btn-ghost btn-sm" onclick="vbMoveFrom('VAULT:LOUIS-CALTEN:INR','INR')">↑ Move Out</button>
+      <button class="btn btn-ghost btn-sm" onclick="vbEditAccount('inr')">✏ Edit Details</button>
+    </div>
+  </div>
+
+  <!-- Our receiving terminal -->
+  <div class="card" style="margin-bottom:12px;border-color:var(--accent-border);background:var(--accent-bg)">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+      <div>
+        <div class="card-title" style="margin:0;color:var(--accent)">⚡ PLATFORM TERMINAL — EP022162</div>
+        <div class="card-sub" style="margin:2px 0 0">M/S.UNITED SOLAR AND WIND POWER TECHNOLOGIES · Primary Receiving Terminal</div>
+      </div>
+      <div style="text-align:right">
+        <div class="stat-val" id="vb-bal-terminal" style="font-size:1.4rem;color:var(--accent)">…</div>
+        <div style="font-size:.7rem;color:var(--muted)">TERMINAL-EP022162-USD</div>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;font-size:.78rem">
+      <div><div style="color:var(--muted);font-size:.68rem;text-transform:uppercase;letter-spacing:.06em">Terminal ID</div><div style="margin-top:3px;font-weight:600"><code class="input-mono">EP022162</code></div></div>
+      <div><div style="color:var(--muted);font-size:.68rem;text-transform:uppercase;letter-spacing:.06em">MSN</div><div style="margin-top:3px;font-weight:600"><code class="input-mono">PSM-4AA182A2</code></div></div>
+      <div><div style="color:var(--muted);font-size:.68rem;text-transform:uppercase;letter-spacing:.06em">Bank</div><div style="margin-top:3px;font-weight:600">ICICI Bank</div></div>
+      <div><div style="color:var(--muted);font-size:.68rem;text-transform:uppercase;letter-spacing:.06em">Account</div><div style="margin-top:3px"><code class="input-mono">029905003783</code></div></div>
+      <div><div style="color:var(--muted);font-size:.68rem;text-transform:uppercase;letter-spacing:.06em">SWIFT</div><div style="margin-top:3px"><code class="input-mono">ICICINBBXXX</code></div></div>
+      <div><div style="color:var(--muted);font-size:.68rem;text-transform:uppercase;letter-spacing:.06em">Server IPs</div><div style="margin-top:3px"><code class="input-mono">74.220.49.0/24</code></div></div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:12px">
+      <button class="btn btn-primary btn-sm" onclick="vbMoveFrom('TERMINAL-EP022162-USD','USD')">↑ Move Out to Vault</button>
+      <a class="btn btn-ghost btn-sm" href="/platform/disburse">↗ Full Disburse Panel</a>
+    </div>
+  </div>
+
+</div>
+</div>
+
+<!-- ── TAB 2: Credit Vault ── -->
+<div id="vb-credit" class="tab-pane" data-g="vb">
+<div class="grid-2" style="gap:16px;margin-top:16px;align-items:start">
+  <div class="card">
+    <div class="card-title" style="margin-bottom:4px">↓ Credit Vault Account</div>
+    <div class="card-sub" style="margin-bottom:16px">Record funds that have arrived in one of your vault bank accounts. Verify on the bank statement before submitting.</div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label>Vault Account *</label>
+        <select id="vb-c-account">
+          <option value="VAULT:LOUIS-CALTEN:USD">🇺🇸 LOUIS CALTEN — USA (USD)</option>
+          <option value="VAULT:LOUIS-CALTEN:GBP">🇬🇧 LOUIS CALTEN — UK (GBP)</option>
+          <option value="VAULT:LOUIS-CALTEN:EUR">🇩🇪 LOUIS CALTEN — GERMANY (EUR)</option>
+          <option value="VAULT:LOUIS-CALTEN:SGD">🇸🇬 LOUIS CALTEN — SINGAPORE (SGD)</option>
+          <option value="VAULT:LOUIS-CALTEN:INR">🇮🇳 LOUIS CALTEN — INDIA (INR)</option>
+          <option value="TERMINAL-EP022162-USD">⚡ PLATFORM TERMINAL EP022162 (USD)</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Amount *</label>
+        <input id="vb-c-amount" type="number" placeholder="50000.00" step="0.01">
+      </div>
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label>Sender Name *</label>
+        <input id="vb-c-sender" placeholder="Full legal name of sender">
+      </div>
+      <div class="form-group">
+        <label>Sender Bank</label>
+        <input id="vb-c-sender-bank" placeholder="e.g. Bank of America">
+      </div>
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label>Bank Reference *</label>
+        <input id="vb-c-ref" class="input-mono" placeholder="Wire ref / ACH trace / SWIFT UETR">
+      </div>
+      <div class="form-group">
+        <label>Value Date</label>
+        <input id="vb-c-date" type="date" value="${new Date().toISOString().split('T')[0]}">
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label>Transfer Type</label>
+      <select id="vb-c-type">
+        <option value="WIRE">Wire Transfer</option>
+        <option value="SWIFT">SWIFT</option>
+        <option value="ACH">ACH</option>
+        <option value="SEPA">SEPA</option>
+        <option value="FAST">FAST (Singapore)</option>
+        <option value="NEFT">NEFT / RTGS (India)</option>
+        <option value="INTERNAL">Internal Transfer</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label>Authorized By</label>
+      <input id="vb-c-auth" placeholder="Your name" value="PRIMESTACK TECHNOLOGIES">
+    </div>
+
+    <div class="form-group">
+      <label>Notes</label>
+      <input id="vb-c-notes" placeholder="Purpose, ticket number, context">
+    </div>
+
+    <!-- Confirm -->
+    <div style="margin:14px 0;padding:12px;background:var(--success-bg);border:1px solid var(--success-border);border-radius:8px;display:flex;align-items:flex-start;gap:10px">
+      <input type="checkbox" id="vb-c-confirmed" style="margin-top:2px;flex-shrink:0">
+      <label for="vb-c-confirmed" style="font-size:.8rem;color:var(--success-dark,#166534);cursor:pointer;line-height:1.5">
+        I confirm these funds have physically arrived in the vault bank account and I have verified the amount and reference on the official bank statement.
+      </label>
+    </div>
+
+    <button class="btn btn-success" style="width:100%;justify-content:center;padding:11px" onclick="vbCredit()">
+      ↓ Confirm &amp; Credit Vault
+    </button>
+    <div id="vb-c-result" class="result"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title" style="margin-bottom:8px">Pending Credits</div>
+    <div id="vb-pending-list">
+      <div style="font-size:.8rem;color:var(--muted)">No pending credits saved. Use the Credit button on any vault account card to pre-fill this form.</div>
+    </div>
+    <div style="margin-top:16px;padding:12px;background:#fef9c3;border:1px solid #fde047;border-radius:8px;font-size:.78rem;color:#713f12">
+      <strong>Rule:</strong> Never credit a vault account without a matching line on the real bank statement. The ledger entry is permanent.
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ── TAB 3: Move Funds ── -->
+<div id="vb-move" class="tab-pane" data-g="vb">
+<div class="grid-2" style="gap:16px;margin-top:16px;align-items:start">
+  <div class="card">
+    <div class="card-title" style="margin-bottom:4px">↑ Move Funds from Vault</div>
+    <div class="card-sub" style="margin-bottom:16px">Transfer from any vault account to another vault account, the platform terminal, a merchant wallet, or an external bank.</div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label>From (Source) *</label>
+        <select id="vb-m-from">
+          <option value="VAULT:LOUIS-CALTEN:USD">🇺🇸 LOUIS CALTEN USA (USD)</option>
+          <option value="VAULT:LOUIS-CALTEN:GBP">🇬🇧 LOUIS CALTEN UK (GBP)</option>
+          <option value="VAULT:LOUIS-CALTEN:EUR">🇩🇪 LOUIS CALTEN GERMANY (EUR)</option>
+          <option value="VAULT:LOUIS-CALTEN:SGD">🇸🇬 LOUIS CALTEN SINGAPORE (SGD)</option>
+          <option value="VAULT:LOUIS-CALTEN:INR">🇮🇳 LOUIS CALTEN INDIA (INR)</option>
+          <option value="TERMINAL-EP022162-USD">⚡ PLATFORM TERMINAL EP022162 (USD)</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Amount *</label>
+        <input id="vb-m-amount" type="number" placeholder="10000.00" step="0.01">
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label>To (Destination) *</label>
+      <select id="vb-m-to" onchange="vbToggleCustomDest(this.value)">
+        <option value="TERMINAL-EP022162-USD">⚡ PLATFORM TERMINAL EP022162 (USD)</option>
+        <option value="VAULT:LOUIS-CALTEN:USD">🇺🇸 LOUIS CALTEN USA (USD)</option>
+        <option value="VAULT:LOUIS-CALTEN:GBP">🇬🇧 LOUIS CALTEN UK (GBP)</option>
+        <option value="VAULT:LOUIS-CALTEN:EUR">🇩🇪 LOUIS CALTEN GERMANY (EUR)</option>
+        <option value="VAULT:LOUIS-CALTEN:SGD">🇸🇬 LOUIS CALTEN SINGAPORE (SGD)</option>
+        <option value="VAULT:LOUIS-CALTEN:INR">🇮🇳 LOUIS CALTEN INDIA (INR)</option>
+        <option value="PLATFORM:RESERVE:USD">Platform Reserve (USD)</option>
+        <option value="BANK:OUTGOING:USD">External Bank (USD)</option>
+        <option value="CUSTOM">Custom account code…</option>
+      </select>
+    </div>
+
+    <div id="vb-m-custom-dest" style="display:none">
+      <div class="form-group">
+        <label>Custom Destination Account Code</label>
+        <input id="vb-m-custom-code" class="input-mono" placeholder="WALLET-addr or TERMINAL-TID-USD">
+      </div>
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label>Reference *</label>
+        <input id="vb-m-ref" placeholder="VB-MOVE-001">
+      </div>
+      <div class="form-group">
+        <label>Currency</label>
+        <select id="vb-m-currency">
+          <option value="USD">USD</option><option value="EUR">EUR</option>
+          <option value="GBP">GBP</option><option value="SGD">SGD</option>
+          <option value="INR">INR</option><option value="AED">AED</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label>Notes</label>
+      <input id="vb-m-notes" placeholder="Reason for movement">
+    </div>
+
+    <button class="btn btn-success" style="width:100%;justify-content:center;padding:11px" onclick="vbMove()">
+      ↑ Execute Vault Movement
+    </button>
+    <div id="vb-m-result" class="result"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title" style="margin-bottom:8px">Movement Flow</div>
+    <div style="font-size:.8rem;line-height:2.2">
+      <div>↓ <strong>Credit</strong> — funds arrive from external sender</div>
+      <div>⇄ <strong>Move</strong> — funds move between vault accounts</div>
+      <div>↑ <strong>Disburse</strong> — funds leave to external destination</div>
+    </div>
+    <div style="margin-top:14px;padding:12px;background:var(--accent-bg);border:1px solid var(--accent-border);border-radius:8px;font-size:.78rem">
+      <strong style="color:var(--accent)">Vault ledger codes:</strong>
+      <div style="margin-top:6px;line-height:2;font-family:monospace;font-size:.72rem">
+        VAULT:LOUIS-CALTEN:USD<br>
+        VAULT:LOUIS-CALTEN:GBP<br>
+        VAULT:LOUIS-CALTEN:EUR<br>
+        VAULT:LOUIS-CALTEN:SGD<br>
+        VAULT:LOUIS-CALTEN:INR<br>
+        TERMINAL-EP022162-USD
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ── TAB 4: History ── -->
+<div id="vb-history" class="tab-pane" data-g="vb">
+<div class="card" style="margin-top:16px">
+  <div class="card-title" style="margin-bottom:12px">Vault Transaction History</div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Date</th><th>Type</th><th>Account</th><th>Amount</th><th>Reference</th><th>Sender / Note</th><th>Status</th></tr></thead>
+      <tbody id="vb-hist-tbody"><tr><td colspan="7" style="text-align:center;color:var(--muted)">Loading…</td></tr></tbody>
+    </table>
+  </div>
+  <button class="btn btn-ghost btn-sm" style="margin-top:8px" onclick="vbLoadHistory()">↻ Refresh</button>
+</div>
+</div>
+
+<script>
+// ── Vault account ledger codes ───────────────────
+var VAULT_ACCOUNTS = {
+  'VAULT:LOUIS-CALTEN:USD': { label:'LOUIS CALTEN USA', currency:'USD', type:'ASSET', subtype:'VAULT' },
+  'VAULT:LOUIS-CALTEN:GBP': { label:'LOUIS CALTEN UK',  currency:'GBP', type:'ASSET', subtype:'VAULT' },
+  'VAULT:LOUIS-CALTEN:EUR': { label:'LOUIS CALTEN GERMANY', currency:'EUR', type:'ASSET', subtype:'VAULT' },
+  'VAULT:LOUIS-CALTEN:SGD': { label:'LOUIS CALTEN SINGAPORE', currency:'SGD', type:'ASSET', subtype:'VAULT' },
+  'VAULT:LOUIS-CALTEN:INR': { label:'LOUIS CALTEN INDIA', currency:'INR', type:'ASSET', subtype:'VAULT' },
+};
+
+// ── Refresh all vault balances ───────────────────
+function vbRefresh() {
+  api('GET', '/ledger/accounts').then(function(r) {
+    var accounts = r.data.data || r.data || [];
+
+    var map = {};
+    accounts.forEach(function(a) { map[a.account_number] = a; });
+
+    function bal(code) {
+      var a = map[code];
+      if (!a) return '0.00';
+      return parseFloat(a.available_balance || a.balance || 0)
+        .toLocaleString('en-US', { minimumFractionDigits: 2 });
+    }
+
+    document.getElementById('vb-bal-usa').textContent      = 'USD ' + bal('VAULT:LOUIS-CALTEN:USD');
+    document.getElementById('vb-bal-uk').textContent       = 'GBP ' + bal('VAULT:LOUIS-CALTEN:GBP');
+    document.getElementById('vb-bal-eur').textContent      = 'EUR ' + bal('VAULT:LOUIS-CALTEN:EUR');
+    document.getElementById('vb-bal-sgd').textContent      = 'SGD ' + bal('VAULT:LOUIS-CALTEN:SGD');
+    document.getElementById('vb-bal-inr').textContent      = 'INR ' + bal('VAULT:LOUIS-CALTEN:INR');
+    document.getElementById('vb-bal-terminal').textContent = 'USD ' + bal('TERMINAL-EP022162-USD');
+
+    document.getElementById('vb-total-usd').textContent = 'USD ' + bal('VAULT:LOUIS-CALTEN:USD');
+    document.getElementById('vb-total-eur').textContent = 'EUR ' + bal('VAULT:LOUIS-CALTEN:EUR');
+    document.getElementById('vb-total-gbp').textContent = 'GBP ' + bal('VAULT:LOUIS-CALTEN:GBP');
+    document.getElementById('vb-total-sgd').textContent = 'SGD ' + bal('VAULT:LOUIS-CALTEN:SGD');
+    document.getElementById('vb-total-inr').textContent = 'INR ' + bal('VAULT:LOUIS-CALTEN:INR');
+  });
+}
+
+// ── Open credit tab with account pre-selected ────
+function vbCreditAccount(code, currency, label) {
+  document.getElementById('vb-c-account').value = code;
+  var tab = document.querySelector('[data-t="vb-credit"]');
+  var pane = document.getElementById('vb-credit');
+  document.querySelectorAll('[data-g="vb"].tab').forEach(function(t) { t.classList.remove('active'); });
+  document.querySelectorAll('[data-g="vb"].tab-pane').forEach(function(p) { p.classList.remove('active'); });
+  if (tab) tab.classList.add('active');
+  if (pane) pane.classList.add('active');
+  pane.scrollIntoView({ behavior:'smooth', block:'start' });
+  toast('Credit form ready for ' + label, 'info');
+}
+
+// ── Open move tab with source pre-selected ───────
+function vbMoveFrom(code, currency) {
+  document.getElementById('vb-m-from').value = code;
+  document.getElementById('vb-m-currency').value = currency;
+  var tab = document.querySelector('[data-t="vb-move"]');
+  var pane = document.getElementById('vb-move');
+  document.querySelectorAll('[data-g="vb"].tab').forEach(function(t) { t.classList.remove('active'); });
+  document.querySelectorAll('[data-g="vb"].tab-pane').forEach(function(p) { p.classList.remove('active'); });
+  if (tab) tab.classList.add('active');
+  if (pane) pane.classList.add('active');
+  pane.scrollIntoView({ behavior:'smooth', block:'start' });
+}
+
+function vbOpenCredit() {
+  vbCreditAccount('VAULT:LOUIS-CALTEN:USD', 'USD', 'vault');
+}
+
+function vbToggleCustomDest(val) {
+  document.getElementById('vb-m-custom-dest').style.display = val === 'CUSTOM' ? 'block' : 'none';
+}
+
+// ── Credit vault ─────────────────────────────────
+function vbCredit() {
+  var confirmed = document.getElementById('vb-c-confirmed');
+  if (!confirmed || !confirmed.checked) {
+    toast('Confirm the funds have arrived on the bank statement first', 'err');
+    return;
+  }
+  var account = document.getElementById('vb-c-account').value;
+  var amount  = document.getElementById('vb-c-amount').value.trim();
+  var sender  = document.getElementById('vb-c-sender').value.trim();
+  var senderBank = document.getElementById('vb-c-sender-bank').value.trim();
+  var ref     = document.getElementById('vb-c-ref').value.trim();
+  var date    = document.getElementById('vb-c-date').value;
+  var type    = document.getElementById('vb-c-type').value;
+  var auth    = document.getElementById('vb-c-auth').value.trim();
+  var notes   = document.getElementById('vb-c-notes').value.trim();
+  var currency= VAULT_ACCOUNTS[account] ? VAULT_ACCOUNTS[account].currency : 'USD';
+
+  if (!amount) { toast('Amount is required','err'); return; }
+  if (!sender) { toast('Sender name is required','err'); return; }
+  if (!ref)    { toast('Bank reference is required','err'); return; }
+
+  // Source is a system vault funding account (ASSET type)
+  var fundingCode = 'VAULT:INCOMING:' + currency;
+
+  postLedgerEntry(ref, 'VAULT_CREDIT', amount, currency, account,
+    { source: fundingCode, transferType: type, senderName: sender,
+      senderBank: senderBank, valueDate: date, authorizedBy: auth,
+      notes: notes, creditedAt: new Date().toISOString() },
+    type + ' vault credit from ' + sender + ' — ' + ref,
+    fundingCode
+  ).then(function(r) {
+    showResult('vb-c-result', r.data, r.ok);
+    if (r.ok) {
+      toast('Vault credited ' + currency + ' ' + parseFloat(amount).toLocaleString(), 'ok');
+      confirmed.checked = false;
+      vbRefresh();
+      vbLoadHistory();
+    } else toast('Failed: ' + (r.data.error && r.data.error.message || 'check fields'), 'err');
+  });
+}
+
+// ── Move between vault accounts ──────────────────
+function vbMove() {
+  var from    = document.getElementById('vb-m-from').value;
+  var amount  = document.getElementById('vb-m-amount').value.trim();
+  var currency= document.getElementById('vb-m-currency').value;
+  var toVal   = document.getElementById('vb-m-to').value;
+  var dest    = toVal === 'CUSTOM'
+    ? document.getElementById('vb-m-custom-code').value.trim()
+    : toVal;
+  var ref     = document.getElementById('vb-m-ref').value.trim();
+  var notes   = document.getElementById('vb-m-notes').value.trim();
+
+  if (!amount) { toast('Amount is required','err'); return; }
+  if (!dest)   { toast('Destination is required','err'); return; }
+  if (!ref)    { toast('Reference is required','err'); return; }
+  if (from === dest) { toast('Source and destination must differ','err'); return; }
+
+  if (!window.confirm('Move ' + currency + ' ' + parseFloat(amount).toLocaleString() + ' from ' + from + ' to ' + dest + '?')) return;
+
+  postLedgerEntry(ref, 'VAULT_MOVE', amount, currency, dest,
+    { vaultMoveFrom: from, notes: notes, movedAt: new Date().toISOString() },
+    'Vault move: ' + from + ' → ' + dest + ' — ' + ref,
+    from
+  ).then(function(r) {
+    showResult('vb-m-result', r.data, r.ok);
+    if (r.ok) {
+      toast('Vault movement posted', 'ok');
+      vbRefresh();
+      vbLoadHistory();
+    } else toast('Failed: ' + (r.data.error && r.data.error.message || 'check fields'), 'err');
+  });
+}
+
+// ── Load history ─────────────────────────────────
+function vbLoadHistory() {
+  api('GET', '/ledger/entries?pageSize=30').then(function(r) {
+    var entries = (r.data.data || []).filter(function(e) {
+      var src = e.source || '';
+      return src === 'VAULT_CREDIT' || src === 'VAULT_MOVE' ||
+             (e.description && e.description.toLowerCase().indexOf('vault') >= 0);
+    });
+    var rows = entries.map(function(e) {
+      var meta = e.metadata || {};
+      var debitLine  = (e.lines||[]).find(function(l) { return parseFloat(l.debit)  > 0; });
+      var creditLine = (e.lines||[]).find(function(l) { return parseFloat(l.credit) > 0; });
+      var typeLabel  = e.source === 'VAULT_CREDIT' ? '<span class="badge badge-green">CREDIT</span>'
+                     : e.source === 'VAULT_MOVE'   ? '<span class="badge badge-blue">MOVE</span>'
+                     : '<span class="badge badge-grey">OTHER</span>';
+      return '<tr>'
+        + '<td style="font-size:.72rem">' + new Date(e.createdAt).toLocaleString() + '</td>'
+        + '<td>' + typeLabel + '</td>'
+        + '<td><code style="font-size:.7rem">' + (creditLine && creditLine.account && creditLine.account.code || '—') + '</code></td>'
+        + '<td><strong>' + (creditLine ? parseFloat(creditLine.credit).toLocaleString('en-US',{minimumFractionDigits:2}) : '—') + '</strong></td>'
+        + '<td style="font-size:.72rem"><code>' + e.reference + '</code></td>'
+        + '<td style="font-size:.72rem">' + (meta.senderName || meta.notes || '—') + '</td>'
+        + '<td><span class="badge badge-' + (e.status==='POSTED'?'green':'blue') + '">' + e.status + '</span></td>'
+        + '</tr>';
+    }).join('');
+    document.getElementById('vb-hist-tbody').innerHTML = rows
+      || '<tr><td colspan="7" style="text-align:center;color:var(--muted)">No vault transactions yet</td></tr>';
+  });
+}
+
+function vbEditAccount(key) {
+  toast('Open Admin → Bank Account Profiles to update ' + key.toUpperCase() + ' details', 'info');
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  initTabs('vb');
+  vbRefresh();
+  vbLoadHistory();
+});
 <\/script>
 `);
 }
@@ -11014,6 +11624,7 @@ switch (path) {
     case '/platform/receive-funds': html = receiveFundsPage();  break;
     case '/platform/server-funds':  html = serverFundsPage();   break;
     case '/platform/disburse':      html = disbursePage();      break;
+    case '/platform/vault-bank':    html = vaultBankPage();     break;
     case '/platform/wise-virtual-bank': html = wiseVirtualBankPage(); break;
     case '/platform/rails':         html = railsPage();         break;
     case '/platform/bank-guide':    html = bankIntegrationGuidePage(); break;
