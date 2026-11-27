@@ -319,6 +319,8 @@ export function verifyWiseWebhookSignature(
 
 /** Wise event that carries multi-currency account credits and debits. */
 const BALANCE_UPDATE_TRIGGER = "balances#update";
+/** New unified incoming-transfer event (Wise 2026Q4 API) */
+const INCOMING_TRANSFER_TRIGGER = "incoming-transfer#credited";
 
 export interface WiseWebhookSubscription {
   id: string | null;
@@ -394,4 +396,112 @@ export async function ensureWiseWebhookSubscription(): Promise<{
     },
   );
   return { created: true, subscription: normalizeSubscription(created) };
+}
+
+/**
+ * Ensures the NEW `incoming-transfer#credited` subscription exists.
+ * This is the 2026Q4 unified event that covers SEPA, SWIFT, ACH, Faster
+ * Payments — all rails in one webhook. Registers alongside the legacy
+ * balances#update subscription so both are active during migration.
+ */
+export async function ensureIncomingTransferSubscription(): Promise<{
+  created: boolean;
+  subscription: WiseWebhookSubscription;
+}> {
+  assertWiseSubscriptionsAvailable();
+  if (!config.wise.webhookUrl) {
+    throw new Error("WISE_WEBHOOK_URL is not configured");
+  }
+
+  const existing = (await listWiseWebhookSubscriptions()).find(
+    (subscription) =>
+      subscription.triggerOn === INCOMING_TRANSFER_TRIGGER &&
+      subscription.url === config.wise.webhookUrl,
+  );
+  if (existing) return { created: false, subscription: existing };
+
+  const created = await wiseRequest<unknown>(
+    "POST",
+    `/v3/profiles/${config.wise.profileId}/subscriptions`,
+    {
+      name: "PrimeStack incoming transfer credits (2026Q4)",
+      trigger_on: INCOMING_TRANSFER_TRIGGER,
+      delivery: {
+        version: config.wise.webhookDeliveryVersion,
+        url: config.wise.webhookUrl,
+      },
+    },
+  );
+  return { created: true, subscription: normalizeSubscription(created) };
+}
+
+/**
+ * Fetch a full incoming transfer resource from Wise using the
+ * incoming_transfer_id provided in the webhook payload.
+ * Returns null if Wise returns 404 (transfer not yet settled).
+ */
+export async function fetchWiseIncomingTransfer(
+  incomingTransferId: string,
+): Promise<WiseIncomingTransfer | null> {
+  assertWiseSubscriptionsAvailable();
+  try {
+    const result = await wiseRequest<Record<string, unknown>>(
+      "GET",
+      `/2026Q4/incoming-transfers/${incomingTransferId}`,
+    );
+    return normalizeIncomingTransfer(result);
+  } catch (error) {
+    logger.warn({ incomingTransferId, error }, "Wise: failed to fetch incoming transfer");
+    return null;
+  }
+}
+
+export interface WiseIncomingTransfer {
+  id: string;
+  reconciliationReference: string | null;
+  profileId: string | null;
+  balanceId: string | null;
+  state: string | null;
+  scheme: string | null;         // "SEPA", "SWIFT", "ACH", "FASTER_PAYMENTS"
+  endToEndId: string | null;
+  uetr: string | null;
+  creditedTime: string | null;
+  debtorName: string | null;
+  debtorAccount: string | null;  // IBAN or account number
+  debtorBic: string | null;
+  creditorName: string | null;
+  creditorAccount: string | null;
+  currency: string | null;
+  amount: string | null;
+  reference: string | null;
+}
+
+function normalizeIncomingTransfer(raw: Record<string, unknown>): WiseIncomingTransfer {
+  const debtor  = asRecord(raw.debtor);
+  const creditor = asRecord(raw.creditor);
+  const amounts = asRecord(raw.amounts);
+  const credited = asRecord(amounts.credited);
+  const debtorAcct = asRecord(debtor.account);
+  const creditorAcct = asRecord(creditor.account);
+  const debtorAgent = asRecord(debtor.agent);
+
+  return {
+    id:                     text(raw.id) ?? "",
+    reconciliationReference: text(raw.reconciliationReference) ?? null,
+    profileId:              text(raw.profileId) ?? null,
+    balanceId:              text(raw.balanceId) ?? null,
+    state:                  text(raw.state) ?? null,
+    scheme:                 text(raw.scheme) ?? null,
+    endToEndId:             text(raw.endToEndId) ?? null,
+    uetr:                   text(raw.uetr) ?? null,
+    creditedTime:           text(raw.creditedTime) ?? null,
+    debtorName:             text(debtor.name) ?? null,
+    debtorAccount:          text(debtorAcct.number) ?? null,
+    debtorBic:              text(debtorAgent.bic) ?? null,
+    creditorName:           text(creditor.name) ?? null,
+    creditorAccount:        text(creditorAcct.number) ?? null,
+    currency:               text(credited.currency) ?? null,
+    amount:                 credited.value !== undefined ? String(credited.value) : null,
+    reference:              text(raw.unstructuredReference) ?? null,
+  };
 }

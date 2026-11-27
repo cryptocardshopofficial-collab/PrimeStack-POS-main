@@ -4,24 +4,52 @@ import { Decimal } from "../../core/decimal.js";
 import { ValidationError } from "../../core/errors.js";
 import { logger } from "../../core/logger.js";
 import { ledgerService } from "../ledger/ledger.module.js";
-import { verifyWiseWebhookSignature } from "./wise-virtual-account.js";
+import {
+  verifyWiseWebhookSignature,
+  fetchWiseIncomingTransfer,
+} from "./wise-virtual-account.js";
+
+/**
+ * Platform's own Wise IBAN — PRIMESTACK TECHNOLOGIES LLC
+ * BE19 9058 6159 3312 · TRWIBEB1XXX · Wise, Brussels
+ *
+ * Any inbound credit to this IBAN is automatically credited to
+ * VAULT:LOUIS-CALTEN:EUR (or the appropriate vault account by currency).
+ */
+const PLATFORM_WISE_IBAN = "BE19905861593312"; // stripped of spaces
+const PLATFORM_WISE_BIC  = "TRWIBEB1XXX";
+
+/**
+ * Maps the currency of an inbound Wise payment to the vault account
+ * it should credit. Falls back to PLATFORM:RESERVE if unmapped.
+ */
+function resolveVaultAccountByIban(iban: string, currency: string): string {
+  // If it hits our platform IBAN, route by currency into the vault
+  const normalizedIban = iban.replace(/\s/g, "").toUpperCase();
+  if (normalizedIban === PLATFORM_WISE_IBAN) {
+    const vaultMap: Record<string, string> = {
+      EUR: "VAULT:LOUIS-CALTEN:EUR",
+      USD: "VAULT:LOUIS-CALTEN:USD",
+      GBP: "VAULT:LOUIS-CALTEN:GBP",
+      SGD: "VAULT:LOUIS-CALTEN:SGD",
+      INR: "VAULT:LOUIS-CALTEN:INR",
+    };
+    return vaultMap[currency.toUpperCase()] ?? `PLATFORM:RESERVE:${currency.toUpperCase()}`;
+  }
+  return `PLATFORM:RESERVE:${currency.toUpperCase()}`;
+}
 
 /**
  * Wise `balances#update` event shape (schema_version 4.0.0).
- *
- * Wise fires this whenever a balance is credited or debited. We only act on
- * credits (amount > 0 or occurrence_type = "CREDIT").
- *
- * https://docs.wise.com/guides/developer/webhooks/event-handling
  */
 interface WiseBalanceUpdateEvent {
-  event_type: string;        // "balances#update"
-  schema_version: string;    // "4.0.0"
+  event_type: string;
+  schema_version: string;
   subscription_id: string;
   profile_id: number | string;
   data: {
     resource: {
-      id: number | string;   // Wise balance ID
+      id: number | string;
       type: string;
       profile_id: number | string;
     };
@@ -33,11 +61,30 @@ interface WiseBalanceUpdateEvent {
     transaction_type: "CREDIT" | "DEBIT" | string;
     amount: { value: number; currency: string };
     post_transaction_balance_amount: { value: number; currency: string };
-    occurred_at: string;      // ISO 8601
-    cause: string;            // "INCOMING_PAYMENT", "CONVERSION", etc.
+    occurred_at: string;
+    cause: string;
     sender_name?: string;
     sender_account?: string;
     reference?: string;
+  };
+}
+
+/**
+ * Wise `incoming-transfer#credited` event shape (2026Q4 API).
+ * This is the new unified event covering SEPA, SWIFT, ACH, Faster Payments.
+ */
+interface WiseIncomingTransferCreditedEvent {
+  event_type: string;    // "incoming-transfer#credited"
+  schema_version: string;
+  subscription_id: string;
+  profile_id: number | string;
+  data: {
+    incoming_transfer_id: string;
+    occurred_at: string;
+    resource?: {
+      id?: string;
+      type?: string;
+    };
   };
 }
 
@@ -325,4 +372,247 @@ export async function handleWiseBalanceWebhook(
     currency,
     message: `${normalizedAmount} ${currency} credited from Wise (${cause || "INCOMING_PAYMENT"})`,
   };
+}
+
+/**
+ * Handle the new `incoming-transfer#credited` event (Wise 2026Q4 API).
+ *
+ * Flow:
+ *   1. Verify RSA signature
+ *   2. Extract incoming_transfer_id from payload
+ *   3. Fetch full transfer resource from Wise API
+ *   4. Resolve destination vault account from creditor IBAN + currency
+ *   5. Post double-entry ledger entry (idempotent on transfer ID)
+ *   6. Upsert InboundPayment tracking record
+ */
+export async function handleWiseIncomingTransferWebhook(
+  prisma: PrismaClient,
+  rawBody: Buffer,
+  signature: string | undefined,
+  ip: string | undefined,
+): Promise<WiseWebhookResult> {
+
+  // ── 1. Signature verification ────────────────
+  if (!signature) {
+    logger.warn({ ip }, "Wise incoming-transfer webhook: missing X-Signature-SHA256");
+    throw new ValidationError("Missing X-Signature-SHA256 header");
+  }
+  if (!verifyWiseWebhookSignature(rawBody, signature)) {
+    logger.warn({ ip }, "Wise incoming-transfer webhook: RSA signature invalid");
+    throw new ValidationError("Wise webhook signature is invalid");
+  }
+
+  // ── 2. Parse event ───────────────────────────
+  let event: WiseIncomingTransferCreditedEvent;
+  try {
+    event = JSON.parse(rawBody.toString("utf8")) as WiseIncomingTransferCreditedEvent;
+  } catch {
+    throw new ValidationError("Wise webhook body is not valid JSON");
+  }
+
+  const incomingTransferId = event.data?.incoming_transfer_id;
+  if (!incomingTransferId) {
+    return {
+      received: true,
+      credited: false,
+      status: "IGNORED",
+      message: "incoming_transfer_id missing from payload",
+    };
+  }
+
+  logger.info(
+    { incomingTransferId, eventType: event.event_type },
+    "Wise incoming-transfer webhook received",
+  );
+
+  // ── 3. Idempotency — check before fetching ───
+  const journalRef = "WISE-IT-" + createHash("sha256")
+    .update(incomingTransferId)
+    .digest("hex")
+    .slice(0, 28)
+    .toUpperCase();
+
+  const existingJournal = await prisma.journalEntry.findUnique({
+    where: { reference: journalRef },
+    select: { reference: true },
+  });
+  if (existingJournal) {
+    logger.info({ journalRef, incomingTransferId }, "Wise incoming-transfer: duplicate — already credited");
+    return {
+      received: true,
+      credited: true,
+      status: "DUPLICATE",
+      journalEntryRef: journalRef,
+      message: `Already credited (journal: ${journalRef})`,
+    };
+  }
+
+  // ── 4. Fetch full transfer resource from Wise ─
+  const transfer = await fetchWiseIncomingTransfer(incomingTransferId);
+  if (!transfer) {
+    logger.warn({ incomingTransferId }, "Wise: could not fetch incoming transfer — will retry on next delivery");
+    return {
+      received: true,
+      credited: false,
+      status: "IGNORED",
+      message: "Could not fetch transfer details from Wise — will retry",
+    };
+  }
+
+  const currency  = (transfer.currency ?? "EUR").toUpperCase();
+  const rawAmount = transfer.amount ?? "0";
+  const amount    = new Decimal(rawAmount);
+
+  if (!amount.isFinite() || amount.lte(0)) {
+    return {
+      received: true,
+      credited: false,
+      status: "IGNORED",
+      message: `Invalid amount ${rawAmount} on incoming transfer ${incomingTransferId}`,
+    };
+  }
+
+  const normalizedAmount = amount.toFixed(4);
+
+  // ── 5. Resolve destination vault account ─────
+  // If creditor IBAN matches our platform IBAN → route to vault by currency.
+  // Otherwise fall back to platform reserve.
+  const creditorIban = transfer.creditorAccount ?? "";
+  let destAccountCode = resolveVaultAccountByIban(creditorIban, currency);
+
+  // Also try to match against a registered virtual account by IBAN
+  if (transfer.balanceId) {
+    const virtualAccount = await prisma.virtualAccount.findFirst({
+      where: { externalId: transfer.balanceId, currency, active: true },
+      include: { wallet: { include: { account: true } } },
+    });
+    if (virtualAccount?.wallet) {
+      destAccountCode = virtualAccount.wallet.account.code;
+    }
+  }
+
+  const fundingCode = await ensureSupeFundingAccount(prisma, currency);
+
+  // Ensure vault account exists
+  const destExists = await prisma.account.findUnique({
+    where: { code: destAccountCode },
+    select: { code: true },
+  });
+  if (!destExists) {
+    await prisma.account.create({
+      data: {
+        code: destAccountCode,
+        name: `Vault: ${destAccountCode}`,
+        type: "ASSET",
+        subtype: "VAULT",
+        currency,
+        balance: 0,
+      },
+    });
+  }
+
+  // ── 6. Post double-entry ledger entry ────────
+  await ledgerService.postEntry({
+    reference:   journalRef,
+    entryType:   "TRANSFER",
+    description: `Wise ${transfer.scheme ?? "inbound"}: ${transfer.debtorName ?? "unknown sender"} → ${currency} ${normalizedAmount} — ${transfer.reconciliationReference ?? incomingTransferId}`,
+    source:      "WISE_INCOMING_TRANSFER",
+    postedBy:    `wise:${incomingTransferId}`,
+    metadata: {
+      incomingTransferId,
+      scheme:                  transfer.scheme,
+      state:                   transfer.state,
+      uetr:                    transfer.uetr,
+      endToEndId:              transfer.endToEndId,
+      reconciliationReference: transfer.reconciliationReference,
+      debtorName:              transfer.debtorName,
+      debtorAccount:           transfer.debtorAccount,
+      debtorBic:               transfer.debtorBic,
+      creditorIban:            transfer.creditorAccount,
+      creditedTime:            transfer.creditedTime,
+      reference:               transfer.reference,
+      currency,
+      destination:             destAccountCode,
+      platformIban:            PLATFORM_WISE_IBAN,
+      platformBic:             PLATFORM_WISE_BIC,
+    },
+    lines: [
+      { accountCode: fundingCode,    debit: normalizedAmount, credit: "0" },
+      { accountCode: destAccountCode, debit: "0", credit: normalizedAmount },
+    ],
+  });
+
+  // ── 7. Upsert InboundPayment tracking ────────
+  const endToEndId = transfer.endToEndId ?? `WISE-${incomingTransferId}`;
+  await prisma.inboundPayment.upsert({
+    where:  { endToEndId },
+    create: {
+      endToEndId,
+      status:        "CREDITED",
+      amount:        normalizedAmount,
+      currency,
+      sender:        transfer.debtorName  ?? null,
+      senderAccount: transfer.debtorAccount ?? null,
+      sourceFormat:  "WISE_INCOMING_TRANSFER",
+      source:        "BANK_FEED",
+      journalEntryRef: journalRef,
+      creditedAt:    new Date(),
+      confirmedAt:   new Date(),
+    },
+    update: {
+      status:          "CREDITED",
+      journalEntryRef: journalRef,
+      creditedAt:      new Date(),
+    },
+  });
+
+  logger.info(
+    {
+      journalRef,
+      incomingTransferId,
+      scheme:        transfer.scheme,
+      amount:        normalizedAmount,
+      currency,
+      debtorName:    transfer.debtorName,
+      destAccount:   destAccountCode,
+    },
+    "Wise incoming-transfer credited to vault",
+  );
+
+  return {
+    received:        true,
+    credited:        true,
+    status:          "CREDITED",
+    journalEntryRef: journalRef,
+    amount:          normalizedAmount,
+    currency,
+    message:         `${normalizedAmount} ${currency} credited via Wise ${transfer.scheme ?? "inbound"} from ${transfer.debtorName ?? "unknown"}`,
+  };
+}
+
+/**
+ * Main webhook dispatcher — routes to the correct handler based on event_type.
+ * Handles both legacy `balances#update` and new `incoming-transfer#credited`.
+ */
+export async function handleWiseWebhook(
+  prisma: PrismaClient,
+  rawBody: Buffer,
+  signature: string | undefined,
+  ip: string | undefined,
+): Promise<WiseWebhookResult> {
+  // Peek at event_type without full verification first
+  let eventType = "unknown";
+  try {
+    const preview = JSON.parse(rawBody.toString("utf8")) as { event_type?: string };
+    eventType = preview.event_type ?? "unknown";
+  } catch {
+    throw new ValidationError("Wise webhook body is not valid JSON");
+  }
+
+  if (eventType === "incoming-transfer#credited") {
+    return handleWiseIncomingTransferWebhook(prisma, rawBody, signature, ip);
+  }
+
+  // Default: legacy balances#update handler
+  return handleWiseBalanceWebhook(prisma, rawBody, signature, ip);
 }

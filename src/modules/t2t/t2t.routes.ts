@@ -18,7 +18,7 @@ import { logger } from "../../core/logger.js";
 import { redis } from "../../core/redis.js";
 import { ledgerService } from "../ledger/ledger.module.js";
 import { ensureTerminalAccount } from "../terminal/terminal.service.js";
-import { verifyWiseWebhookSignature } from "../wallet/wise-virtual-account.js";
+import { handleWiseWebhook } from "../wallet/wise-webhook.handler.js";
 import { sendSuccess, sendCreated } from "../../shared/utils/response.js";
 
 const amountSchema = z
@@ -1602,17 +1602,27 @@ export function registerT2tRoutes(app: FastifyInstance): void {
     },
   );
 
-  // Wise webhook — real funds arriving on a provisioned Wise receiving account.
-  // Wise signs the raw request body with RSA-SHA256 (`X-Signature-SHA256`), so
-  // this scope installs a raw-body JSON parser and the path is excluded from the
-  // platform HMAC plugin (see plugins/auth.ts).
+  // ── Wise webhook ─────────────────────────────────────────────────────────
+  // Handles BOTH legacy `balances#update` AND new `incoming-transfer#credited`
+  // (Wise 2026Q4 API). The dispatcher in wise-webhook.handler.ts routes by
+  // event_type automatically.
+  //
+  // Platform receiving account:
+  //   PRIMESTACK TECHNOLOGIES LLC
+  //   IBAN: BE19 9058 6159 3312  BIC: TRWIBEB1XXX (Wise, Brussels)
+  //
+  // Incoming SEPA / SWIFT credits to that IBAN are automatically routed to:
+  //   EUR  → VAULT:LOUIS-CALTEN:EUR
+  //   USD  → VAULT:LOUIS-CALTEN:USD
+  //   GBP  → VAULT:LOUIS-CALTEN:GBP
+  //   SGD  → VAULT:LOUIS-CALTEN:SGD
+  //   INR  → VAULT:LOUIS-CALTEN:INR
   app.register(async (wiseScope) => {
     wiseScope.addContentTypeParser(
       "application/json",
       { parseAs: "buffer" },
       (request, body, done) => {
-        (request as FastifyRequest & { rawBody?: Buffer }).rawBody =
-          body as Buffer;
+        (request as FastifyRequest & { rawBody?: Buffer }).rawBody = body as Buffer;
         try {
           done(null, JSON.parse((body as Buffer).toString("utf8")));
         } catch (error) {
@@ -1625,192 +1635,37 @@ export function registerT2tRoutes(app: FastifyInstance): void {
       "/wise/webhook",
       { config: { rateLimit: { max: 240, timeWindow: "1 minute" } } },
       async (req: FastifyRequest, reply: FastifyReply) => {
-        const rawBody = (req as FastifyRequest & { rawBody?: Buffer }).rawBody;
+        const rawBody  = (req as FastifyRequest & { rawBody?: Buffer }).rawBody;
         const signature = getHeaderValue(req.headers, "x-signature-sha256");
-        if (
-          !rawBody ||
-          typeof signature !== "string" ||
-          !verifyWiseWebhookSignature(rawBody, signature)
-        ) {
-          logger.warn({ ip: req.ip }, "Wise webhook signature mismatch");
-          throw new UnauthorizedError("Invalid Wise webhook signature");
+        const isTest    = getHeaderValue(req.headers, "x-test-notification") === "true";
+
+        if (!rawBody) {
+          throw new ValidationError("Wise webhook: missing raw body");
         }
 
-        const event = (req.body ?? {}) as Record<string, unknown>;
-        const eventType =
-          typeof event.event_type === "string" ? event.event_type : "";
-        const deliveryId = getHeaderValue(req.headers, "x-delivery-id");
-        const isTest =
-          getHeaderValue(req.headers, "x-test-notification") === "true";
-        const data = (event.data ?? {}) as Record<string, unknown>;
-        const transactionType =
-          typeof data.transaction_type === "string"
-            ? data.transaction_type.toLowerCase()
-            : "";
-
-        // Only balance credits move money. Everything else is acknowledged so
-        // Wise stops retrying the delivery.
-        if (
-          isTest ||
-          eventType !== "balances#update" ||
-          transactionType !== "credit"
-        ) {
-          logger.info(
-            { eventType, transactionType, isTest },
-            "Wise webhook acknowledged without a credit",
-          );
-          return sendSuccess(reply, {
-            received: true,
-            eventType,
-            processed: false,
-          });
+        // Acknowledge test pings immediately without processing
+        if (isTest) {
+          logger.info({ ip: req.ip }, "Wise webhook: test notification acknowledged");
+          return sendSuccess(reply, { received: true, processed: false, test: true });
         }
 
-        const currency =
-          typeof data.currency === "string" ? data.currency.toUpperCase() : "";
-        const balanceId =
-          data.balance_id === undefined || data.balance_id === null
-            ? ""
-            : String(data.balance_id);
-        const amount =
-          data.amount === undefined || data.amount === null
-            ? ""
-            : String(data.amount);
-        if (!currency || !balanceId || !amount) {
-          throw new ValidationError(
-            "Wise balance credit is missing currency, balance id, or amount",
-          );
-        }
+        // Dispatch to unified handler (routes by event_type internally)
+        const result = await handleWiseWebhook(prisma, rawBody, signature, req.ip);
 
-        const virtualAccount = await prisma.virtualAccount.findFirst({
-          where: { provider: "WISE", externalId: balanceId },
-          include: { wallet: { select: { walletAddress: true, merchantId: true } } },
-        });
-        if (!virtualAccount) {
-          logger.warn(
-            { balanceId, currency },
-            "Wise balance credit for an unknown virtual account",
-          );
-          return sendSuccess(reply, {
-            received: true,
-            processed: false,
-            reason: "unknown_virtual_account",
-          });
-        }
-        if (virtualAccount.currency !== currency) {
-          logger.warn(
-            { balanceId, currency, expected: virtualAccount.currency },
-            "Wise balance credit currency mismatch",
-          );
-          throw new ValidationError(
-            "Wise balance credit currency does not match the virtual account",
-          );
-        }
-
-        const accountCode = `WALLET-${virtualAccount.wallet.walletAddress}-${currency}`;
-        const idempotencyScope =
-          typeof deliveryId === "string"
-            ? `wise:${deliveryId}`
-            : `wise:${String(event.subscription_id ?? "")}:${balanceId}:${amount}`;
-
-        const receipt = await creditInboundFunds({
-          accountCode,
-          amount,
-          currency,
-          journalReference: inboundJournalReference(idempotencyScope),
-          description: `Wise ${currency} credit (${String(
-            data.transfer_reference ?? deliveryId ?? balanceId,
-          )})`,
-          postedBy: "wise-webhook",
-          metadata: {
-            provider: "WISE",
-            deliveryId: typeof deliveryId === "string" ? deliveryId : null,
-            subscriptionId: event.subscription_id ?? null,
-            balanceId,
-            transactionType,
-            transferReference: data.transfer_reference ?? null,
-            channelName: data.channel_name ?? null,
-            occurredAt: data.occurred_at ?? null,
-            postTransactionBalance:
-              data.post_transaction_balance_amount ?? null,
-          },
-        });
-
-        if (receipt.duplicate) {
-          logger.info(
-            { balanceId, accountCode },
-            "Wise balance credit replay ignored",
-          );
-        } else {
-          await prisma.auditLog.create({
-            data: {
-              action: "INBOUND_FUNDS_RECEIVED",
-              entity: "Account",
-              entityId: accountCode,
-              ipAddress: req.ip,
-              after: {
-                provider: "WISE",
-                virtualAccountId: virtualAccount.id,
-                balanceId,
-                amount: receipt.amount,
-                currency,
-                journalEntryRef: receipt.journalEntryRef,
-              },
-            },
-          });
-          logger.info(
-            { balanceId, accountCode, amount: receipt.amount, currency },
-            "Wise balance credit recorded",
-          );
-        }
-
-        // Reconcile with a merchant XML upload: a PENDING SUPE upload that quotes
-        // this transfer reference is promoted to CREDITED once the real funds
-        // land. Best-effort — a failure here never blocks the credit response.
-        const transferReference =
-          typeof data.transfer_reference === "string"
-            ? data.transfer_reference.trim()
-            : "";
-        if (!receipt.duplicate && transferReference) {
-          try {
-            const reconciled = await prisma.inboundPayment.updateMany({
-              where: {
-                endToEndId: transferReference,
-                status: { in: ["PENDING", "CONFIRMED"] },
-                ...(virtualAccount.wallet.merchantId
-                  ? { merchantId: virtualAccount.wallet.merchantId }
-                  : {}),
-              },
-              data: {
-                status: "CREDITED",
-                journalEntryRef: receipt.journalEntryRef,
-                creditedAt: new Date(),
-                confirmedAt: new Date(),
-              },
-            });
-            if (reconciled.count > 0) {
-              logger.info(
-                { transferReference, count: reconciled.count },
-                "Wise credit reconciled a pending SUPE upload",
-              );
-            }
-          } catch (error) {
-            logger.warn(
-              { err: error, transferReference },
-              "Wise credit: SUPE upload reconciliation failed",
-            );
-          }
-        }
+        logger.info(
+          { status: result.status, amount: result.amount, currency: result.currency },
+          "Wise webhook processed",
+        );
 
         return sendSuccess(reply, {
-          received: true,
-          processed: true,
-          duplicate: receipt.duplicate,
-          accountCode,
-          amount: receipt.amount,
-          currency,
-          balance: receipt.balance,
-          journalEntryRef: receipt.journalEntryRef,
+          received:        result.received,
+          processed:       result.credited,
+          duplicate:       result.status === "DUPLICATE",
+          status:          result.status,
+          amount:          result.amount,
+          currency:        result.currency,
+          journalEntryRef: result.journalEntryRef,
+          message:         result.message,
         });
       },
     );

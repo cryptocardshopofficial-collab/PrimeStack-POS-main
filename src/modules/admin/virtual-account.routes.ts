@@ -2,16 +2,19 @@ import { z } from "zod";
 import type { PrismaClient } from "@prisma/client";
 import type { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 import { config } from "../../config/index.js";
-import { ForbiddenError, ValidationError } from "../../core/errors.js";
+import { ForbiddenError, NotFoundError, ValidationError } from "../../core/errors.js";
 import { sendCreated, sendSuccess } from "../../shared/utils/response.js";
 
 import {
   ensureWiseWebhookSubscription,
+  ensureIncomingTransferSubscription,
   getWiseBalance,
   listWiseWebhookSubscriptions,
   wiseWebhookPublicKey,
 } from "../wallet/wise-virtual-account.js";
 import { executeWisePayout } from "../wallet/wise-outbound.js";
+import { fetchWiseStatement } from "../wallet/wise-statements.js";
+import { reconcileWiseInbound } from "../wallet/wise-reconciliation.js";
 
 import type { WalletService } from "../wallet/wallet.service.js";
 
@@ -56,6 +59,30 @@ const wisePayoutSchema = z.object({
     }),
   }),
 });
+
+/** Query for the Wise statement / reconciliation windows. */
+const wiseWindowSchema = z.object({
+  currency: z
+    .string()
+    .trim()
+    .regex(/^[A-Za-z]{3}$/)
+    .transform((value) => value.toUpperCase())
+    .default("USD"),
+  days: z.coerce.number().int().min(1).max(365).default(30),
+});
+
+/** Resolves a `days` look-back into an ISO 8601 `[start, end]` window. */
+function resolveWiseWindow(days: number): {
+  intervalStart: string;
+  intervalEnd: string;
+} {
+  const intervalEnd = new Date();
+  const intervalStart = new Date(intervalEnd.getTime() - days * 24 * 60 * 60 * 1000);
+  return {
+    intervalStart: intervalStart.toISOString(),
+    intervalEnd: intervalEnd.toISOString(),
+  };
+}
 
 export function registerAdminVirtualAccountRoutes(
   app: FastifyInstance,
@@ -172,6 +199,39 @@ export function registerAdminVirtualAccountRoutes(
       : sendSuccess(reply, result);
   });
 
+  // Register the new incoming-transfer#credited subscription (2026Q4 API)
+  // This covers SEPA, SWIFT, ACH, Faster Payments in one unified event.
+  app.post("/admin/wise/incoming-transfer-subscription", {
+    preHandler: app.authenticate,
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const actor = assertVirtualAccountAdmin(request);
+    reply.header("Cache-Control", "no-store");
+    if (!config.wise.provisioningEnabled || !config.wise.apiKey || !config.wise.profileId) {
+      throw new ForbiddenError("Wise provisioning is not enabled or fully configured");
+    }
+    const result = await ensureIncomingTransferSubscription();
+    if (result.created) {
+      await prisma.auditLog.create({
+        data: {
+          userId: actor.id,
+          action: "CREATE_WISE_INCOMING_TRANSFER_SUBSCRIPTION",
+          entity: "WiseWebhookSubscription",
+          entityId: result.subscription.id ?? config.wise.webhookUrl,
+          after: {
+            triggerOn: result.subscription.triggerOn,
+            url: result.subscription.url,
+            version: result.subscription.version,
+          },
+          ipAddress: request.ip,
+          userAgent: auditUserAgent(request),
+        },
+      });
+    }
+    return result.created
+      ? sendCreated(reply, { ...result, note: "incoming-transfer#credited subscription created — covers SEPA, SWIFT, ACH, Faster Payments" })
+      : sendSuccess(reply, { ...result, note: "Subscription already exists" });
+  });
+
 
   // ΓöÇΓöÇ Wise webhook status (admin) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
   // Shows the endpoint URL, subscription state, and env configuration so
@@ -269,6 +329,59 @@ export function registerAdminVirtualAccountRoutes(
     });
 
     return sendCreated(reply, result);
+  });
+
+  // ── Wise statement (admin) ─────────────────────────────────────────────────
+  // The provider's own record of every movement on the balance. This is the only
+  // artefact that can prove a ledger credit is backed by funds actually held at
+  // Wise — not just recorded by us.
+  app.get("/admin/wise/statement", {
+    preHandler: app.authenticate,
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    assertVirtualAccountAdmin(request);
+    reply.header("Cache-Control", "no-store");
+    if (!config.wise.provisioningEnabled || !config.wise.apiKey || !config.wise.profileId) {
+      throw new ForbiddenError("Wise provisioning is not enabled or fully configured");
+    }
+    const parsed = wiseWindowSchema.safeParse(request.query);
+    if (!parsed.success) {
+      throw new ValidationError("currency must be a three-letter code and days an integer 1-365");
+    }
+    const { intervalStart, intervalEnd } = resolveWiseWindow(parsed.data.days);
+    const statement = await fetchWiseStatement(parsed.data.currency, intervalStart, intervalEnd);
+    if (!statement) {
+      throw new NotFoundError("Wise balance", parsed.data.currency);
+    }
+    return sendSuccess(reply, statement);
+  });
+
+  // ── Wise ↔ ledger reconciliation (admin) ───────────────────────────────────
+  // Compares ledger credits on the Wise rail against the provider statement.
+  // Credits the ledger holds with no matching statement entry are NOT
+  // provider-confirmed funds. Read-only.
+  app.get("/admin/wise/reconciliation", {
+    preHandler: app.authenticate,
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    assertVirtualAccountAdmin(request);
+    reply.header("Cache-Control", "no-store");
+    if (!config.wise.provisioningEnabled || !config.wise.apiKey || !config.wise.profileId) {
+      throw new ForbiddenError("Wise provisioning is not enabled or fully configured");
+    }
+    const parsed = wiseWindowSchema.safeParse(request.query);
+    if (!parsed.success) {
+      throw new ValidationError("currency must be a three-letter code and days an integer 1-365");
+    }
+    const { intervalStart, intervalEnd } = resolveWiseWindow(parsed.data.days);
+    const report = await reconcileWiseInbound(
+      prisma,
+      parsed.data.currency,
+      intervalStart,
+      intervalEnd,
+    );
+    if (!report) {
+      throw new NotFoundError("Wise balance", parsed.data.currency);
+    }
+    return sendSuccess(reply, report);
   });
 }
 
