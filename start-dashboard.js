@@ -1,5 +1,6 @@
-﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿// start-dashboard.js — PrimeStack Global Server Network Admin Dashboard
+﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿/// start-dashboard.js — PrimeStack Global Server Network Admin Dashboard
 // Node.js HTTP server, no framework, no external deps
+// BUILD: 2026-11-27-vault-server
 import { createServer } from 'http';
 import { request as httpRequest } from 'http';
 import { request as httpsRequest } from 'https';
