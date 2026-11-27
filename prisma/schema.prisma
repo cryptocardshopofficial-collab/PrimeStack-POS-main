@@ -2519,3 +2519,38 @@ model S2sNonce {
 
   @@index([createdAt])
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// VAULT SERVER
+// Private receiving server — bank connectors, vault accounts, payout history
+// ─────────────────────────────────────────────────────────────────────────────
+
+model VaultConnector {
+  id                     String   @id @default(uuid())
+  /// Human label — e.g. "Louis Calten USA — JPMorgan Chase"
+  label                  String
+  /// Ledger account code to credit — e.g. VAULT:LOUIS-CALTEN:USD
+  vaultAccountCode       String
+  currency               String   @default("USD")
+  bankName               String
+  accountNumber          String
+  swiftCode              String?
+  accountHolder          String
+  country                String   @default("US")
+  /// Bank API endpoint for balance polling
+  bankApiEndpoint        String?
+  /// AES-256-GCM encrypted bank API key
+  apiKey                 String?
+  /// Safe-to-expose key identifier
+  apiKeyId               String?
+  pollingIntervalSeconds Int?
+  autoCreditEnabled      Boolean  @default(false)
+  status                 String   @default("ACTIVE")
+  metadata               Json?
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  @@index([vaultAccountCode])
+  @@index([status])
+}
+

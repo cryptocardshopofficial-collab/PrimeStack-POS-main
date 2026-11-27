@@ -545,6 +545,7 @@ function sidebar(active) {
     ${link('/platform/receive-funds','Receive Funds','<svg width="14" height="14" fill="none" viewBox="0 0 16 16"><path d="M2 8h8m0 0L7 5m3 3L7 11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><rect x="10" y="3" width="4" height="10" rx="1" stroke="currentColor" stroke-width="1.5"/></svg>')}
     ${link('/platform/disburse','Disburse Funds','<svg width="14" height="14" fill="none" viewBox="0 0 16 16"><path d="M14 8H6m0 0l3-3M6 8l3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><rect x="2" y="3" width="4" height="10" rx="1" stroke="currentColor" stroke-width="1.5"/></svg>')}
     ${link('/platform/vault-bank','Vault Bank','<svg width="14" height="14" fill="none" viewBox="0 0 16 16"><rect x="2" y="3" width="12" height="10" rx="1.5" stroke="currentColor" stroke-width="1.5"/><circle cx="8" cy="8" r="2" stroke="currentColor" stroke-width="1.5"/><path d="M8 3v2M8 11v2M2 8h2M12 8h2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>', active)}
+    ${link('/platform/vault-server','Vault Server','<svg width="14" height="14" fill="none" viewBox="0 0 16 16"><rect x="1" y="4" width="14" height="4" rx="1" stroke="currentColor" stroke-width="1.5"/><rect x="1" y="9" width="14" height="4" rx="1" stroke="currentColor" stroke-width="1.5"/><circle cx="12" cy="6" r="1" fill="currentColor"/><circle cx="12" cy="11" r="1" fill="currentColor"/></svg>', active)}
     ${link('/platform/wise-virtual-bank','Wise Virtual Bank','<svg width="14" height="14" fill="none" viewBox="0 0 16 16"><path d="M2 3.5h12M2 3.5v9a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-9M5 6.5h6M5 9h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>')}
     ${link('/platform/server-funds','Server Funds','<svg width="14" height="14" fill="none" viewBox="0 0 16 16"><ellipse cx="8" cy="4" rx="6" ry="2" stroke="currentColor" stroke-width="1.5"/><path d="M2 4v4c0 1.1 2.7 2 6 2s6-.9 6-2V4M2 8v4c0 1.1 2.7 2 6 2s6-.9 6-2V8" stroke="currentColor" stroke-width="1.5"/></svg>')}
     ${link('/platform/s2s-engine','S2S Engine','<svg width="14" height="14" fill="none" viewBox="0 0 16 16"><path d="M2 8h9M8 5l3 3-3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><circle cx="3" cy="8" r="1.5" fill="currentColor"/></svg>', active)}
@@ -5559,6 +5560,583 @@ function loadSettlementQueue(){
   });
 }
 document.addEventListener('DOMContentLoaded', function(){initTabs('sc');loadTxList();loadAcquirers();loadRoutingRules();loadSettlementQueue();refreshHealthBadge('sc-badge',9019);});
+<\/script>
+`);
+}
+
+// --- Vault Server ------------------------------------------------------------
+function vaultServerPage() {
+  return page('Vault Server', '/platform/vault-server', `
+<div class="page-header">
+  <div class="breadcrumb"><a href="/">Home</a><span>/</span><a href="/platform">Platform</a><span>/</span>Vault Server</div>
+  <h1>🔐 Vault Server</h1>
+  <p>Your private secure receiving server. Connect any bank account to the vault — when funds arrive, the vault server auto-credits your ledger. From here you send payouts to multiple banks, private servers, or wallets.</p>
+</div>
+
+<!-- Server Identity Card -->
+<div class="card" style="margin-bottom:20px;border-color:var(--accent-border);background:var(--accent-bg)" id="vsn-identity-card">
+  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
+    <div>
+      <div style="font-size:.68rem;text-transform:uppercase;letter-spacing:.1em;color:var(--muted)">Vault Server Node</div>
+      <div style="font-size:1.3rem;font-weight:700;color:var(--accent);font-family:monospace;margin:4px 0" id="vsn-node-id">Loading…</div>
+      <div style="font-size:.78rem;color:var(--muted)" id="vsn-description">—</div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(3,auto);gap:12px 24px;font-size:.78rem">
+      <div><div style="color:var(--muted);font-size:.68rem;text-transform:uppercase">Terminal</div><code id="vsn-tid" style="color:var(--accent)">—</code></div>
+      <div><div style="color:var(--muted);font-size:.68rem;text-transform:uppercase">MSN</div><code id="vsn-msn" style="color:var(--accent)">—</code></div>
+      <div><div style="color:var(--muted);font-size:.68rem;text-transform:uppercase">Version</div><code id="vsn-version" style="color:var(--accent)">—</code></div>
+      <div><div style="color:var(--muted);font-size:.68rem;text-transform:uppercase">Receive Endpoint</div><code id="vsn-endpoint" style="color:var(--success)">—</code></div>
+      <div><div style="color:var(--muted);font-size:.68rem;text-transform:uppercase">API Key Header</div><code id="vsn-key-header" style="color:var(--success)">—</code></div>
+      <div><div style="color:var(--muted);font-size:.68rem;text-transform:uppercase">Server IPs</div><code id="vsn-ips" style="color:var(--success)">—</code></div>
+    </div>
+  </div>
+</div>
+
+<div class="tabs">
+  <div class="tab active" data-g="vsn" data-t="vsn-connectors">🔗 Bank Connectors</div>
+  <div class="tab" data-g="vsn" data-t="vsn-payout">↑ Send Payout</div>
+  <div class="tab" data-g="vsn" data-t="vsn-spec">📄 Integration Spec</div>
+  <div class="tab" data-g="vsn" data-t="vsn-history">📋 History</div>
+</div>
+
+<!-- ── TAB 1: Bank Connectors ── -->
+<div id="vsn-connectors" class="tab-pane active" data-g="vsn">
+<div class="grid-2" style="gap:16px;margin-top:16px;align-items:start">
+
+  <!-- Add Connector Form -->
+  <div class="card">
+    <div class="card-title" style="margin-bottom:4px">🔗 Add Bank Connector</div>
+    <div class="card-sub" style="margin-bottom:16px">Connect a real bank account to the vault server. When funds arrive, the vault auto-credits your ledger.</div>
+
+    <div class="form-group">
+      <label>Connector Label *</label>
+      <input id="vsn-c-label" placeholder="e.g. Louis Calten USA — JPMorgan Chase USD">
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label>Vault Account to Credit *</label>
+        <select id="vsn-c-vault-account">
+          <option value="VAULT:LOUIS-CALTEN:USD">🇺🇸 VAULT:LOUIS-CALTEN:USD</option>
+          <option value="VAULT:LOUIS-CALTEN:GBP">🇬🇧 VAULT:LOUIS-CALTEN:GBP</option>
+          <option value="VAULT:LOUIS-CALTEN:EUR">🇩🇪 VAULT:LOUIS-CALTEN:EUR</option>
+          <option value="VAULT:LOUIS-CALTEN:SGD">🇸🇬 VAULT:LOUIS-CALTEN:SGD</option>
+          <option value="VAULT:LOUIS-CALTEN:INR">🇮🇳 VAULT:LOUIS-CALTEN:INR</option>
+          <option value="TERMINAL-EP022162-USD">⚡ TERMINAL-EP022162-USD</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Currency</label>
+        <select id="vsn-c-currency">
+          <option value="USD">USD</option><option value="GBP">GBP</option>
+          <option value="EUR">EUR</option><option value="SGD">SGD</option>
+          <option value="INR">INR</option><option value="AED">AED</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label>Bank Name *</label>
+        <input id="vsn-c-bank" placeholder="e.g. JPMorgan Chase">
+      </div>
+      <div class="form-group">
+        <label>Account Holder *</label>
+        <input id="vsn-c-holder" placeholder="LOUIS CALTEN">
+      </div>
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label>Account Number / IBAN *</label>
+        <input id="vsn-c-acct" class="input-mono" placeholder="Account number or IBAN">
+      </div>
+      <div class="form-group">
+        <label>SWIFT / BIC</label>
+        <input id="vsn-c-swift" class="input-mono" placeholder="CHASUS33">
+      </div>
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label>Country</label>
+        <select id="vsn-c-country">
+          <option value="US">US</option><option value="GB">GB</option>
+          <option value="DE">DE</option><option value="SG">SG</option>
+          <option value="IN">IN</option><option value="AE">AE</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Auto-Credit on Receive</label>
+        <select id="vsn-c-auto">
+          <option value="false">Manual confirmation only</option>
+          <option value="true">Auto-credit when API notifies</option>
+        </select>
+      </div>
+    </div>
+
+    <div style="border-top:1px solid var(--border);padding-top:14px;margin-top:4px">
+      <div class="card-sub" style="margin-bottom:10px">Bank API (optional — for balance polling and auto-credit)</div>
+      <div class="form-group">
+        <label>Bank API Endpoint URL</label>
+        <input id="vsn-c-api-url" class="input-mono" placeholder="https://api.yourbank.com/v1/accounts/balance">
+      </div>
+      <div class="form-group">
+        <label>Bank API Key</label>
+        <input id="vsn-c-api-key" type="password" placeholder="Encrypted before storage — never shown again">
+      </div>
+      <div class="form-group">
+        <label>Poll Interval (seconds)</label>
+        <input id="vsn-c-poll" type="number" placeholder="300" min="60" max="86400">
+      </div>
+    </div>
+
+    <button class="btn btn-success" style="width:100%;justify-content:center;padding:11px;margin-top:8px" onclick="vsnAddConnector()">
+      🔗 Add Bank Connector
+    </button>
+    <div id="vsn-c-result" class="result"></div>
+  </div>
+
+  <!-- Active Connectors List -->
+  <div class="card">
+    <div class="card-title" style="margin-bottom:12px">Active Bank Connectors</div>
+    <div id="vsn-connectors-list"><div style="color:var(--muted);font-size:.8rem;text-align:center;padding:20px">Loading…</div></div>
+    <button class="btn btn-ghost btn-sm" style="margin-top:10px" onclick="vsnLoadConnectors()">↻ Refresh</button>
+  </div>
+
+</div>
+</div>
+
+<!-- ── TAB 2: Send Payout ── -->
+<div id="vsn-payout" class="tab-pane" data-g="vsn">
+<div class="grid-2" style="gap:16px;margin-top:16px;align-items:start">
+  <div class="card">
+    <div class="card-title" style="margin-bottom:4px">↑ Send Vault Payout</div>
+    <div class="card-sub" style="margin-bottom:16px">Move funds from any vault account to a bank account, another private server, merchant wallet, or terminal.</div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label>Source Vault Account *</label>
+        <select id="vsn-p-source">
+          <option value="VAULT:LOUIS-CALTEN:USD">🇺🇸 LOUIS CALTEN USA (USD)</option>
+          <option value="VAULT:LOUIS-CALTEN:GBP">🇬🇧 LOUIS CALTEN UK (GBP)</option>
+          <option value="VAULT:LOUIS-CALTEN:EUR">🇩🇪 LOUIS CALTEN GERMANY (EUR)</option>
+          <option value="VAULT:LOUIS-CALTEN:SGD">🇸🇬 LOUIS CALTEN SINGAPORE (SGD)</option>
+          <option value="VAULT:LOUIS-CALTEN:INR">🇮🇳 LOUIS CALTEN INDIA (INR)</option>
+          <option value="TERMINAL-EP022162-USD">⚡ PLATFORM TERMINAL EP022162 (USD)</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Amount *</label>
+        <input id="vsn-p-amount" type="number" placeholder="10000.00" step="0.01">
+      </div>
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label>Currency</label>
+        <select id="vsn-p-currency">
+          <option value="USD">USD</option><option value="GBP">GBP</option>
+          <option value="EUR">EUR</option><option value="SGD">SGD</option>
+          <option value="INR">INR</option><option value="AED">AED</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Destination Type *</label>
+        <select id="vsn-p-dest-type" onchange="vsnToggleDestFields(this.value)">
+          <option value="BANK_ACCOUNT">🏦 External Bank Account</option>
+          <option value="VAULT_ACCOUNT">🏛 Another Vault Account</option>
+          <option value="S2S_SERVER">⚡ Private S2S Server</option>
+          <option value="TERMINAL">⇄ Terminal</option>
+          <option value="WALLET">◈ Merchant Wallet</option>
+        </select>
+      </div>
+    </div>
+
+    <div id="vsn-p-bank-fields">
+      <div class="form-group">
+        <label>Beneficiary Name</label>
+        <input id="vsn-p-bene-name" placeholder="Full legal name of recipient">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Account Number / IBAN</label>
+          <input id="vsn-p-dest-acct" class="input-mono" placeholder="Account number or IBAN">
+        </div>
+        <div class="form-group">
+          <label>SWIFT / BIC</label>
+          <input id="vsn-p-swift" class="input-mono" placeholder="ICICINBBXXX">
+        </div>
+      </div>
+    </div>
+
+    <div id="vsn-p-other-fields" style="display:none">
+      <div class="form-group">
+        <label>Destination Code *</label>
+        <input id="vsn-p-dest-code" class="input-mono" placeholder="VAULT:LOUIS-CALTEN:USD or WALLET-addr or S2S connection ID">
+      </div>
+    </div>
+
+    <!-- ICICI quick preset -->
+    <div style="margin-bottom:12px">
+      <button class="btn btn-ghost btn-sm" onclick="vsnApplyPayoutPreset('icici')">
+        🏦 Use ICICI (029905003783)
+      </button>
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label>Reference *</label>
+        <input id="vsn-p-ref" placeholder="VBP-001">
+      </div>
+      <div class="form-group">
+        <label>Authorized By</label>
+        <input id="vsn-p-auth" value="PRIMESTACK TECHNOLOGIES">
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label>Description</label>
+      <input id="vsn-p-desc" placeholder="Purpose of payout">
+    </div>
+
+    <button class="btn btn-success" style="width:100%;justify-content:center;padding:11px" onclick="vsnPayout()">
+      ↑ Execute Vault Payout
+    </button>
+    <div id="vsn-p-result" class="result"></div>
+  </div>
+
+  <div>
+    <div class="card" style="margin-bottom:12px">
+      <div class="card-title" style="margin-bottom:8px">Payout Destinations</div>
+      <div style="font-size:.78rem;line-height:2.2">
+        <div>🏦 <strong>Bank Account</strong> — wire to any bank worldwide</div>
+        <div>🏛 <strong>Vault Account</strong> — move between Louis Calten accounts</div>
+        <div>⚡ <strong>S2S Server</strong> — push to another private server</div>
+        <div>⇄ <strong>Terminal</strong> — credit platform terminal EP022162</div>
+        <div>◈ <strong>Wallet</strong> — credit any merchant wallet</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title" style="margin-bottom:8px">Quick Presets</div>
+      <button class="btn btn-ghost btn-sm" style="width:100%;text-align:left;margin-bottom:6px" onclick="vsnApplyPayoutPreset('icici')">
+        🏦 ICICI — M/S.UNITED SOLAR AND WIND POWER TECHNOLOGIES
+      </button>
+      <button class="btn btn-ghost btn-sm" style="width:100%;text-align:left;margin-bottom:6px" onclick="vsnApplyPayoutPreset('terminal')">
+        ⚡ Platform Terminal EP022162
+      </button>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ── TAB 3: Integration Spec ── -->
+<div id="vsn-spec" class="tab-pane" data-g="vsn">
+<div class="card" style="margin-top:16px">
+  <div class="card-title" style="margin-bottom:16px">📄 Vault Server Integration Specification</div>
+  <div class="card-sub" style="margin-bottom:20px">Share this with your bank or any external system that needs to send funds to your vault server.</div>
+
+  <div style="margin-bottom:20px;padding:16px;background:#0a0f1e;border:1px solid var(--border);border-radius:9px">
+    <div style="font-size:.68rem;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:10px">Receive Endpoint</div>
+    <code style="color:var(--accent);font-size:.88rem" id="vsn-spec-url">https://primestack-switch.onrender.com/vault/receive</code>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">
+    <div>
+      <div style="font-size:.78rem;font-weight:700;margin-bottom:8px;color:var(--text)">Required Headers</div>
+      <div style="font-size:.75rem;line-height:2;font-family:monospace;padding:12px;background:#060d1a;border-radius:7px;border:1px solid var(--border)">
+        <div><span style="color:var(--muted)">x-vault-api-key:</span> <span style="color:var(--accent)">vsk_live_…</span></div>
+        <div><span style="color:var(--muted)">x-vault-timestamp:</span> <span style="color:var(--success)">1735000000000</span></div>
+        <div><span style="color:var(--muted)">x-vault-event-id:</span> <span style="color:var(--success)">BANK-TX-001</span></div>
+        <div><span style="color:var(--muted)">x-vault-signature:</span> <span style="color:#fbbf24">HMAC-SHA256(key, ts+body)</span></div>
+        <div><span style="color:var(--muted)">content-type:</span> <span style="color:var(--text)">application/json</span></div>
+      </div>
+    </div>
+    <div>
+      <div style="font-size:.78rem;font-weight:700;margin-bottom:8px;color:var(--text)">Request Body</div>
+      <div style="font-size:.75rem;line-height:2;font-family:monospace;padding:12px;background:#060d1a;border-radius:7px;border:1px solid var(--border)">
+        <div><span style="color:var(--muted)">"eventId":</span> <span style="color:#86efac">"BANK-TX-REF-001"</span></div>
+        <div><span style="color:var(--muted)">"amount":</span> <span style="color:#f9a8d4">"5000.00"</span></div>
+        <div><span style="color:var(--muted)">"currency":</span> <span style="color:#86efac">"USD"</span></div>
+        <div><span style="color:var(--muted)">"vaultAccountCode":</span> <span style="color:#86efac">"VAULT:LOUIS-CALTEN:USD"</span></div>
+        <div><span style="color:var(--muted)">"senderName":</span> <span style="color:#86efac">"kenia lopez"</span></div>
+        <div><span style="color:var(--muted)">"bankReference":</span> <span style="color:#86efac">"122101706"</span></div>
+        <div><span style="color:var(--muted)">"transferMethod":</span> <span style="color:#86efac">"ACH"</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div style="margin-bottom:16px">
+    <div style="font-size:.78rem;font-weight:700;margin-bottom:8px;color:var(--text)">HMAC Signature (JavaScript)</div>
+    <pre style="background:#060d1a;border:1px solid var(--border);border-radius:7px;padding:14px;font-size:.72rem;line-height:1.9;overflow-x:auto;color:#94a3b8"><span style="color:#60a5fa">const</span> <span style="color:#fbbf24">sign</span> = (apiKey, body) => {
+  <span style="color:#60a5fa">const</span> ts = String(Date.now());
+  <span style="color:#60a5fa">const</span> sig = crypto.createHmac(<span style="color:#86efac">'sha256'</span>, apiKey)
+                 .update(ts + body).digest(<span style="color:#86efac">'hex'</span>);
+  <span style="color:#60a5fa">return</span> {
+    <span style="color:#86efac">'x-vault-api-key'</span>:    apiKey,
+    <span style="color:#86efac">'x-vault-timestamp'</span>:  ts,
+    <span style="color:#86efac">'x-vault-signature'</span>:  sig,
+  };
+};</pre>
+  </div>
+
+  <div style="padding:12px 14px;background:#fef9c3;border:1px solid #fde047;border-radius:8px;font-size:.78rem;color:#713f12">
+    <strong>Idempotency:</strong> The vault server uses <code>eventId</code> to deduplicate — sending the same eventId twice returns the original result without double-crediting. Use a unique eventId per transaction (bank reference or trace number works).
+  </div>
+</div>
+</div>
+
+<!-- ── TAB 4: History ── -->
+<div id="vsn-history" class="tab-pane" data-g="vsn">
+<div class="card" style="margin-top:16px">
+  <div class="card-title" style="margin-bottom:12px">Vault Server Transaction History</div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Date</th><th>Type</th><th>Amount</th><th>Currency</th><th>Reference</th><th>Sender / Destination</th><th>Status</th></tr></thead>
+      <tbody id="vsn-hist-tbody"><tr><td colspan="7" style="text-align:center;color:var(--muted)">Loading…</td></tr></tbody>
+    </table>
+  </div>
+  <button class="btn btn-ghost btn-sm" style="margin-top:8px" onclick="vsnLoadHistory()">↻ Refresh</button>
+</div>
+</div>
+
+<script>
+var VSN_PAYOUT_PRESETS = {
+  icici: {
+    type:     'BANK_ACCOUNT',
+    beneName: 'M/S.UNITED SOLAR AND WIND POWER TECHNOLOGIES',
+    destAcct: '029905003783',
+    swift:    'ICICINBBXXX',
+  },
+  terminal: {
+    type:      'TERMINAL',
+    destCode:  'EP022162',
+  },
+};
+
+// ── Load identity ────────────────────────────────
+function vsnLoadIdentity() {
+  api('GET', '/admin/vault/identity').then(function(r) {
+    if (!r.ok) return;
+    var d = r.data.data || r.data;
+    document.getElementById('vsn-node-id').textContent      = d.nodeId || '—';
+    document.getElementById('vsn-description').textContent  = d.description || '—';
+    document.getElementById('vsn-tid').textContent          = d.terminalId || '—';
+    document.getElementById('vsn-msn').textContent          = d.msn || '—';
+    document.getElementById('vsn-version').textContent      = d.version || '—';
+    document.getElementById('vsn-endpoint').textContent     = d.receiveEndpoint || '—';
+    document.getElementById('vsn-key-header').textContent   = d.apiKeyHeader || '—';
+    document.getElementById('vsn-ips').textContent          = (d.serverIps||[]).join(', ') || '—';
+    var base = window.location.protocol + '//' + window.location.host;
+    document.getElementById('vsn-spec-url').textContent = base + (d.receiveEndpoint || '/vault/receive');
+  });
+}
+
+// ── Add connector ────────────────────────────────
+function vsnAddConnector() {
+  var payload = {
+    label:            document.getElementById('vsn-c-label').value.trim(),
+    vaultAccountCode: document.getElementById('vsn-c-vault-account').value,
+    currency:         document.getElementById('vsn-c-currency').value,
+    bankName:         document.getElementById('vsn-c-bank').value.trim(),
+    accountHolder:    document.getElementById('vsn-c-holder').value.trim(),
+    accountNumber:    document.getElementById('vsn-c-acct').value.trim(),
+    swiftCode:        document.getElementById('vsn-c-swift').value.trim() || undefined,
+    country:          document.getElementById('vsn-c-country').value,
+    autoCreditEnabled: document.getElementById('vsn-c-auto').value === 'true',
+    bankApiEndpoint:  document.getElementById('vsn-c-api-url').value.trim() || undefined,
+    bankApiKey:       document.getElementById('vsn-c-api-key').value.trim() || undefined,
+    pollingIntervalSeconds: parseInt(document.getElementById('vsn-c-poll').value) || undefined,
+  };
+
+  if (!payload.label)         { toast('Label is required','err'); return; }
+  if (!payload.bankName)      { toast('Bank name is required','err'); return; }
+  if (!payload.accountHolder) { toast('Account holder is required','err'); return; }
+  if (!payload.accountNumber) { toast('Account number is required','err'); return; }
+
+  api('POST', '/admin/vault/connectors', payload).then(function(r) {
+    showResult('vsn-c-result', r.data, r.ok);
+    if (r.ok) {
+      toast('Bank connector added successfully', 'ok');
+      vsnLoadConnectors();
+    } else toast('Failed: ' + (r.data.error && r.data.error.message || 'check fields'), 'err');
+  });
+}
+
+// ── Load connectors ──────────────────────────────
+function vsnLoadConnectors() {
+  api('GET', '/admin/vault/connectors').then(function(r) {
+    var connectors = r.data.data || r.data || [];
+    if (!Array.isArray(connectors) || !connectors.length) {
+      document.getElementById('vsn-connectors-list').innerHTML =
+        '<div style="color:var(--muted);font-size:.8rem;text-align:center;padding:20px">No connectors yet — add your first bank connector above.</div>';
+      return;
+    }
+    var html = connectors.map(function(c) {
+      return '<div style="padding:14px;border:1px solid var(--border);border-radius:8px;margin-bottom:10px">'
+        + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">'
+        + '<strong style="font-size:.88rem">' + c.label + '</strong>'
+        + '<span class="badge badge-' + (c.status==='ACTIVE'?'green':'grey') + '">' + c.status + '</span>'
+        + '</div>'
+        + '<div style="font-size:.75rem;line-height:2;color:var(--muted)">'
+        + '<span>' + c.bankName + ' · ' + c.accountNumber + ' · ' + c.currency + '</span><br>'
+        + '<span>Vault: <code>' + c.vaultAccountCode + '</code></span><br>'
+        + (c.bankApiEndpoint ? '<span>API: <code>' + c.bankApiEndpoint + '</code></span><br>' : '')
+        + (c.apiKeyId ? '<span>Key ID: <code>' + c.apiKeyId + '</code></span><br>' : '<span style="color:#fbbf24">⚠ No API key — generate one</span><br>')
+        + '</div>'
+        + '<div style="display:flex;gap:7px;margin-top:10px">'
+        + '<button class="btn btn-primary btn-sm" onclick="vsnGenerateKey(\'' + c.id + '\',\'' + c.label + '\')">🔑 Generate Key</button>'
+        + '<button class="btn btn-ghost btn-sm" onclick="vsnPollBalance(\'' + c.id + '\')">📊 Poll Balance</button>'
+        + '</div>'
+        + '</div>';
+    }).join('');
+    document.getElementById('vsn-connectors-list').innerHTML = html;
+  });
+}
+
+// ── Generate API key ─────────────────────────────
+function vsnGenerateKey(connectorId, label) {
+  if (!window.confirm('Generate a new API key for "' + label + '"? The old key will be replaced and shown ONCE.')) return;
+  api('POST', '/admin/vault/connectors/' + connectorId + '/generate-key').then(function(r) {
+    if (r.ok) {
+      var d = r.data.data || r.data;
+      var msg = 'API Key generated for ' + label + '\\n\\n'
+        + 'Key ID: ' + d.keyId + '\\n'
+        + 'API Key: ' + d.apiKey + '\\n\\n'
+        + 'SAVE THIS NOW — it will not be shown again.';
+      alert(msg);
+      toast('API key generated — save it now', 'ok');
+      vsnLoadConnectors();
+    } else toast('Failed: ' + (r.data.error && r.data.error.message || 'error'), 'err');
+  });
+}
+
+// ── Poll bank balance ────────────────────────────
+function vsnPollBalance(connectorId) {
+  toast('Polling bank balance…', 'info');
+  api('POST', '/admin/vault/connectors/' + connectorId + '/poll-balance').then(function(r) {
+    var d = r.data.data || r.data;
+    if (r.ok) {
+      var bal = d.balance !== null ? d.currency + ' ' + parseFloat(d.balance).toLocaleString('en-US',{minimumFractionDigits:2}) : 'Could not extract balance';
+      var msg = 'Bank: ' + d.label + '\\nHTTP: ' + d.httpStatus + '\\nBalance: ' + bal + '\\nPolled: ' + d.polledAt;
+      if (d.error) msg += '\\nError: ' + d.error;
+      alert(msg);
+    } else toast('Poll failed: ' + (d.error && d.error.message || d.error || 'check endpoint'), 'err');
+  });
+}
+
+// ── Toggle dest fields ───────────────────────────
+function vsnToggleDestFields(type) {
+  var bankFields  = document.getElementById('vsn-p-bank-fields');
+  var otherFields = document.getElementById('vsn-p-other-fields');
+  if (type === 'BANK_ACCOUNT') {
+    bankFields.style.display  = 'block';
+    otherFields.style.display = 'none';
+  } else {
+    bankFields.style.display  = 'none';
+    otherFields.style.display = 'block';
+    var placeholder = type === 'VAULT_ACCOUNT' ? 'VAULT:LOUIS-CALTEN:USD'
+                    : type === 'TERMINAL'       ? 'EP022162'
+                    : type === 'WALLET'         ? 'WALLET-address'
+                    : 'S2S connection ID or endpoint';
+    document.getElementById('vsn-p-dest-code').placeholder = placeholder;
+  }
+}
+
+// ── Apply payout preset ──────────────────────────
+function vsnApplyPayoutPreset(key) {
+  var p = VSN_PAYOUT_PRESETS[key];
+  if (!p) return;
+  document.getElementById('vsn-p-dest-type').value = p.type;
+  vsnToggleDestFields(p.type);
+  if (p.type === 'BANK_ACCOUNT') {
+    document.getElementById('vsn-p-bene-name').value = p.beneName || '';
+    document.getElementById('vsn-p-dest-acct').value = p.destAcct || '';
+    document.getElementById('vsn-p-swift').value     = p.swift || '';
+  } else {
+    document.getElementById('vsn-p-dest-code').value = p.destCode || '';
+  }
+  toast('Preset applied', 'ok');
+}
+
+// ── Execute payout ───────────────────────────────
+function vsnPayout() {
+  var source    = document.getElementById('vsn-p-source').value;
+  var amount    = document.getElementById('vsn-p-amount').value.trim();
+  var currency  = document.getElementById('vsn-p-currency').value;
+  var destType  = document.getElementById('vsn-p-dest-type').value;
+  var ref       = document.getElementById('vsn-p-ref').value.trim();
+  var auth      = document.getElementById('vsn-p-auth').value.trim();
+  var desc      = document.getElementById('vsn-p-desc').value.trim();
+
+  var destinationCode = '';
+  var beneficiaryName, swiftCode;
+
+  if (destType === 'BANK_ACCOUNT') {
+    beneficiaryName = document.getElementById('vsn-p-bene-name').value.trim();
+    destinationCode = document.getElementById('vsn-p-dest-acct').value.trim();
+    swiftCode       = document.getElementById('vsn-p-swift').value.trim();
+  } else {
+    destinationCode = document.getElementById('vsn-p-dest-code').value.trim();
+  }
+
+  if (!amount)          { toast('Amount is required','err'); return; }
+  if (!ref)             { toast('Reference is required','err'); return; }
+  if (!destinationCode) { toast('Destination is required','err'); return; }
+
+  if (!window.confirm('Execute vault payout of ' + currency + ' ' + parseFloat(amount).toLocaleString() + ' from ' + source + ' to ' + destinationCode + '?')) return;
+
+  api('POST', '/admin/vault/payout', {
+    sourceVaultCode: source,
+    amount, currency,
+    destinationType: destType,
+    destinationCode,
+    beneficiaryName: beneficiaryName || undefined,
+    swiftCode:       swiftCode       || undefined,
+    reference:       ref,
+    authorizedBy:    auth,
+    description:     desc || undefined,
+  }).then(function(r) {
+    showResult('vsn-p-result', r.data, r.ok);
+    if (r.ok) {
+      toast('Vault payout posted — ' + currency + ' ' + parseFloat(amount).toLocaleString(), 'ok');
+      vsnLoadHistory();
+    } else toast('Failed: ' + (r.data.error && r.data.error.message || 'check fields'), 'err');
+  });
+}
+
+// ── History ──────────────────────────────────────
+function vsnLoadHistory() {
+  api('GET', '/admin/vault/transactions?pageSize=30').then(function(r) {
+    var entries = r.data.data || [];
+    var rows = entries.map(function(e) {
+      var meta = e.metadata || {};
+      var typeLabel = e.source === 'VAULT_RECEIVE' ? '<span class="badge badge-green">RECEIVE</span>'
+                    : e.source === 'VAULT_PAYOUT'  ? '<span class="badge badge-blue">PAYOUT</span>'
+                    : e.source === 'VAULT_CREDIT'  ? '<span class="badge badge-green">CREDIT</span>'
+                    : '<span class="badge badge-grey">' + e.source + '</span>';
+      var amt = parseFloat(e.totalCredits || e.totalDebits || 0);
+      return '<tr>'
+        + '<td style="font-size:.72rem">' + new Date(e.createdAt).toLocaleString() + '</td>'
+        + '<td>' + typeLabel + '</td>'
+        + '<td><strong>' + amt.toLocaleString('en-US',{minimumFractionDigits:2}) + '</strong></td>'
+        + '<td>' + (meta.currency || '—') + '</td>'
+        + '<td style="font-size:.72rem"><code>' + e.reference + '</code></td>'
+        + '<td style="font-size:.72rem">' + (meta.senderName || meta.beneficiaryName || meta.destinationCode || '—') + '</td>'
+        + '<td><span class="badge badge-' + (e.status==='POSTED'?'green':'blue') + '">' + e.status + '</span></td>'
+        + '</tr>';
+    }).join('');
+    document.getElementById('vsn-hist-tbody').innerHTML = rows
+      || '<tr><td colspan="7" style="text-align:center;color:var(--muted)">No vault transactions yet</td></tr>';
+  });
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  initTabs('vsn');
+  vsnLoadIdentity();
+  vsnLoadConnectors();
+  vsnLoadHistory();
+});
 <\/script>
 `);
 }
@@ -11625,6 +12203,7 @@ switch (path) {
     case '/platform/server-funds':  html = serverFundsPage();   break;
     case '/platform/disburse':      html = disbursePage();      break;
     case '/platform/vault-bank':    html = vaultBankPage();     break;
+    case '/platform/vault-server':  html = vaultServerPage();   break;
     case '/platform/wise-virtual-bank': html = wiseVirtualBankPage(); break;
     case '/platform/rails':         html = railsPage();         break;
     case '/platform/bank-guide':    html = bankIntegrationGuidePage(); break;

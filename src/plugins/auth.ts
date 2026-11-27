@@ -84,7 +84,9 @@ export async function hmacAuthPlugin(app: FastifyInstance): Promise<void> {
         // The SUPE settlement ingest verifies its own raw-byte HMAC
         // (X-PrimeStack-Signature) plus a SHA256 checksum, matching the
         // partner manifest letter ΓÇö it does not use the 4-header scheme.
-        path === "/supe/ingest/xml"
+        path === "/supe/ingest/xml" ||
+        // Vault server receive — authenticated by x-vault-api-key, not HMAC
+        path === "/vault/receive"
       ) {
         return;
       }
