@@ -50,6 +50,7 @@ import { registerSanctionsModule } from "./modules/sanctions/sanctions.module.js
 import { registerStreamingModule } from "./modules/streaming/streaming.module.js";
 import { registerWebhookModule } from "./modules/webhooks/webhooks.module.js";
 import { registerVaultServerModule } from "./modules/vault-server/vault-server.module.js";
+import { registerStripeModule } from "./modules/stripe/stripe.module.js";
 
 /**
  * Probe Redis once at boot. Redis only backs optional caching and distributed
@@ -222,6 +223,7 @@ export async function createApp(): Promise<FastifyInstance> {
   registerStreamingModule(app);
   registerWebhookModule(app);
   registerVaultServerModule(app);
+  registerStripeModule(app);
 
   // ── Health Check ────────────────────────────────
   app.get("/health", async () => ({

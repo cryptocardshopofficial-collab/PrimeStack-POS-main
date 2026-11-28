@@ -547,6 +547,7 @@ function sidebar(active) {
     ${link('/platform/disburse','Disburse Funds','<svg width="14" height="14" fill="none" viewBox="0 0 16 16"><path d="M14 8H6m0 0l3-3M6 8l3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><rect x="2" y="3" width="4" height="10" rx="1" stroke="currentColor" stroke-width="1.5"/></svg>')}
     ${link('/platform/vault-bank','Vault Bank','<svg width="14" height="14" fill="none" viewBox="0 0 16 16"><rect x="2" y="3" width="12" height="10" rx="1.5" stroke="currentColor" stroke-width="1.5"/><circle cx="8" cy="8" r="2" stroke="currentColor" stroke-width="1.5"/><path d="M8 3v2M8 11v2M2 8h2M12 8h2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>', active)}
     ${link('/platform/vault-server','Vault Server','<svg width="14" height="14" fill="none" viewBox="0 0 16 16"><rect x="1" y="4" width="14" height="4" rx="1" stroke="currentColor" stroke-width="1.5"/><rect x="1" y="9" width="14" height="4" rx="1" stroke="currentColor" stroke-width="1.5"/><circle cx="12" cy="6" r="1" fill="currentColor"/><circle cx="12" cy="11" r="1" fill="currentColor"/></svg>', active)}
+    ${link('/platform/sepa','SEPA Collection','<svg width="14" height="14" fill="none" viewBox="0 0 16 16"><rect x="1" y="3" width="14" height="10" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M1 6h14" stroke="currentColor" stroke-width="1.5"/><circle cx="4" cy="10" r="1" fill="currentColor"/></svg>', active)}
     ${link('/platform/wise-virtual-bank','Wise Virtual Bank','<svg width="14" height="14" fill="none" viewBox="0 0 16 16"><path d="M2 3.5h12M2 3.5v9a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-9M5 6.5h6M5 9h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>')}
     ${link('/platform/server-funds','Server Funds','<svg width="14" height="14" fill="none" viewBox="0 0 16 16"><ellipse cx="8" cy="4" rx="6" ry="2" stroke="currentColor" stroke-width="1.5"/><path d="M2 4v4c0 1.1 2.7 2 6 2s6-.9 6-2V4M2 8v4c0 1.1 2.7 2 6 2s6-.9 6-2V8" stroke="currentColor" stroke-width="1.5"/></svg>')}
     ${link('/platform/s2s-engine','S2S Engine','<svg width="14" height="14" fill="none" viewBox="0 0 16 16"><path d="M2 8h9M8 5l3 3-3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><circle cx="3" cy="8" r="1.5" fill="currentColor"/></svg>', active)}
@@ -5561,6 +5562,128 @@ function loadSettlementQueue(){
   });
 }
 document.addEventListener('DOMContentLoaded', function(){initTabs('sc');loadTxList();loadAcquirers();loadRoutingRules();loadSettlementQueue();refreshHealthBadge('sc-badge',9019);});
+<\/script>
+`);
+}
+
+// --- SEPA Collection Info ------------------------------------------------
+function sepaCollectionInfoPage() {
+  return page('SEPA Collection', '/platform/sepa', `
+<div class="page-header">
+  <div class="breadcrumb"><a href="/">Home</a><span>/</span><a href="/platform">Platform</a><span>/</span>SEPA Collection</div>
+  <h1>💳 SEPA Direct Debit Collection</h1>
+  <p>Collect EUR payments from any EU/EEA bank account directly into your Louis Calten Banking Circle account via Stripe.</p>
+</div>
+
+<div class="grid-2" style="gap:16px;margin-top:20px;align-items:start">
+
+  <div>
+    <!-- Collection page link -->
+    <div class="card" style="margin-bottom:12px;border-color:var(--accent-border);background:var(--accent-bg)">
+      <div class="card-title" style="color:var(--accent);margin-bottom:8px">🔗 Public Collection Page</div>
+      <div class="card-sub" style="margin-bottom:12px">Share this URL with senders. They enter their IBAN and authorise the debit.</div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <code style="flex:1;padding:10px 12px;background:#060d1a;border:1px solid var(--border);border-radius:7px;font-size:.8rem;color:var(--accent)" id="sepa-url">/stripe/sepa</code>
+        <button class="btn btn-ghost btn-sm" onclick="navigator.clipboard.writeText(window.location.origin+'/stripe/sepa');toast('URL copied','ok')">Copy</button>
+        <a class="btn btn-primary btn-sm" href="/stripe/sepa" target="_blank">Open →</a>
+      </div>
+    </div>
+
+    <!-- Receiving account -->
+    <div class="card" style="margin-bottom:12px">
+      <div class="card-title" style="margin-bottom:10px">🏦 Receiving Bank Account</div>
+      <div style="font-size:.8rem;line-height:2.2">
+        <div><strong>Account Holder:</strong> LOUIS CALTEN INTERNATIONAL LLP</div>
+        <div><strong>IBAN:</strong> <code class="input-mono">DE96 2022 0800 0029 3844 95</code></div>
+        <div><strong>BIC / SWIFT:</strong> <code class="input-mono">SXPYDEHH</code></div>
+        <div><strong>Bank:</strong> Banking Circle</div>
+        <div><strong>Currency:</strong> EUR</div>
+        <div><strong>Payment Method:</strong> SEPA / SEPA Instant</div>
+      </div>
+    </div>
+
+    <!-- Stripe config status -->
+    <div class="card">
+      <div class="card-title" style="margin-bottom:10px">⚙ Stripe Configuration</div>
+      <div id="stripe-config-status"><div style="color:var(--muted);font-size:.8rem">Loading…</div></div>
+      <button class="btn btn-ghost btn-sm" style="margin-top:10px" onclick="loadStripeConfig()">↻ Refresh</button>
+    </div>
+  </div>
+
+  <div>
+    <!-- How it works -->
+    <div class="card" style="margin-bottom:12px">
+      <div class="card-title" style="margin-bottom:10px">How SEPA Collection Works</div>
+      <div style="font-size:.8rem;line-height:2.4">
+        <div>1. Send the collection URL to your sender</div>
+        <div>2. Sender enters name, email, amount, their IBAN</div>
+        <div>3. Sender authorises the SEPA mandate on the page</div>
+        <div>4. Stripe processes the debit (1–3 business days)</div>
+        <div>5. Funds arrive at <strong>Banking Circle DE96…</strong></div>
+        <div>6. Stripe fires webhook → your server auto-credits</div>
+        <div>7. <strong>VAULT:LOUIS-CALTEN:EUR</strong> balance increases</div>
+        <div>8. Disburse from Vault Bank to any destination</div>
+      </div>
+    </div>
+
+    <!-- Recent payments -->
+    <div class="card">
+      <div class="card-title" style="margin-bottom:10px">Recent SEPA Payments</div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Date</th><th>Sender</th><th>Amount</th><th>Reference</th><th>Status</th></tr></thead>
+          <tbody id="sepa-payments-tbody"><tr><td colspan="5" style="text-align:center;color:var(--muted)">Loading…</td></tr></tbody>
+        </table>
+      </div>
+      <button class="btn btn-ghost btn-sm" style="margin-top:8px" onclick="loadSepaPayments()">↻ Refresh</button>
+    </div>
+  </div>
+</div>
+
+<script>
+function loadStripeConfig() {
+  api('GET', '/admin/stripe/config').then(function(r) {
+    var d = r.data.data || r.data;
+    var html = r.ok ? [
+      '<div style="font-size:.8rem;line-height:2.2">',
+      '<div><strong>Stripe:</strong> <span class="badge badge-' + (d.configured?'green':'red') + '">' + (d.configured?'CONFIGURED':'NOT CONFIGURED') + '</span></div>',
+      '<div><strong>Webhook:</strong> <span class="badge badge-' + (d.webhookConfigured?'green':'red') + '">' + (d.webhookConfigured?'CONFIGURED':'MISSING') + '</span></div>',
+      '<div><strong>Currency:</strong> ' + (d.currency||'EUR') + '</div>',
+      '<div><strong>Statement Descriptor:</strong> ' + (d.statementDescriptor||'—') + '</div>',
+      '<div><strong>Destination Account:</strong> <code>' + (d.destinationAccount||'—') + '</code></div>',
+      '<div><strong>Collection URL:</strong> <a href="/stripe/sepa" target="_blank">/stripe/sepa</a></div>',
+      '</div>'
+    ].join('') : '<div style="color:var(--error);font-size:.8rem">Failed to load Stripe config</div>';
+    document.getElementById('stripe-config-status').innerHTML = html;
+  });
+}
+
+function loadSepaPayments() {
+  api('GET', '/admin/stripe/payments?limit=20').then(function(r) {
+    var payments = r.data.data && r.data.data.payments ? r.data.data.payments : [];
+    if (!payments.length) {
+      document.getElementById('sepa-payments-tbody').innerHTML =
+        '<tr><td colspan="5" style="text-align:center;color:var(--muted)">No payments yet</td></tr>';
+      return;
+    }
+    var rows = payments.map(function(p) {
+      var statusColor = p.status === 'succeeded' ? 'green' : p.status === 'processing' ? 'blue' : 'grey';
+      return '<tr>'
+        + '<td style="font-size:.72rem">' + new Date(p.created).toLocaleString() + '</td>'
+        + '<td style="font-size:.78rem">' + (p.senderName||'—') + '</td>'
+        + '<td><strong>€' + parseFloat(p.amount).toLocaleString('en-US',{minimumFractionDigits:2}) + '</strong></td>'
+        + '<td style="font-size:.72rem"><code>' + (p.reference||p.id) + '</code></td>'
+        + '<td><span class="badge badge-' + statusColor + '">' + p.status + '</span></td>'
+        + '</tr>';
+    }).join('');
+    document.getElementById('sepa-payments-tbody').innerHTML = rows;
+  });
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  loadStripeConfig();
+  loadSepaPayments();
+});
 <\/script>
 `);
 }
@@ -12205,6 +12328,7 @@ switch (path) {
     case '/platform/disburse':      html = disbursePage();      break;
     case '/platform/vault-bank':    html = vaultBankPage();     break;
     case '/platform/vault-server':  html = vaultServerPage();   break;
+    case '/platform/sepa':          html = sepaCollectionInfoPage(); break;
     case '/platform/wise-virtual-bank': html = wiseVirtualBankPage(); break;
     case '/platform/rails':         html = railsPage();         break;
     case '/platform/bank-guide':    html = bankIntegrationGuidePage(); break;

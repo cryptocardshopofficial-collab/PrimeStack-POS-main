@@ -86,7 +86,11 @@ export async function hmacAuthPlugin(app: FastifyInstance): Promise<void> {
         // partner manifest letter ΓÇö it does not use the 4-header scheme.
         path === "/supe/ingest/xml" ||
         // Vault server receive — authenticated by x-vault-api-key, not HMAC
-        path === "/vault/receive"
+        path === "/vault/receive" ||
+        // Stripe SEPA collection page and webhook — public + stripe-signed
+        path === "/stripe/sepa" ||
+        path === "/stripe/sepa/create-intent" ||
+        path === "/stripe/webhook"
       ) {
         return;
       }

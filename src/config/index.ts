@@ -196,6 +196,22 @@ export const config = {
       gateway:       process.env.BANK_IN2_GATEWAY          ?? "ICICI_EAZYPAY",
     },
   },
+  stripe: {
+    secretKey:           process.env.STRIPE_SECRET_KEY?.trim()           ?? "",
+    publishableKey:      process.env.STRIPE_PUBLISHABLE_KEY?.trim()      ?? "",
+    webhookSecret:       process.env.STRIPE_WEBHOOK_SECRET?.trim()       ?? "",
+    currency:            (process.env.STRIPE_COLLECTION_CURRENCY?.trim() ?? "EUR").toUpperCase(),
+    statementDescriptor: process.env.STRIPE_STATEMENT_DESCRIPTOR?.trim() ?? "PRIMESTACK TECH",
+    destinationAccount:  process.env.STRIPE_DESTINATION_ACCOUNT?.trim()  ?? "VAULT:LOUIS-CALTEN:EUR",
+    /**
+     * LOUIS CALTEN INTERNATIONAL LLP receiving account.
+     * Banking Circle · DE96 2022 0800 0029 3844 95 · SXPYDEHH
+     */
+    receivingIban:  "DE96202208000029384495",
+    receivingBic:   "SXPYDEHH",
+    receivingName:  "LOUIS CALTEN INTERNATIONAL LLP",
+    receivingBank:  "Banking Circle",
+  },
 } as const;
 
 export type AppConfig = typeof config;
